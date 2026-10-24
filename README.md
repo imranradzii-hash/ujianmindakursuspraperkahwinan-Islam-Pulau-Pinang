@@ -92,7 +92,6 @@ Ujian guna `BankSoalan.gs` sebenar jika ada, dan `BankSoalan.contoh.gs` jika tia
 
 ## Belum dibuat / perlu keputusan
 
-- Label skala 1–5 (`LABEL_SKALA` dalam `Code.gs`) diandaikan "Sangat Tidak Memuaskan … Sangat Memuaskan". Sahkan dengan Google Form asal.
 - Lajur "Sila berikan jawapan mengikut penilaian tuan/puan" dalam respons Google Form lama (skala 1–5) tidak jelas maksudnya, jadi tidak disalin.
-- Tetapkan tempoh simpanan data sebenar dalam notis privasi.
-- Domain `ujianminda.my` didaftar atas nama peribadi. Aktifkan auto-renew, atau pindah ke subdomain `penang.gov.my`.
+- Notis privasi menyatakan data disimpan **3 tahun** dari tarikh kursus. Pelupusan belum automatik: setiap awal tahun, jalankan `arkibkanRekodTahun` untuk tahun yang melebihi 3 tahun, semak, kemudian padam tab arkib tersebut.
+- Domain `ujianminda.my` didaftar atas nama peribadi. Auto-renew perlu diaktifkan; jangka panjang, pertimbangkan subdomain `penang.gov.my`.
