@@ -1,76 +1,94 @@
 # Sistem Ujian Minda Kursus Praperkahwinan Islam Pulau Pinang
 
-Ujian minda dalam talian untuk peserta Kursus Praperkahwinan Islam (JHEAIPP), dengan dashboard admin daerah.
+Ujian minda dalam talian untuk peserta Kursus Praperkahwinan Islam (JHEAIPP), dengan borang penilaian kursus dan dashboard admin daerah.
 
 - **Frontend:** satu fail HTML, di-embed dalam Google Sites (ujianminda.my)
-- **Backend:** Google Apps Script (Web App) yang terikat pada Google Sheet "Database Ujian Praperkahwinan"
-- **Data:** Sheet1, kolum A–I (A–J untuk v2)
+- **Backend:** Google Apps Script (Web App) yang terikat pada Google Sheet
+- **Data:** tab dalam Google Sheet yang sama
 
 ## Dua versi dalam repo ini
 
-| | `minimal/` | `v2/` |
+| | `minimal/` | `v2/` (disyorkan) |
 |---|---|---|
-| Tujuan | Tampal 4 isu kritikal dengan perubahan paling sedikit | Tulis semula dengan semua pembaikan |
-| Rupa & aliran | Sama seperti sistem asal | Hampir sama, ada sedikit perubahan (lihat bawah) |
-| Kolum Sheet | A–I (tiada perubahan) | A–J (J = Status Emel) |
+| Tujuan | Tampal 4 isu keselamatan kritikal pada sistem asal | Sistem baharu |
+| Aliran peserta | Jawab → markah di skrin → pautan Google Form | Jawab → **borang penilaian dalam sistem** → keputusan melalui **emel** |
+| Bank soalan | `BankSoalan.gs` + salinan soalan dalam HTML | Tab **BankSoalan** dalam Sheet, diurus oleh admin SEMUA dari dashboard |
+| Database | Sheet1 (A–I), sama seperti asal | Tab Keputusan (A–M), BankSoalan, SoalanMaklumBalas, MaklumBalas |
 
 ### 4 isu kritikal yang dibaiki dalam kedua-dua versi
 
-1. **Skema jawapan & markah di browser.** Sesiapa boleh nampak jawapan (View Source) dan POST markah palsu terus ke Apps Script. Kini skema disimpan di server (`BankSoalan.gs`) dan markah dikira di server. Skema hanya dihantar balik *selepas* peserta hantar jawapan.
-2. **Stored XSS & formula injection.** Nama/emel dari Sheet dimasukkan terus ke `innerHTML` dan ke HTML emel. Kini semua di-escape. Teks yang bermula `= + - @` dineutralkan sebelum ditulis ke Sheet dan CSV.
-3. **Kata laluan admin.** Sebelum ini kata laluan ditulis terang dalam kod, mudah diteka, dihantar dalam URL (GET), dan tiada had cubaan. Kini kata laluan rawak 12 aksara disimpan sebagai hash SHA-256 + salt dalam Script Properties, dihantar melalui POST, dan login dikunci 15 minit selepas 10 cubaan salah.
-4. **Tiada semakan input di server.** Kini nama, No. KP, emel, daerah, set, tarikh dan jawapan disemak di server. Ini juga sebab rekod bertarikh 1997 dalam Sheet.
+1. **Skema jawapan & markah di browser.** Sebelum ini sesiapa boleh nampak jawapan (View Source) dan POST markah palsu. Kini markah dikira di server.
+2. **Stored XSS & formula injection.** Kini semua data di-escape di dashboard dan emel. Teks `= + - @` dineutralkan dalam Sheet dan CSV.
+3. **Kata laluan admin.** Kini kata laluan rawak, disimpan sebagai hash SHA-256 + salt dalam Script Properties, dihantar melalui POST, dan login dikunci 15 minit selepas 10 cubaan salah.
+4. **Tiada semakan input di server.** Kini semua input disemak di server.
 
-Bonus dalam kedua-dua versi: cuba semula automatik bila server sesak (3 kali), butang **Cuba Hantar Semula** bila semua cubaan gagal (jawapan tidak hilang), dan `idHantar` supaya cubaan semula tidak menulis rekod berganda. Emel yang gagal tidak lagi menyebabkan peserta nampak ralat.
+## v2: aliran peserta
 
-### Tambahan dalam `v2/` sahaja
+1. Isi maklumat dan tandakan **notis privasi**. Set soalan dimuatkan dari server.
+2. Jawab soalan (30 minit). Pemasa ikut masa tamat sebenar, dan jawapan dihantar automatik bila masa tamat.
+3. Hantar. Markah dikira di server tetapi **tidak dipaparkan**. Status: `MENUNGGU MAKLUM BALAS`.
+4. Isi **Borang Penilaian Pelaksanaan Kursus**. Soalan disalin daripada Google Form TERKINI: profil, B (6), C (10), D (10), E dan F. Status: `MENUNGGU EMEL`.
+5. Trigger setiap minit menghantar **emel keputusan** gaya surat rasmi jabatan, dengan markah dan semakan soalan yang dijawab salah. Status: `DIHANTAR ...`.
 
-- Soalan dimuatkan dari server. Soalan hanya ada dalam `BankSoalan.gs`, jadi tidak perlu lagi kemas kini dua tempat.
-- **Barisan emel.** Emel dihantar oleh trigger setiap minit (kolum J: `MENUNGGU` → `DIHANTAR ...` / `GAGAL: ...`). Hantar jawapan jadi pantas walaupun satu kelas submit serentak bila masa tamat. Ini punca mesej "Trafik Agak Sesak".
-- **Sesi admin.** Token sesi (6 jam) disemak setiap kali data diminta, ada butang **Muat Semula Data**, dan Log Keluar membatalkan token di server.
-- **Tarikh kursus** direkod oleh server (tarikh hari ini), jadi peserta tidak lagi perlu pilih tarikh.
-- **Notis privasi** dan kotak persetujuan pada borang.
-- No. KP **bertopeng** dalam jadual dashboard (4 digit terakhir). Carian dan laporan masih guna No. KP penuh.
-- Tanda **×2** bila No. KP sama menghantar lebih sekali. Had 3 hantaran setiap No. KP dalam 6 jam.
-- Pemasa ikut masa tamat sebenar, jadi tetap tepat walaupun skrin telefon terkunci.
-- Emel ikut markah: "Tahniah" untuk ≥50%, ayat lain untuk <50%. Maklumat pegawai disimpan dalam `PEGAWAI` di atas `Code.gs`.
-- Fungsi penyelenggaraan: `hantarSemulaEmelGagal()` dan `arkibkanRekodTahun()`.
-- `localStorage` tidak lagi menyimpan nama/IC peserta dalam peranti.
+Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka borang penilaian. Kalau peserta pulang tanpa isi borang, admin boleh tekan **Lepaskan** di dashboard untuk hantar keputusan juga.
 
-## Fail `BankSoalan.gs` (RAHSIA)
+## v2: peranan admin
 
-Repo ini **public**, jadi soalan + skema jawapan **tidak** di-commit (`.gitignore`). Format fail ada dalam [`BankSoalan.contoh.gs`](BankSoalan.contoh.gs). Simpan salinan `BankSoalan.gs` sebenar di tempat selamat (Google Drive jabatan).
+| Akses | Boleh |
+|---|---|
+| **SEMUA** (JHEAIPP) | Semua data, semua daerah. **Urus Bank Soalan**: tambah, edit, nyahaktif soalan, dan buat set baru. Ringkasan penilaian, laporan PDF/CSV. |
+| Daerah | Data daerah sendiri sahaja (ditapis di server). Ringkasan penilaian, laporan, Lepaskan keputusan. |
 
-Untuk `minimal/`, soalan juga masih ada dalam `index.html` (tanpa jawapan). Kalau soalan diubah, ubah di kedua-dua tempat dengan susunan yang sama.
+- Soalan tidak dipadam, cuma dinyahaktifkan, supaya rekod lama kekal.
+- Perubahan soalan berkuat kuasa serta-merta untuk peserta seterusnya.
+- Soalan juga boleh diedit terus dalam tab BankSoalan.
+- Soalan **borang penilaian** diedit terus dalam tab **SoalanMaklumBalas** (jenis `PILIHAN` / `SKALA` / `TEKS`). Soalan baru dapat kolum sendiri dalam tab MaklumBalas secara automatik.
 
-## Cara deploy
+## v2: cara pasang (Sheet percubaan atau Sheet baharu)
 
-> Buat pada waktu **tiada kursus berjalan**. Antara langkah 6 dan 7, halaman lama tidak serasi dengan server baru.
+1. Buka Google Sheet → **Extensions → Apps Script**.
+2. Ganti kandungan `Code.gs` dengan [`v2/Code.gs`](v2/Code.gs).
+3. Klik **+ → Script**, namakan `BankSoalan`, dan tampal `BankSoalan.gs` (fail rahsia, tiada dalam GitHub). Langkah ini sekali sahaja, untuk import soalan sedia ada.
+4. Pilih fungsi **`sediakanSistem`** → **Run** → benarkan akses. Fungsi ini:
+   - cipta tab Keputusan / BankSoalan / SoalanMaklumBalas / MaklumBalas
+   - import soalan dari `BankSoalan.gs`
+   - jana 8 kata laluan admin (salin dari **Execution log**)
+   - pasang trigger emel
+5. Fail `BankSoalan.gs` kini boleh dipadam dari projek. Simpan salinannya di tempat selamat.
+6. *(Pilihan)* Jalankan `hantarEmelContohKepadaSaya` untuk lihat rupa emel keputusan dalam inbox anda.
+7. **Deploy → New deployment → Web app**. Tetapan: *Execute as: Me*, *Who has access: Anyone*. Salin URL `/exec`.
+8. Dalam `v2/index.html`, tukar `MASUKKAN_URL_WEB_APP_DI_SINI` kepada URL tadi. Kemudian:
+   - **Uji:** buka fail HTML terus dalam Chrome, atau embed dalam halaman Google Sites draf.
+   - **Production:** ganti embed di ujianminda.my.
 
-1. **Backup:** buka Google Sheet → File → Make a copy.
-2. Dari Sheet: Extensions → Apps Script.
-3. Ganti kandungan `Code.gs` dengan `minimal/Code.gs` **atau** `v2/Code.gs`.
-4. Klik **+** → Script → namakan `BankSoalan` → tampal kandungan `BankSoalan.gs` sebenar.
-5. Pilih fungsi `janaKataLaluanBaru` → **Run** → benarkan akses. Buka *Execution log* dan salin 8 kata laluan baru. Agihkan kepada admin daerah secara peribadi. **Kata laluan lama terus tidak sah.**
-   - *(v2 sahaja)* Jalankan `pasangTrigger` sekali dan benarkan akses (trigger + emel).
-6. Deploy → **Manage deployments** → ikon pensel pada deployment sedia ada → Version: **New version** → Deploy. URL kekal sama. Tetapan: *Execute as: Me*, *Who has access: Anyone*.
-7. Google Sites → edit embed → ganti dengan kandungan `minimal/index.html` **atau** `v2/index.html` → Publish.
-8. Uji: jawab sekali sebagai peserta, semak emel, log masuk sebagai admin SEMUA dan admin satu daerah.
+`sediakanSistem()` selamat dijalankan berulang kali. Ia tidak memadam data, tidak mengimport soalan dua kali, dan tidak menukar kata laluan yang sedia ada.
 
-Tukar kata laluan satu daerah sahaja: edit `AKSES_UNTUK_DITUKAR` dalam `tukarKataLaluanSatuAkaun()`, kemudian Run.
+### Pindah ke Sheet production (data lama)
+
+Tukar `TAB.KEPUTUSAN` kepada `"Sheet1"` di atas `Code.gs`, kemudian jalankan `sediakanSistem()`. Kolum A–I lama kekal, dan kolum J–M ditambah untuk rekod baru. Rekod lama tetap dipaparkan di dashboard dan tidak akan diemel semula.
+
+## Fungsi penyelenggaraan (Run dari editor)
+
+| Fungsi | Guna |
+|---|---|
+| `janaKataLaluanBaru` | Tukar kata laluan semua admin |
+| `tukarKataLaluanSatuAkaun` | Tukar satu daerah sahaja (edit nama akses dalam fungsi) |
+| `hantarEmelContohKepadaSaya` | Contoh emel keputusan ke emel anda |
+| `hantarSemulaEmelGagal` | Cuba semula emel berstatus GAGAL |
+| `arkibkanRekodTahun` | Pindah rekod satu tahun ke tab "Arkib <tahun>" (backup Sheet dahulu) |
 
 ## Ujian
 
 ```bash
 npm test          # ujian server (minimal + v2) dengan simulasi Apps Script
-npm run e2e       # Chromium sebenar (Playwright) + simulasi server, untuk kedua-dua versi
+npm run e2e       # Chromium sebenar (Playwright) + simulasi server
 ```
 
-Ujian guna `BankSoalan.gs` sebenar jika ada, dan `BankSoalan.contoh.gs` jika tiada (`BANK_CONTOH=1` untuk paksa contoh). Ujian E2E versi minimal perlukan bank sebenar (30 soalan setiap set). `E2E_LIB_DIR` boleh menunjuk ke folder yang mengandungi `tailwind.css`, `jspdf.umd.min.js` dan `jspdf.plugin.autotable.min.js` supaya halaman render penuh tanpa akses CDN.
+Ujian guna `BankSoalan.gs` sebenar jika ada, dan `BankSoalan.contoh.gs` jika tiada (`BANK_CONTOH=1` untuk paksa contoh). `E2E_LIB_DIR` boleh menunjuk ke folder yang ada `tailwind.css`, `jspdf.umd.min.js` dan `jspdf.plugin.autotable.min.js` untuk ujian tanpa akses CDN.
 
-## Belum dibuat (cadangan seterusnya)
+## Belum dibuat / perlu keputusan
 
-- Tetapkan tempoh simpanan data sebenar dan kemas kini ayat notis privasi (v2).
+- Label skala 1–5 (`LABEL_SKALA` dalam `Code.gs`) diandaikan "Sangat Tidak Memuaskan … Sangat Memuaskan". Sahkan dengan Google Form asal.
+- Lajur "Sila berikan jawapan mengikut penilaian tuan/puan" dalam respons Google Form lama (skala 1–5) tidak jelas maksudnya, jadi tidak disalin.
+- Tetapkan tempoh simpanan data sebenar dalam notis privasi.
 - Domain `ujianminda.my` didaftar atas nama peribadi. Aktifkan auto-renew, atau pindah ke subdomain `penang.gov.my`.
-- Nota serahan tugas: projek Apps Script dan Sheet di bawah akaun siapa, dan siapa boleh deploy.
-- Tailwind dimuatkan dari CDN *play* (tidak disyorkan untuk production). Boleh diganti dengan CSS yang dibina siap jika mahu halaman lebih ringan.

@@ -65,12 +65,30 @@ class MockRange {
     return this;
   }
   setFontWeight() { return this; }
+  getRow() { return this.r; }
+  getSheet() { return this.sheet; }
+  createTextFinder(teks) {
+    const julat = this;
+    const finder = {
+      matchEntireCell() { return finder; },
+      findNext() {
+        for (let i = 0; i < julat.nr; i++) {
+          for (let j = 0; j < julat.nc; j++) {
+            if (String(julat.sheet.get(julat.r + i, julat.c + j)) === String(teks)) return new MockRange(julat.sheet, julat.r + i, julat.c + j, 1, 1);
+          }
+        }
+        return null;
+      }
+    };
+    return finder;
+  }
 }
 
 class MockSpreadsheet {
   constructor() { this.sheets = [new MockSheet('Sheet1')]; }
   getSheetByName(n) { return this.sheets.find((s) => s.name === n) || null; }
   insertSheet(n) { const s = new MockSheet(n); this.sheets.push(s); return s; }
+  getSheets() { return this.sheets; }
 }
 
 function binaGas(versi) {
@@ -89,7 +107,8 @@ function binaGas(versi) {
       getScriptCache: () => ({
         get: (k) => (state.cache.has(k) ? state.cache.get(k) : null),
         put: (k, v) => { state.cache.set(k, String(v)); },
-        remove: (k) => { state.cache.delete(k); }
+        remove: (k) => { state.cache.delete(k); },
+        removeAll: (ks) => { ks.forEach((k) => state.cache.delete(k)); }
       })
     },
     LockService: { getScriptLock: kunci, getDocumentLock: kunci },
@@ -115,6 +134,8 @@ function binaGas(versi) {
       sleep: () => {},
       Charset: { UTF_8: 'utf8' },
       DigestAlgorithm: { SHA_256: 'sha256' },
+      computeHmacSha256Signature: (nilai, kunci) => Array.from(crypto.createHmac('sha256', kunci).update(nilai, 'utf8').digest()).map((b) => (b > 127 ? b - 256 : b)),
+      base64EncodeWebSafe: (arr) => Buffer.from(arr.map((b) => (b + 256) % 256)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_'),
       computeDigest: (alg, s) => Array.from(crypto.createHash(alg).update(s, 'utf8').digest()).map((b) => (b > 127 ? b - 256 : b)),
       formatDate: (d, tz, fmt) => {
         const bah = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
@@ -124,20 +145,38 @@ function binaGas(versi) {
         return fmt.replace(/yyyy|MM|dd|HH|mm|ss/g, (k) => m[k]);
       }
     },
-    Logger: { log: (m) => state.log.push(String(m)) }
+    Logger: { log: (m) => state.log.push(String(m)) },
+    Session: { getEffectiveUser: () => ({ getEmail: () => 'pemilik@contoh.gov.my' }) }
   };
   const ctx = vm.createContext(Object.assign({ console: { log() {}, error: (m) => state.log.push(String(m)), warn() {} } }, gas));
-  for (const f of [failBankSoalan(), path.join(AKAR, versi, 'Code.gs')]) {
-    vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f });
+  const failKod = path.join(AKAR, versi, 'Code.gs');
+  let sheet;
+  let bank;
+  if (versi === 'minimal') {
+    for (const f of [failBankSoalan(), failKod]) vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f });
+    sheet = state.ss.getSheetByName('Sheet1');
+    sheet.appendRow(['Timestamp', 'Nama Penuh', 'No. KP', 'Emel', 'Daerah / Pusat', 'Tarikh Kursus', 'Set Soalan', 'Markah (%) / Skor', 'Jumlah Betul / Markah Betul']);
+    bank = JSON.parse(JSON.stringify(vm.runInContext('BANK_SOALAN', ctx)));
+  } else {
+    // Seperti persediaan sebenar: BankSoalan.gs dipaste sementara, sediakanSistem() import ke tab
+    for (const f of [failBankSoalan(), failKod]) vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f });
+    vm.runInContext('sediakanSistem()', ctx);
+    sheet = state.ss.getSheetByName('Keputusan');
+    bank = bacaBankFail();
+    Object.keys(bank).forEach((set, si) => bank[set].forEach((q, i) => { q.id = 'S' + (si + 1) + '-' + String(i + 1).padStart(2, '0'); }));
   }
-  const sheet = state.ss.getSheetByName('Sheet1');
-  sheet.appendRow(['Timestamp', 'Nama Penuh', 'No. KP', 'Emel', 'Daerah / Pusat', 'Tarikh Kursus', 'Set Soalan', 'Markah (%) / Skor', 'Jumlah Betul / Markah Betul']);
 
   // Panggil doPost/doGet seperti web app sebenar dan pulangkan JSON
   const post = (body) => JSON.parse(vm.runInContext('doPost', ctx)({ postData: { contents: JSON.stringify(body) } }).getContent());
   const get = (parameter) => JSON.parse(vm.runInContext('doGet', ctx)({ parameter }).getContent());
-  const bank = JSON.parse(JSON.stringify(vm.runInContext('BANK_SOALAN', ctx)));
   return { ctx, state, sheet, post, get, bank };
+}
+
+// Baca bank soalan dari fail (sebenar atau contoh) sebagai objek biasa
+function bacaBankFail() {
+  const ctx = vm.createContext({});
+  vm.runInContext(fs.readFileSync(failBankSoalan(), 'utf8') + '\n;globalThis.__bank = BANK_SOALAN;', ctx);
+  return JSON.parse(JSON.stringify(ctx.__bank));
 }
 
 function hariIniMYT(tambahHari) {

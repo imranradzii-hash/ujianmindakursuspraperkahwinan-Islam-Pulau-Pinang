@@ -27,6 +27,11 @@
 
         /* Halang highlight teks semasa ujian (kosmetik sahaja — bukan kawalan keselamatan) */
         .no-copy { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+        input, textarea { -webkit-user-select: text; user-select: text; }
+
+        /* Butang skala 1–5 dalam borang maklum balas */
+        .skala input:checked + span { background-color: #2563eb; color: #ffffff; border-color: #2563eb; }
+        .soalan-mb.tiada-jawapan { border-color: #f87171; background-color: #fef2f2; }
     </style>
 </head>
 <body class="p-2 sm:p-4 bg-gray-50 min-h-screen flex flex-col items-center no-copy" oncontextmenu="return false;" oncopy="return false;" oncut="return false;">
@@ -52,7 +57,7 @@
                         <input type="text" inputmode="numeric" id="ic" pattern="\d{12}" maxlength="12" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 transition text-sm" placeholder="Cth: 912345678901 (Tanpa -)">
                     </div>
                     <div>
-                        <label for="email" class="block text-[13px] font-bold text-gray-700 mb-1">Emel Peserta <span class="text-[11px] text-blue-500 font-normal ml-1">*Untuk terima keputusan</span></label>
+                        <label for="email" class="block text-[13px] font-bold text-gray-700 mb-1">Emel Peserta <span class="text-[11px] text-blue-500 font-normal ml-1">*Keputusan dihantar ke sini</span></label>
                         <input type="email" id="email" required maxlength="100" autocomplete="email" class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 transition text-sm" placeholder="contoh@gmail.com">
                     </div>
                 </div>
@@ -74,10 +79,7 @@
                     <div>
                         <label for="set_soalan" class="block text-[13px] font-bold text-gray-700 mb-1">Set Soalan</label>
                         <select id="set_soalan" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none bg-gray-50 cursor-pointer text-sm">
-                            <option value="">-- Sila Pilih Set --</option>
-                            <option value="Set 1">Set 1</option>
-                            <option value="Set 2">Set 2</option>
-                            <option value="Set 3">Set 3</option>
+                            <option value="">Memuatkan set soalan...</option>
                         </select>
                     </div>
                 </div>
@@ -87,7 +89,7 @@
                 <!-- NOTIS PRIVASI -->
                 <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[11px] text-gray-600 leading-relaxed">
                     <p class="font-bold text-gray-700 mb-1">Notis Privasi</p>
-                    <p>Nama, No. Kad Pengenalan, emel, daerah dan markah anda dikumpul oleh Jabatan Hal Ehwal Agama Islam Pulau Pinang (JHEAIPP) untuk merekod keputusan Ujian Minda Kursus Praperkahwinan dan menghantar keputusan kepada anda. Maklumat ini hanya boleh dilihat oleh pegawai JHEAIPP dan urusetia kursus daerah berkenaan, tidak dikongsi dengan pihak luar, dan disimpan mengikut tempoh simpanan rekod yang ditetapkan oleh jabatan.</p>
+                    <p>Nama, No. Kad Pengenalan, emel, daerah, markah dan maklum balas kursus anda dikumpul oleh Jabatan Hal Ehwal Agama Islam Pulau Pinang (JHEAIPP) untuk merekod keputusan Ujian Minda Kursus Praperkahwinan, menilai pelaksanaan kursus dan menghantar keputusan kepada anda. Maklumat ini hanya boleh dilihat oleh pegawai JHEAIPP dan urusetia kursus daerah berkenaan, tidak dikongsi dengan pihak luar, dan disimpan mengikut tempoh simpanan rekod yang ditetapkan oleh jabatan.</p>
                     <label class="flex items-start mt-2 cursor-pointer">
                         <input type="checkbox" id="setuju" required class="mt-0.5 mr-2 w-4 h-4">
                         <span class="font-semibold text-gray-700">Saya faham dan bersetuju maklumat saya digunakan seperti di atas.</span>
@@ -95,9 +97,8 @@
                 </div>
 
                 <div class="mt-6">
-                    <p class="text-[11px] font-semibold text-blue-600 text-center mb-2 flex items-center justify-center">
-                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        Keputusan penuh akan diemelkan kepada anda selepas selesai menjawab.
+                    <p class="text-[11px] font-semibold text-blue-600 text-center mb-2">
+                        Selepas menjawab, anda perlu melengkapkan Borang Penilaian Kursus. Keputusan akan diemelkan selepas itu.
                     </p>
                     <button type="submit" id="btn-mula" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all active:scale-95 text-sm">
                         Mula Menjawab
@@ -142,49 +143,39 @@
             </form>
         </div>
 
-        <!-- FASA 3: KEPUTUSAN & LINK PENILAIAN -->
-        <div id="step-3" class="hidden-step p-4 md:p-8 text-center fade-in max-w-3xl mx-auto">
-            <div class="bg-yellow-50 border-2 border-yellow-400 text-yellow-800 p-4 rounded-xl mb-6 shadow-sm flex flex-col items-center justify-center">
-                <svg class="w-6 h-6 mb-1 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <p class="font-extrabold text-sm md:text-base">Peringatan Penting!</p>
-                <p class="text-xs md:text-sm font-medium mt-1">Sila semak jawapan anda dan <span class="font-bold underline">tatal (scroll) ke bawah sekali</span> untuk melengkapkan Borang Maklum Balas / Penilaian Kursus.</p>
+        <!-- FASA 3: BORANG PENILAIAN / MAKLUM BALAS KURSUS -->
+        <div id="step-mb" class="hidden-step p-5 md:p-8 bg-gray-50 fade-in">
+            <div class="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4 mb-6 text-sm">
+                <p class="font-extrabold">Jawapan ujian anda telah disimpan.</p>
+                <p class="mt-1">Langkah terakhir: lengkapkan <span class="font-bold">Borang Penilaian Pelaksanaan Kursus</span> di bawah. Keputusan ujian akan dihantar ke emel anda selepas borang ini dihantar.</p>
             </div>
+            <h3 class="text-lg font-extrabold text-gray-800 mb-1">Borang Penilaian Pelaksanaan Kursus Praperkahwinan Islam</h3>
+            <p class="text-xs text-gray-500 mb-4">Soalan bertanda <span class="text-red-500 font-bold">*</span> wajib dijawab.</p>
+            <div id="legend-skala" class="bg-white border border-gray-200 rounded-xl p-3 mb-6 text-[11px] text-gray-600 grid grid-cols-1 sm:grid-cols-5 gap-1"></div>
 
-            <div id="ikon-lulus" class="mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-green-100 text-green-600"></div>
+            <form id="form-mb" onsubmit="hantarMaklumBalas(event)" novalidate>
+                <div id="ruangan-mb" class="space-y-6"></div>
+                <button type="submit" id="btn-hantar-mb" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-4 px-4 rounded-xl mt-8 shadow-md transition-all active:scale-95">
+                    Hantar Borang Penilaian
+                </button>
+            </form>
+        </div>
 
-            <h2 class="text-3xl font-extrabold text-gray-800 mb-2" id="tajuk-keputusan">Tahniah!</h2>
-            <p class="text-gray-600 mb-6 font-bold text-sm">Jawapan anda telah disimpan. Keputusan akan dihantar ke emel anda dalam beberapa minit.</p>
-
-            <div class="rounded-2xl p-6 mb-8 border-2 bg-white shadow-sm border-gray-100">
-                <p class="text-sm text-gray-500 font-bold mb-2 uppercase">Markah Anda</p>
-                <p class="text-6xl font-black text-gray-800" id="paparan-markah">0<span class="text-3xl">%</span></p>
-                <p class="text-sm text-gray-600 font-semibold mt-2" id="paparan-markah-betul">Betul: 0/30</p>
+        <!-- FASA 4: SELESAI -->
+        <div id="step-3" class="hidden-step p-6 md:p-10 text-center fade-in">
+            <div class="mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-green-100 text-green-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             </div>
-
-            <div class="text-left mb-10">
-                <h3 class="text-lg font-extrabold text-gray-800 mb-4 border-b-2 border-gray-200 pb-2 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg>
-                    Semakan Jawapan Keseluruhan
-                </h3>
-                <div id="ruangan-semakan-jawapan" class="space-y-4"></div>
-            </div>
-
-            <div class="bg-blue-50 rounded-2xl p-6 mb-6 border border-blue-100 shadow-sm">
-                <h4 class="text-sm font-extrabold text-blue-900 mb-2">Borang Penilaian Kursus</h4>
-                <p class="text-xs text-blue-700 mb-4 font-medium">Sila lengkapkan borang penilaian pelaksanaan kursus praperkahwinan di bawah sebelum anda bersurai.</p>
-
-                <a href="https://forms.gle/wm15M8eZLFZiL9qT6" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md active:scale-95">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    Buka Borang Penilaian
-                </a>
-            </div>
-
-            <button type="button" onclick="kembaliKeLamanUtama()" class="text-xs font-semibold text-gray-400 hover:text-gray-600 transition underline decoration-dotted underline-offset-4 mt-2">
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-3">Terima Kasih!</h2>
+            <p class="text-gray-700 text-sm font-medium mb-2">Jawapan ujian dan borang penilaian anda telah diterima.</p>
+            <p class="text-gray-700 text-sm mb-6">Keputusan Ujian Minda akan dihantar ke emel <span id="paparan-emel-topeng" class="font-bold">-</span> dalam masa beberapa minit.</p>
+            <p class="text-[12px] text-gray-500 bg-gray-50 border border-gray-200 rounded-xl p-3 mb-8">Jika emel tidak diterima dalam masa 30 minit, sila semak folder <span class="font-bold">Spam</span> atau <span class="font-bold">Promotions</span>, atau maklumkan kepada urusetia kursus.</p>
+            <button type="button" onclick="kembaliKeLamanUtama()" class="text-xs font-semibold text-gray-400 hover:text-gray-600 transition underline decoration-dotted underline-offset-4">
                 Kembali ke Laman Utama
             </button>
         </div>
 
-        <!-- FASA 4: DASHBOARD ADMIN DAERAH -->
+        <!-- FASA 5: DASHBOARD ADMIN DAERAH -->
         <div id="step-admin" class="hidden-step p-6 md:p-8 fade-in bg-gray-50">
             <div class="flex justify-between items-center mb-6 pb-4 border-b-2 border-gray-200 gap-2">
                 <div>
@@ -228,14 +219,18 @@
             </div>
 
             <!-- Statistik -->
-            <div class="grid grid-cols-2 gap-4 mb-8">
+            <div class="grid grid-cols-3 gap-3 mb-8">
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                    <p class="text-xs text-gray-500 font-bold uppercase mb-1">Jumlah Peserta</p>
-                    <p class="text-3xl font-black text-blue-600" id="admin-stat-jumlah">0</p>
+                    <p class="text-[10px] sm:text-xs text-gray-500 font-bold uppercase mb-1">Jumlah Peserta</p>
+                    <p class="text-2xl sm:text-3xl font-black text-blue-600" id="admin-stat-jumlah">0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                    <p class="text-xs text-gray-500 font-bold uppercase mb-1">Purata Markah</p>
-                    <p class="text-3xl font-black text-green-600" id="admin-stat-purata">0%</p>
+                    <p class="text-[10px] sm:text-xs text-gray-500 font-bold uppercase mb-1">Purata Markah</p>
+                    <p class="text-2xl sm:text-3xl font-black text-green-600" id="admin-stat-purata">0%</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                    <p class="text-[10px] sm:text-xs text-gray-500 font-bold uppercase mb-1">Belum Isi Penilaian</p>
+                    <p class="text-2xl sm:text-3xl font-black text-amber-600" id="admin-stat-belum">0</p>
                 </div>
             </div>
 
@@ -243,7 +238,7 @@
             <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 mb-8 shadow-sm">
                 <h4 class="text-sm font-bold text-blue-800 mb-4 uppercase tracking-wider flex items-center">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                    Jana & Muat Turun Laporan
+                    Jana & Muat Turun Laporan Keputusan
                 </h4>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div>
@@ -263,24 +258,28 @@
                         <div id="laporan-input-semua" class="hidden-step w-full border-2 border-gray-100 bg-gray-100 rounded-xl p-3 text-sm font-bold text-gray-500 text-center">Rekod Sepanjang Masa</div>
                     </div>
                     <div class="flex flex-col gap-2">
-                        <button type="button" id="btn-jana-pdf" onclick="cetakLaporanPDF()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm flex justify-center items-center">
-                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-                            Muat Turun PDF
-                        </button>
-                        <button type="button" id="btn-jana-excel" onclick="cetakLaporanExcel()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm flex justify-center items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            Muat Turun EXCEL (CSV)
-                        </button>
+                        <button type="button" id="btn-jana-pdf" onclick="cetakLaporanPDF()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm">Muat Turun PDF</button>
+                        <button type="button" id="btn-jana-excel" onclick="cetakLaporanExcel()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm">Muat Turun EXCEL (CSV)</button>
                     </div>
                 </div>
                 <p class="text-[11px] text-blue-600 mt-3 font-medium">* Laporan yang dimuat turun merujuk kepada <span class="font-bold underline">Saringan Daerah</span> di atas dan mengandungi No. KP penuh — simpan dengan selamat dan padam selepas digunakan.</p>
             </div>
 
+            <!-- Ringkasan Maklum Balas Kursus -->
+            <div class="bg-white p-5 rounded-xl border border-emerald-200 mb-8 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                    <h4 class="text-sm font-bold text-emerald-700 uppercase tracking-wider">Ringkasan Penilaian Kursus</h4>
+                    <div class="flex gap-2">
+                        <button type="button" id="btn-muat-mb" onclick="muatMaklumBalas()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold py-2 px-3 rounded-lg transition">Papar Ringkasan</button>
+                        <button type="button" id="btn-csv-mb" onclick="cetakMaklumBalasCSV()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold py-2 px-3 rounded-lg transition">Muat Turun CSV</button>
+                    </div>
+                </div>
+                <p class="text-[11px] text-gray-500 mb-3">Mengikut Saringan Daerah & Tarikh di atas. Skala 1 (Sangat Tidak Memuaskan) hingga 5 (Sangat Memuaskan).</p>
+                <div id="mb-ringkasan" class="text-sm text-gray-500 italic">Tekan "Papar Ringkasan" untuk memuatkan data penilaian.</div>
+            </div>
+
             <!-- Jadual Top 10 -->
-            <h4 class="text-sm font-bold text-yellow-600 mb-3 uppercase tracking-wider flex items-center">
-                <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                10 Peserta Terbaik <span class="text-gray-400 text-xs ml-2 normal-case">(Saringan Semasa)</span>
-            </h4>
+            <h4 class="text-sm font-bold text-yellow-600 mb-3 uppercase tracking-wider">10 Peserta Terbaik <span class="text-gray-400 text-xs ml-2 normal-case">(Saringan Semasa)</span></h4>
             <div class="bg-white rounded-xl shadow-sm border border-yellow-200 overflow-hidden mb-8">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left text-gray-600">
@@ -300,10 +299,7 @@
             </div>
 
             <!-- Jadual Markah Rendah -->
-            <h4 class="text-sm font-bold text-red-600 mb-3 uppercase tracking-wider flex items-center">
-                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                Perhatian: Markah Bawah 7 Betul
-            </h4>
+            <h4 class="text-sm font-bold text-red-600 mb-3 uppercase tracking-wider">Perhatian: Markah Bawah 7 Betul</h4>
             <div class="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden mb-8">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left text-gray-600">
@@ -330,8 +326,8 @@
                     <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </div>
             </div>
-            <p class="text-[11px] text-gray-400 mb-2">No. KP dipaparkan 4 digit terakhir sahaja. Carian tetap boleh guna No. KP penuh. Tanda <span class="font-bold text-amber-600">×2</span> bermaksud No. KP sama menghantar lebih sekali.</p>
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <p class="text-[11px] text-gray-400 mb-2">No. KP dipaparkan 4 digit terakhir sahaja (carian tetap boleh guna No. KP penuh). <span class="font-bold text-amber-600">×2</span> = No. KP sama menghantar lebih sekali. <span class="font-bold text-gray-600">Lepaskan</span> = hantar keputusan kepada peserta yang tidak sempat isi borang penilaian.</p>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left text-gray-600">
                         <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b border-gray-200">
@@ -340,13 +336,58 @@
                                 <th scope="col" class="px-5 py-3">Nama Peserta</th>
                                 <th scope="col" class="px-5 py-3">No. KP & Daerah</th>
                                 <th scope="col" class="px-5 py-3 text-center">Set</th>
-                                <th scope="col" class="px-5 py-3 text-center">Markah</th>
+                                <th scope="col" class="px-5 py-3 text-center">Markah & Status</th>
                             </tr>
                         </thead>
                         <tbody id="admin-tbody">
                             <tr><td colspan="5" class="px-5 py-8 text-center text-gray-400 italic">Sila pilih saringan di atas untuk melihat data.</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Urus Bank Soalan (admin SEMUA sahaja) -->
+            <div id="panel-bank" class="hidden-step bg-white p-5 rounded-xl border border-indigo-200 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <h4 class="text-sm font-bold text-indigo-700 uppercase tracking-wider">Urus Bank Soalan Ujian</h4>
+                    <button type="button" id="btn-buka-bank" onclick="muatBankSoalan()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 text-xs font-bold py-2 px-3 rounded-lg transition">Buka Bank Soalan</button>
+                </div>
+                <p class="text-[11px] text-gray-500 mb-3">Perubahan berkuat kuasa serta-merta untuk peserta yang mula menjawab selepas disimpan. Soalan tidak dipadam — nyahaktifkan sahaja supaya rekod lama kekal.</p>
+
+                <div id="bank-kandungan" class="hidden-step">
+                    <div class="flex flex-col sm:flex-row gap-3 mb-4">
+                        <select id="bank-set" onchange="renderBankSoalan()" class="flex-1 border-2 border-gray-200 rounded-xl p-2.5 text-sm font-semibold bg-gray-50"></select>
+                        <button type="button" onclick="bukaEditorSoalan(null)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-2.5 px-4 rounded-xl transition">+ Tambah Soalan</button>
+                    </div>
+
+                    <!-- Editor soalan -->
+                    <div id="bank-editor" class="hidden-step border-2 border-indigo-300 bg-indigo-50 rounded-xl p-4 mb-4 space-y-3">
+                        <p class="text-sm font-extrabold text-indigo-800" id="bank-editor-tajuk">Tambah Soalan</p>
+                        <input type="hidden" id="ed-id">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="ed-set" class="block text-xs font-bold text-gray-700 mb-1">Set (cth: Set 1)</label>
+                                <input type="text" id="ed-set" maxlength="30" oninput="cadangBil()" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm">
+                            </div>
+                            <div>
+                                <label for="ed-bil" class="block text-xs font-bold text-gray-700 mb-1">Bil. (susunan)</label>
+                                <input type="number" id="ed-bil" min="1" max="999" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="ed-soalan" class="block text-xs font-bold text-gray-700 mb-1">Soalan (tekan Enter untuk baris baru, cth. senarai i, ii, iii)</label>
+                            <textarea id="ed-soalan" rows="4" maxlength="2000" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm"></textarea>
+                        </div>
+                        <div id="ed-pilihan" class="space-y-2"></div>
+                        <label class="flex items-center text-sm font-semibold text-gray-700"><input type="checkbox" id="ed-aktif" class="mr-2 w-4 h-4"> Aktif (dipaparkan kepada peserta)</label>
+                        <p id="ed-ralat" class="hidden-step text-xs font-bold text-red-600"></p>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="tutupEditorSoalan()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-bold py-2.5 rounded-xl">Batal</button>
+                            <button type="button" id="btn-simpan-soalan" onclick="simpanSoalan()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-bold py-2.5 rounded-xl">Simpan Soalan</button>
+                        </div>
+                    </div>
+
+                    <div id="bank-senarai" class="space-y-2"></div>
                 </div>
             </div>
         </div>
@@ -394,10 +435,11 @@
         // URL GOOGLE APPS SCRIPT (Web App)
         // Kalau deploy baru (bukan "edit deployment"), tukar URL ini.
         // ==========================================
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJp9l03wiC3JunqeULQ9eRxsCEa25wiHw0NZmMj0liDPzP9Dz1cncdUEeRmxuMfwpe/exec";
+        const GOOGLE_SCRIPT_URL = "MASUKKAN_URL_WEB_APP_DI_SINI";
 
         const PERATUS_LULUS = 50;
         const HAD_MARKAH_RENDAH = 7; // jadual "Perhatian" — bilangan betul bawah nilai ini
+        const KUNCI_TERTUNDA = 'ujianMindaMaklumBalasTertunda'; // ID ujian yang belum isi borang penilaian
 
         // ==========================================
         // UTILITI
@@ -438,6 +480,13 @@
             return d;
         }
 
+        // localStorage boleh disekat (mod peribadi/iframe) — jangan biar ia menggagalkan halaman
+        const simpanan = {
+            baca(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+            tulis(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* abaikan */ } },
+            buang(k) { try { localStorage.removeItem(k); } catch (e) { /* abaikan */ } }
+        };
+
         // POST ke Apps Script. Cuba semula jika rangkaian terputus atau server sesak
         // (tunggu 2-4 saat, kemudian 4-6 saat). Ralat input (bolehCubaLagi: false) tidak dicuba semula.
         async function panggilServer(badan, cubaan) {
@@ -459,13 +508,14 @@
             }
         }
 
-        async function ambilSoalan(set) {
+        async function bacaServer(params, cubaan) {
+            const qs = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
             for (let i = 1; ; i++) {
                 try {
-                    const res = await fetch(GOOGLE_SCRIPT_URL + '?action=soalan&set=' + encodeURIComponent(set));
+                    const res = await fetch(GOOGLE_SCRIPT_URL + '?' + qs);
                     return await res.json();
                 } catch (err) {
-                    if (i >= 3) throw err;
+                    if (i >= (cubaan || 3)) throw err;
                     await tidur(i * 1500);
                 }
             }
@@ -521,21 +571,32 @@
             if (cb) cb();
         }
 
-        function hideAllSteps() {
-            ['step-1', 'step-2', 'step-3', 'step-admin'].forEach(id => $(id).classList.add('hidden-step'));
-        }
-
         function paparStep(id) {
-            hideAllSteps();
+            ['step-1', 'step-2', 'step-mb', 'step-3', 'step-admin'].forEach(s => $(s).classList.add('hidden-step'));
             $(id).classList.remove('hidden-step');
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ==========================================
+        // SET SOALAN (dari server — admin boleh tambah set baru)
+        // ==========================================
+        async function muatSenaraiSet() {
+            const pilih = $('set_soalan');
+            try {
+                const data = await bacaServer({ action: 'senaraiSet' });
+                if (data.status !== 'success' || !data.set.length) throw new Error(data.message || 'Tiada set aktif');
+                pilih.innerHTML = '<option value="">-- Sila Pilih Set --</option>' + data.set.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+            } catch (err) {
+                console.error(err);
+                pilih.innerHTML = '<option value="">Gagal dimuatkan — muat semula halaman</option>';
+            }
         }
 
         // ==========================================
         // UJIAN PESERTA
         // ==========================================
         const ujian = {
-            maklumat: null, soalan: [], jawapan: [], skema: [],
+            maklumat: null, soalan: [], kunci: '', jawapan: [],
             tamatPada: 0, pemasa: null, dikunci: false, sedangHantar: false
         };
         let sedangUjian = false; // perangkap back/refresh semasa ujian
@@ -575,7 +636,7 @@
             btnMula.innerText = "Memuatkan soalan...";
             let data;
             try {
-                data = await ambilSoalan(set);
+                data = await bacaServer({ action: 'soalan', set: set });
             } catch (err) {
                 console.error(err);
                 data = { status: 'error', message: "Tiada sambungan internet atau server sesak. Sila cuba lagi." };
@@ -589,8 +650,9 @@
 
             Object.assign(ujian, {
                 maklumat: { nama, ic, email, daerah, set, idHantar: janaId() },
-                soalan: data.soalan, jawapan: [], skema: [], dikunci: false, sedangHantar: false
+                soalan: data.soalan, kunci: data.kunci, jawapan: [], dikunci: false, sedangHantar: false
             });
+            muatSoalanMaklumBalas(); // muat awal, sedia selepas ujian
 
             $('paparan-nama').innerText = nama;
             $('paparan-daerah-badge').innerText = namaDaerahPendek(daerah);
@@ -689,7 +751,12 @@
 
             let data, ralatRangkaian = false;
             try {
-                data = await panggilServer(Object.assign({ action: 'hantar', jawapan: ujian.jawapan }, ujian.maklumat), 3);
+                data = await panggilServer(Object.assign({
+                    action: 'hantar',
+                    idSoalan: ujian.soalan.map(q => q.id),
+                    kunci: ujian.kunci,
+                    jawapan: ujian.jawapan
+                }, ujian.maklumat), 3);
             } catch (err) {
                 console.error("Ralat Hantar:", err);
                 ralatRangkaian = true;
@@ -697,8 +764,9 @@
             ujian.sedangHantar = false;
 
             if (data && data.status === 'success') {
-                ujian.skema = data.skema;
-                paparKeputusan(data.skor, data.markahBetul, data.jumlah || ujian.soalan.length);
+                // Ingat ujian ini supaya borang penilaian boleh disambung jika halaman dimuat semula
+                simpanan.tulis(KUNCI_TERTUNDA, { idHantar: data.idHantar, emel: data.emel });
+                bukaBorangMaklumBalas(data.idHantar, data.emel);
                 return;
             }
 
@@ -714,67 +782,134 @@
             }
         }
 
-        function paparKeputusan(skor, betul, jumlah) {
-            paparStep('step-3');
-            const lulus = skor >= PERATUS_LULUS;
-            $('paparan-markah').innerHTML = `${esc(skor)}<span class="text-3xl">%</span>`;
-            $('paparan-markah').className = lulus ? "text-6xl font-black text-green-600" : "text-6xl font-black text-gray-800";
-            $('paparan-markah-betul').innerText = `Betul: ${betul}/${jumlah}`;
-            $('tajuk-keputusan').innerText = lulus ? "Tahniah!" : "Ujian Selesai";
+        // ==========================================
+        // BORANG PENILAIAN (MAKLUM BALAS) KURSUS
+        // ==========================================
+        const mb = { idHantar: '', emel: '', soalan: null, labelSkala: [], janji: null, sedangHantar: false };
 
-            const ikon = $('ikon-lulus');
-            if (lulus) {
-                ikon.className = "mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-green-100 text-green-600";
-                ikon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
-            } else {
-                ikon.className = "mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-gray-100 text-gray-600";
-                ikon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+        function muatSoalanMaklumBalas() {
+            if (!mb.janji) {
+                mb.janji = bacaServer({ action: 'soalanMaklumBalas' }).then(data => {
+                    if (data.status !== 'success') throw new Error(data.message);
+                    mb.soalan = data.soalan;
+                    mb.labelSkala = data.labelSkala || [];
+                    return data;
+                }).catch(err => { mb.janji = null; throw err; });
             }
-            janaUIJawapan();
+            return mb.janji;
         }
 
-        function janaUIJawapan() {
-            const container = $('ruangan-semakan-jawapan');
-            container.innerHTML = '';
-            ujian.soalan.forEach((item, index) => {
-                const pilihanPeserta = ujian.jawapan[index];
-                const betul = ujian.skema[index];
-                const tepat = pilihanPeserta === betul;
+        async function bukaBorangMaklumBalas(idHantar, emel) {
+            mb.idHantar = idHantar;
+            mb.emel = emel || '';
+            paparStep('step-mb');
+            $('ruangan-mb').innerHTML = '<p class="text-sm text-gray-500 italic">Memuatkan borang penilaian...</p>';
+            try {
+                await muatSoalanMaklumBalas();
+            } catch (err) {
+                console.error(err);
+                $('ruangan-mb').innerHTML = '<p class="text-sm text-red-600 font-bold">Borang penilaian tidak dapat dimuatkan. Sila muat semula halaman ini (jawapan ujian anda telah disimpan).</p>';
+                return;
+            }
+            janaUIMaklumBalas();
+        }
 
-                const icon = tepat
-                    ? `<svg class="w-5 h-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`
-                    : `<svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
-
-                const pilihanHTML = item.pilihan.map((pil, i) => {
-                    let kelas = 'text-gray-600', tanda = '';
-                    if (i === betul) {
-                        kelas = 'text-green-700 font-bold';
-                        tanda = ' <span class="inline-block text-[10px] bg-green-200 text-green-800 px-2 py-0.5 rounded-full ml-2">Jawapan Sebenar</span>';
-                    } else if (i === pilihanPeserta) {
-                        kelas = 'text-red-600 font-bold line-through';
-                        tanda = ' <span class="inline-block text-[10px] bg-red-200 text-red-800 px-2 py-0.5 rounded-full ml-2">Pilihan Anda</span>';
-                    }
-                    return `<div class="mb-1.5 text-sm ${kelas}">${String.fromCharCode(65 + i)}. ${esc(pil)}${tanda}</div>`;
-                }).join('');
-
-                const div = document.createElement('div');
-                div.className = `p-4 md:p-5 rounded-xl border-2 ${tepat ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`;
-                div.innerHTML = `
-                    <div class="flex items-start mb-3">
-                        ${icon}
-                        <p class="font-bold text-gray-800 text-sm whitespace-pre-wrap"><span class="mr-1">${index + 1}.</span> ${esc(item.soalan)}</p>
-                    </div>
-                    <div class="ml-7 pl-3 border-l-2 border-gray-300 space-y-1">${pilihanHTML}</div>`;
-                container.appendChild(div);
+        function janaUIMaklumBalas() {
+            $('legend-skala').innerHTML = mb.labelSkala.map((l, i) => `<div><span class="font-bold text-gray-800">${i + 1}</span> = ${esc(l)}</div>`).join('');
+            let html = '', bahagianSemasa = null;
+            mb.soalan.forEach((q, n) => {
+                if (q.bahagian !== bahagianSemasa) {
+                    if (bahagianSemasa !== null) html += '</div>';
+                    bahagianSemasa = q.bahagian;
+                    html += `<div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 md:p-5 space-y-4"><p class="text-sm font-extrabold text-blue-800 uppercase">${esc(q.bahagian)}</p>`;
+                }
+                const wajib = q.wajib ? ' <span class="text-red-500">*</span>' : '';
+                let input = '';
+                if (q.jenis === 'SKALA') {
+                    input = `<div class="grid grid-cols-5 gap-2 mt-2">` + [1, 2, 3, 4, 5].map(v => `
+                        <label class="skala cursor-pointer" title="${esc(mb.labelSkala[v - 1] || '')}">
+                            <input type="radio" name="mb_${esc(q.id)}" value="${v}" class="sr-only">
+                            <span class="block text-center border-2 border-gray-200 rounded-lg py-2 text-sm font-bold text-gray-700 hover:border-blue-300">${v}</span>
+                        </label>`).join('') + `</div>`;
+                } else if (q.jenis === 'PILIHAN') {
+                    input = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">` + q.pilihan.map(p => `
+                        <label class="flex items-center border-2 border-gray-100 rounded-lg p-2.5 cursor-pointer hover:bg-blue-50 text-sm text-gray-700">
+                            <input type="radio" name="mb_${esc(q.id)}" value="${esc(p)}" class="mr-2 w-4 h-4"> ${esc(p)}
+                        </label>`).join('') + `</div>`;
+                } else {
+                    input = `<textarea name="mb_${esc(q.id)}" rows="2" maxlength="1000" class="w-full mt-2 border-2 border-gray-200 rounded-lg p-2 text-sm focus:border-blue-500 outline-none"></textarea>`;
+                }
+                html += `<div class="soalan-mb border-2 border-transparent rounded-xl p-1" data-id="${esc(q.id)}"><p class="text-sm font-semibold text-gray-800">${n + 1}. ${esc(q.soalan)}${wajib}</p>${input}</div>`;
             });
+            if (bahagianSemasa !== null) html += '</div>';
+            $('ruangan-mb').innerHTML = html;
+        }
+
+        // Buang tanda merah sebaik sahaja soalan dijawab
+        ['input', 'change'].forEach(jenis => $('ruangan-mb').addEventListener(jenis, (e) => {
+            const kotak = e.target.closest('.soalan-mb');
+            if (kotak) kotak.classList.remove('tiada-jawapan');
+        }));
+
+        function nilaiMaklumBalas(q) {
+            const nama = 'mb_' + q.id;
+            if (q.jenis === 'TEKS') {
+                const el = document.querySelector(`textarea[name="${CSS.escape(nama)}"]`);
+                return el ? el.value.trim() : '';
+            }
+            const dipilih = document.querySelector(`input[name="${CSS.escape(nama)}"]:checked`);
+            return dipilih ? dipilih.value : '';
+        }
+
+        async function hantarMaklumBalas(e) {
+            e.preventDefault();
+            if (mb.sedangHantar || !mb.soalan) return;
+            const jawapan = {};
+            let pertamaKosong = null;
+            mb.soalan.forEach(q => {
+                const v = nilaiMaklumBalas(q);
+                jawapan[q.id] = v;
+                const kotak = document.querySelector(`.soalan-mb[data-id="${CSS.escape(q.id)}"]`);
+                const kosong = q.wajib && !v;
+                kotak.classList.toggle('tiada-jawapan', kosong);
+                if (kosong && !pertamaKosong) pertamaKosong = kotak;
+            });
+            if (pertamaKosong) {
+                pertamaKosong.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                paparAlert("Borang Belum Lengkap", "Sila jawab semua soalan bertanda * (ditanda merah).");
+                return;
+            }
+
+            mb.sedangHantar = true;
+            const btn = $('btn-hantar-mb');
+            btn.disabled = true;
+            btn.innerText = "Sedang menghantar...";
+            let data;
+            try {
+                data = await panggilServer({ action: 'maklumBalas', idHantar: mb.idHantar, jawapan: jawapan }, 3);
+            } catch (err) {
+                console.error(err);
+                data = { status: 'error', message: "Tiada sambungan internet atau server sesak. Jawapan anda masih di halaman ini — tekan Hantar sekali lagi." };
+            }
+            mb.sedangHantar = false;
+            btn.disabled = false;
+            btn.innerText = "Hantar Borang Penilaian";
+            if (data.status !== 'success') {
+                paparAlert("Borang Belum Dihantar", data.message || "Sila cuba lagi.");
+                return;
+            }
+            simpanan.buang(KUNCI_TERTUNDA);
+            $('paparan-emel-topeng').innerText = data.emel || mb.emel || 'anda';
+            paparStep('step-3');
         }
 
         function kembaliKeLamanUtama() {
             sedangUjian = false;
             hentikanPemasa();
-            Object.assign(ujian, { maklumat: null, soalan: [], jawapan: [], skema: [], dikunci: false, sedangHantar: false });
+            Object.assign(ujian, { maklumat: null, soalan: [], kunci: '', jawapan: [], dikunci: false, sedangHantar: false });
             $('form-maklumat').reset();
             $('ruangan-soalan').innerHTML = '';
+            $('ruangan-mb').innerHTML = '';
             $('btn-hantar').innerText = "Hantar Jawapan & Simpan";
             $('btn-hantar').classList.remove('hidden-step');
             $('status-hantar').classList.add('hidden-step');
@@ -785,7 +920,7 @@
         // ADMIN
         // ==========================================
         // Token sesi disimpan dalam memori sahaja (hilang bila tab ditutup). Server semak token setiap permintaan.
-        const admin = { akses: "", token: "", rekod: [], ditapis: [], bilIc: new Map() };
+        const admin = { akses: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' };
 
         async function semakPassword() {
             const pwd = $('input-password').value;
@@ -824,6 +959,21 @@
 
         $('input-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') semakPassword(); });
 
+        // Panggilan admin: jika sesi tamat, kembali ke laman utama
+        async function panggilAdmin(badan) {
+            let data;
+            try {
+                data = await panggilServer(Object.assign({ token: admin.token }, badan), 2);
+            } catch (err) {
+                data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
+            }
+            if (data.status === 'unauthorized') {
+                paparAlert("Sesi Tamat", data.message || "Sila log masuk semula.");
+                tutupAdmin();
+            }
+            return data;
+        }
+
         function setRekod(rows) {
             admin.rekod = (Array.isArray(rows) ? rows : []).map(d => Object.assign({}, d, { tarikh: standardkanTarikh(d.tarikh) }));
             admin.bilIc = new Map();
@@ -834,19 +984,10 @@
             const btn = $('btn-muat-semula');
             btn.disabled = true;
             btn.innerText = "Memuatkan...";
-            let data;
-            try {
-                data = await panggilServer({ action: 'data', token: admin.token }, 2);
-            } catch (err) {
-                data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
-            }
+            const data = await panggilAdmin({ action: 'data' });
             btn.disabled = false;
             btn.innerText = "Muat Semula Data";
-            if (data.status === 'unauthorized') {
-                paparAlert("Sesi Tamat", data.message || "Sila log masuk semula.");
-                tutupAdmin();
-                return;
-            }
+            if (data.status === 'unauthorized') return;
             if (data.status !== 'success') {
                 paparAlert("Ralat", data.message || "Data tidak dapat dimuatkan.");
                 return;
@@ -861,23 +1002,23 @@
             paparStep('step-admin');
             $('admin-akses-badge').innerText = `Akses: ${admin.akses}`;
             const selector = $('admin-daerah-selector');
-            if (admin.akses === "SEMUA") {
-                $('kawasan-filter-daerah').classList.remove('hidden-step');
-                selector.value = "SEMUA";
-            } else {
-                $('kawasan-filter-daerah').classList.add('hidden-step');
-                selector.value = admin.akses;
-            }
+            const semua = admin.akses === "SEMUA";
+            $('kawasan-filter-daerah').classList.toggle('hidden-step', !semua);
+            $('panel-bank').classList.toggle('hidden-step', !semua);
+            selector.value = semua ? "SEMUA" : admin.akses;
             kemaskiniFilterDaerah();
             kemaskiniDropdownLaporan();
         }
 
         function tutupAdmin() {
             if (admin.token) panggilServer({ action: 'logout', token: admin.token }).catch(() => {});
-            Object.assign(admin, { akses: "", token: "", rekod: [], ditapis: [], bilIc: new Map() });
+            Object.assign(admin, { akses: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' });
             $('input-password').value = '';
             $('carian-peserta').value = '';
-            ['admin-top10-tbody', 'admin-gagal-tbody', 'admin-tbody'].forEach(id => { $(id).innerHTML = ''; });
+            ['admin-top10-tbody', 'admin-gagal-tbody', 'admin-tbody', 'bank-senarai'].forEach(id => { $(id).innerHTML = ''; });
+            $('mb-ringkasan').innerHTML = 'Tekan "Papar Ringkasan" untuk memuatkan data penilaian.';
+            $('bank-kandungan').classList.add('hidden-step');
+            $('panel-bank').classList.add('hidden-step');
             kembaliKeLamanUtama();
         }
 
@@ -916,11 +1057,13 @@
             if (daerah !== 'SEMUA') data = data.filter(d => d.daerah === daerah);
             if (tarikh) data = data.filter(d => d.tarikh === tarikh);
             admin.ditapis = data;
+            if (admin.mb) renderRingkasanMaklumBalas();
 
             const tbodyTop10 = $('admin-top10-tbody');
             const tbodyGagal = $('admin-gagal-tbody');
             const kosong = (n) => `<tr><td colspan="${n}" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>`;
 
+            $('admin-stat-belum').innerText = data.filter(d => d.status === 'MENUNGGU MAKLUM BALAS').length;
             if (data.length === 0) {
                 $('admin-tbody').innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-gray-500 font-medium">Tiada rekod peserta dijumpai.</td></tr>`;
                 $('label-jumlah-carian').innerText = `0 Rekod`;
@@ -966,6 +1109,18 @@
                 </tr>`).join('');
         }
 
+        function lencanaStatus(d) {
+            const s = d.status || '';
+            if (s === 'MENUNGGU MAKLUM BALAS') {
+                return `<br><span class="text-[10px] font-bold text-amber-600">Belum isi penilaian</span>`
+                    + `<br><button type="button" class="btn-lepaskan mt-1 text-[10px] font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded" data-id="${esc(d.idHantar)}">Lepaskan</button>`;
+            }
+            if (s === 'MENUNGGU EMEL') return `<br><span class="text-[10px] font-bold text-blue-500">Emel dalam barisan</span>`;
+            if (/^DIHANTAR/.test(s)) return `<br><span class="text-[10px] font-bold text-green-600">Emel dihantar</span>`;
+            if (/^GAGAL/.test(s)) return `<br><span class="text-[10px] font-bold text-red-500" title="${esc(s)}">Emel gagal</span>`;
+            return '';
+        }
+
         function renderJadualKeseluruhan() {
             const tbody = $('admin-tbody');
             const kataKunci = $('carian-peserta').value.trim().toLowerCase();
@@ -984,15 +1139,218 @@
                 const skor = d.skor || 0;
                 const warna = skor >= PERATUS_LULUS ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
                 const ulang = admin.bilIc.get(d.ic) > 1 ? ` <span class="text-[10px] font-bold text-amber-600" title="No. KP ini menghantar lebih sekali">×${admin.bilIc.get(d.ic)}</span>` : '';
-                const emelGagal = /^GAGAL/.test(d.statusEmel || '') ? `<br><span class="text-[10px] font-bold text-red-500" title="${esc(d.statusEmel)}">Emel gagal</span>` : '';
                 return `<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
                     <td class="px-5 py-4 text-center font-bold text-gray-400">${i + 1}</td>
                     <td class="px-5 py-4 font-bold text-gray-800">${esc(d.nama || "Tiada Nama")}<br><span class="text-xs font-normal text-gray-400">${esc(d.timestamp || d.tarikh || '-')}</span></td>
                     <td class="px-5 py-4 text-gray-600">${esc(topengIC(d.ic))}${ulang}<br><span class="text-xs font-semibold text-blue-600">${esc(d.daerah || '-')}</span></td>
                     <td class="px-5 py-4 text-center"><span class="px-2 py-1 bg-gray-100 rounded text-xs font-bold text-gray-600">${esc(d.set || '-')}</span></td>
-                    <td class="px-5 py-4 text-center"><span class="px-3 py-1 rounded-full font-bold text-sm ${warna}">${esc(skor)}%</span>${emelGagal}</td>
+                    <td class="px-5 py-4 text-center"><span class="px-3 py-1 rounded-full font-bold text-sm ${warna}">${esc(skor)}%</span>${lencanaStatus(d)}</td>
                 </tr>`;
             }).join('');
+        }
+
+        // Butang "Lepaskan" (delegasi acara — butang dijana semula setiap kali jadual dikemas kini)
+        $('admin-tbody').addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-lepaskan');
+            if (!btn) return;
+            const rekod = admin.rekod.find(d => d.idHantar === btn.dataset.id);
+            paparConfirm("Lepaskan Keputusan?", `Keputusan ${rekod ? rekod.nama : 'peserta ini'} akan diemelkan walaupun borang penilaian belum diisi.`, "Ya, Lepaskan", async () => {
+                const data = await panggilAdmin({ action: 'lepaskan', idHantar: btn.dataset.id });
+                if (data.status === 'success') {
+                    if (rekod) rekod.status = 'MENUNGGU EMEL';
+                    renderJadualKeseluruhan();
+                    janaJadualAdmin();
+                } else if (data.status !== 'unauthorized') {
+                    paparAlert("Tidak Berjaya", data.message || "Sila cuba lagi.");
+                }
+            });
+        });
+
+        // ==========================================
+        // RINGKASAN BORANG PENILAIAN
+        // ==========================================
+        async function muatMaklumBalas() {
+            const btn = $('btn-muat-mb');
+            btn.disabled = true;
+            btn.innerText = "Memuatkan...";
+            const data = await panggilAdmin({ action: 'dataMaklumBalas' });
+            btn.disabled = false;
+            btn.innerText = "Muat Semula Ringkasan";
+            if (data.status !== 'success') {
+                if (data.status !== 'unauthorized') paparAlert("Ralat", data.message || "Data penilaian tidak dapat dimuatkan.");
+                return null;
+            }
+            admin.mb = data;
+            renderRingkasanMaklumBalas();
+            return data;
+        }
+
+        function maklumBalasDitapis() {
+            if (!admin.mb) return [];
+            const daerah = daerahAktif();
+            const tarikh = $('admin-tarikh-selector').value;
+            return admin.mb.rekod.filter(r => (daerah === 'SEMUA' || r.daerah === daerah) && (!tarikh || r.tarikh === tarikh));
+        }
+
+        function renderRingkasanMaklumBalas() {
+            const rekod = maklumBalasDitapis();
+            const kotak = $('mb-ringkasan');
+            if (!rekod.length) {
+                kotak.innerHTML = '<p class="text-sm text-gray-500 italic">Tiada borang penilaian untuk saringan ini.</p>';
+                return;
+            }
+            let html = `<p class="text-sm font-bold text-gray-700 not-italic mb-3">${rekod.length} responden</p>`;
+            let bahagian = null;
+            admin.mb.soalan.forEach(q => {
+                const nilai = rekod.map(r => r.jawapan[q.id]).filter(v => v !== '' && v != null);
+                if (!nilai.length && q.jenis !== 'TEKS') return;
+                if (q.bahagian !== bahagian) {
+                    bahagian = q.bahagian;
+                    html += `<p class="text-xs font-extrabold text-emerald-800 uppercase mt-4 mb-2 not-italic">${esc(bahagian)}</p>`;
+                }
+                if (q.jenis === 'SKALA') {
+                    const purata = nilai.reduce((a, v) => a + Number(v), 0) / nilai.length;
+                    html += `<div class="flex items-center gap-2 text-xs not-italic text-gray-700 mb-1">
+                        <span class="flex-1">${esc(q.soalan)}</span>
+                        <span class="w-24 bg-gray-100 rounded-full h-2 overflow-hidden"><span class="block h-2 bg-emerald-500" style="width:${(purata / 5) * 100}%"></span></span>
+                        <span class="w-10 text-right font-bold">${purata.toFixed(2)}</span></div>`;
+                } else if (q.jenis === 'PILIHAN') {
+                    const kira = {};
+                    nilai.forEach(v => { kira[v] = (kira[v] || 0) + 1; });
+                    html += `<div class="text-xs not-italic text-gray-700 mb-1"><span class="font-semibold">${esc(q.soalan)}:</span> `
+                        + Object.keys(kira).map(k => `${esc(k)} (${kira[k]})`).join(', ') + `</div>`;
+                } else {
+                    html += `<div class="text-xs not-italic text-gray-500 mb-1">${esc(q.soalan)}: ${nilai.length} jawapan bertulis (lihat CSV)</div>`;
+                }
+            });
+            kotak.innerHTML = html;
+        }
+
+        async function cetakMaklumBalasCSV() {
+            if (!admin.mb && !(await muatMaklumBalas())) return;
+            const rekod = maklumBalasDitapis();
+            if (!rekod.length) {
+                paparAlert("Tiada Data", "Tiada borang penilaian untuk saringan ini.");
+                return;
+            }
+            const soalan = admin.mb.soalan;
+            const baris = [["Bil", "Daerah/Pusat", "Tarikh Kursus", "Set Soalan"].concat(soalan.map(q => q.id + " " + q.soalan)).map(selCsv).join(",")];
+            rekod.forEach((r, i) => {
+                baris.push([i + 1, selCsv(r.daerah), selCsv(r.tarikh), selCsv(r.set)].concat(soalan.map(q => selCsv(r.jawapan[q.id]))).join(","));
+            });
+            muatTurunCsv(baris, namaFail('Penilaian_Kursus', daerahAktif(), $('admin-tarikh-selector').value, 'csv'));
+        }
+
+        // ==========================================
+        // URUS BANK SOALAN (admin SEMUA)
+        // ==========================================
+        async function muatBankSoalan() {
+            const btn = $('btn-buka-bank');
+            btn.disabled = true;
+            btn.innerText = "Memuatkan...";
+            const data = await panggilAdmin({ action: 'bankSoalan' });
+            btn.disabled = false;
+            btn.innerText = "Muat Semula Bank Soalan";
+            if (data.status !== 'success') {
+                if (data.status !== 'unauthorized') paparAlert("Ralat", data.message || "Bank soalan tidak dapat dimuatkan.");
+                return;
+            }
+            setBank(data.bank);
+            $('bank-kandungan').classList.remove('hidden-step');
+        }
+
+        function setBank(bank) {
+            admin.bank = bank;
+            const set = Array.from(new Set(bank.map(q => q.set))).sort((a, b) => a.localeCompare(b, 'ms', { numeric: true }));
+            if (!admin.setDipilih || set.indexOf(admin.setDipilih) === -1) admin.setDipilih = set[0] || '';
+            $('bank-set').innerHTML = set.map(s => {
+                const aktif = bank.filter(q => q.set === s && q.aktif).length;
+                return `<option value="${esc(s)}">${esc(s)} (${aktif} aktif / ${bank.filter(q => q.set === s).length})</option>`;
+            }).join('');
+            $('bank-set').value = admin.setDipilih;
+            renderBankSoalan();
+        }
+
+        function renderBankSoalan() {
+            admin.setDipilih = $('bank-set').value;
+            const senarai = admin.bank.filter(q => q.set === admin.setDipilih);
+            $('bank-senarai').innerHTML = senarai.length ? senarai.map(q => {
+                const jaw = q.jawapan >= 0 && q.pilihan[q.jawapan] ? 'ABCD'.charAt(q.jawapan) + '. ' + q.pilihan[q.jawapan] : 'Tiada jawapan sah';
+                return `<div class="border border-gray-200 rounded-xl p-3 ${q.aktif ? 'bg-white' : 'bg-gray-100 opacity-70'}">
+                    <div class="flex justify-between gap-2">
+                        <p class="text-sm text-gray-800 whitespace-pre-wrap"><span class="font-bold text-indigo-700">${esc(q.bil)}.</span> ${esc(q.soalan)}</p>
+                        <button type="button" class="btn-edit-soalan shrink-0 self-start text-xs font-bold bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-3 py-1 rounded-lg" data-id="${esc(q.id)}">Edit</button>
+                    </div>
+                    <p class="text-xs mt-1 ${q.aktif ? 'text-green-700' : 'text-gray-500'}"><span class="font-bold">Jawapan:</span> ${esc(jaw)} ${q.aktif ? '' : '<span class="ml-2 font-bold">(TIDAK AKTIF)</span>'}</p>
+                </div>`;
+            }).join('') : '<p class="text-sm text-gray-500 italic">Tiada soalan dalam set ini.</p>';
+        }
+
+        $('bank-senarai').addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-edit-soalan');
+            if (btn) bukaEditorSoalan(admin.bank.find(q => q.id === btn.dataset.id));
+        });
+
+        function bukaEditorSoalan(q) {
+            const baru = !q;
+            const senaraiSet = admin.bank.filter(x => x.set === admin.setDipilih);
+            $('bank-editor-tajuk').innerText = baru ? "Tambah Soalan" : "Edit Soalan";
+            $('ed-id').value = baru ? '' : q.id;
+            $('ed-set').value = baru ? (admin.setDipilih || 'Set 1') : q.set;
+            $('ed-bil').value = baru ? (senaraiSet.reduce((m, x) => Math.max(m, x.bil), 0) + 1) : q.bil;
+            $('ed-soalan').value = baru ? '' : q.soalan;
+            $('ed-aktif').checked = baru ? true : q.aktif;
+            $('ed-pilihan').innerHTML = [0, 1, 2, 3].map(i => `
+                <div class="flex items-center gap-2">
+                    <label class="flex items-center text-xs font-bold text-gray-700 w-24 shrink-0" title="Tandakan jawapan yang betul">
+                        <input type="radio" name="ed-jawapan" value="${i}" class="mr-1 w-4 h-4" ${!baru && q.jawapan === i ? 'checked' : ''}> Betul ${'ABCD'.charAt(i)}
+                    </label>
+                    <input type="text" id="ed-pilihan-${i}" maxlength="500" placeholder="Pilihan ${'ABCD'.charAt(i)}${i >= 2 ? ' (pilihan)' : ''}" class="flex-1 border-2 border-gray-200 rounded-lg p-2 text-sm">
+                </div>`).join('');
+            [0, 1, 2, 3].forEach(i => { $('ed-pilihan-' + i).value = !baru && q.pilihan[i] ? q.pilihan[i] : ''; });
+            $('ed-ralat').classList.add('hidden-step');
+            $('bank-editor').classList.remove('hidden-step');
+            $('bank-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Soalan baru: Bil dicadangkan sebagai nombor seterusnya dalam set yang ditaip
+        function cadangBil() {
+            if ($('ed-id').value) return;
+            const set = $('ed-set').value.trim().replace(/\s+/g, ' ');
+            $('ed-bil').value = admin.bank.filter(x => x.set === set).reduce((m, x) => Math.max(m, x.bil), 0) + 1;
+        }
+
+        function tutupEditorSoalan() {
+            $('bank-editor').classList.add('hidden-step');
+        }
+
+        async function simpanSoalan() {
+            const dipilih = document.querySelector('input[name="ed-jawapan"]:checked');
+            const soalan = {
+                id: $('ed-id').value || undefined,
+                set: $('ed-set').value.trim(),
+                bil: parseInt($('ed-bil').value, 10),
+                soalan: $('ed-soalan').value,
+                pilihan: [0, 1, 2, 3].map(i => $('ed-pilihan-' + i).value),
+                jawapan: dipilih ? parseInt(dipilih.value, 10) : -1,
+                aktif: $('ed-aktif').checked
+            };
+            const btn = $('btn-simpan-soalan');
+            btn.disabled = true;
+            btn.innerText = "Menyimpan...";
+            const data = await panggilAdmin({ action: 'simpanSoalan', soalan: soalan });
+            btn.disabled = false;
+            btn.innerText = "Simpan Soalan";
+            if (data.status === 'unauthorized') return;
+            if (data.status !== 'success') {
+                $('ed-ralat').innerText = data.message || "Tidak dapat disimpan.";
+                $('ed-ralat').classList.remove('hidden-step');
+                return;
+            }
+            admin.setDipilih = soalan.set.replace(/\s+/g, ' ');
+            setBank(data.bank);
+            tutupEditorSoalan();
+            paparAlert("Disimpan", "Soalan telah disimpan dan berkuat kuasa untuk peserta seterusnya.");
         }
 
         // ==========================================
@@ -1055,7 +1413,7 @@
         }
 
         function namaFail(awalan, daerah, nilaiMasa, sambungan) {
-            return `${awalan}_${daerah.replace(/[^a-zA-Z0-9]/g, '_')}_${(nilaiMasa || 'Keseluruhan').replace(/[^0-9-]/g, '')}.${sambungan}`;
+            return `${awalan}_${daerah.replace(/[^a-zA-Z0-9]/g, '_')}_${(nilaiMasa || 'Keseluruhan').replace(/[^0-9a-zA-Z-]/g, '')}.${sambungan}`;
         }
 
         function cetakLaporanPDF() {
@@ -1121,11 +1479,23 @@
             return '"' + t.replace(/"/g, '""') + '"';
         }
 
+        function muatTurunCsv(baris, nama) {
+            const blob = new Blob(["﻿" + baris.join("\n") + "\n"], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = nama;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
         function cetakLaporanExcel() {
             const hasil = dapatkanDataTapis();
             if (!hasil) return;
             const { data, daerah, nilaiMasa } = hasil;
-            const baris = [["Bil", "Nama Penuh Peserta", "No Kad Pengenalan", "Daerah/Pusat", "Set Soalan", "Markah Betul", "Markah Keseluruhan (%)", "Tarikh Kursus", "Emel Peserta", "Status Emel"].join(",")];
+            const baris = [["Bil", "Nama Penuh Peserta", "No Kad Pengenalan", "Daerah/Pusat", "Set Soalan", "Markah Betul", "Jumlah Soalan", "Markah Keseluruhan (%)", "Tarikh Kursus", "Emel Peserta", "Status"].join(",")];
             data.forEach((d, i) => {
                 const ic = String(d.ic || '').replace(/\D/g, '');
                 baris.push([
@@ -1135,21 +1505,14 @@
                     selCsv(d.daerah || "-"),
                     selCsv(d.set || "-"),
                     Number(d.markahBetul) || 0,
+                    jumlahSoalanRekod(d),
                     Number(d.skor) || 0,
                     selCsv(d.tarikh || "-"),
                     selCsv(d.email || "-"),
-                    selCsv(d.statusEmel || "-")
+                    selCsv(d.status || "-")
                 ].join(","));
             });
-            const blob = new Blob(["﻿" + baris.join("\n") + "\n"], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = namaFail('Rekod_Excel', daerah, nilaiMasa, 'csv');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            muatTurunCsv(baris, namaFail('Rekod_Excel', daerah, nilaiMasa, 'csv'));
         }
 
         // ==========================================
@@ -1173,7 +1536,16 @@
             }
         });
 
+        // ==========================================
+        // MULA
+        // ==========================================
         $('paparan-tarikh-hari-ini').innerText = new Date().toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        muatSenaraiSet();
+        // Peserta yang sudah hantar ujian tetapi belum isi borang penilaian (cth. halaman dimuat semula)
+        (function sambungMaklumBalasTertunda() {
+            const tertunda = simpanan.baca(KUNCI_TERTUNDA);
+            if (tertunda && tertunda.idHantar) bukaBorangMaklumBalas(tertunda.idHantar, tertunda.emel);
+        })();
     </script>
 </body>
 </html>

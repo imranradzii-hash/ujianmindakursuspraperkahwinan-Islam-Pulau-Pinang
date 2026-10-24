@@ -3,180 +3,344 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { binaGas, hariIniMYT } = require('./mock-gas');
 
-function peserta(g, tambahan) {
+// Ambil soalan seperti browser, kemudian bina jawapan (lalai: semua betul)
+function ujian(g, tambahan, ubahJawapan) {
+  const set = (tambahan && tambahan.set) || 'Set 1';
+  const s = g.get({ action: 'soalan', set });
+  const soalan = s.soalan || [];
+  const skema = Object.fromEntries((g.bank[set] || []).map((q) => [q.id, q.jawapan]));
+  let jawapan = soalan.map((q) => (q.id in skema ? skema[q.id] : 0));
+  if (ubahJawapan) jawapan = ubahJawapan(jawapan);
   return Object.assign({
     action: 'hantar',
     idHantar: 'ujian-' + Math.random().toString(36).slice(2, 10),
     nama: 'ALI BIN ABU', ic: '900101075555', email: 'ali@contoh.my',
-    daerah: 'Timur Laut', set: 'Set 1',
-    jawapan: g.bank['Set 1'].map((q) => q.jawapan)
+    daerah: 'Timur Laut', set, idSoalan: soalan.map((q) => q.id), kunci: s.kunci, jawapan
   }, tambahan || {});
 }
 
-function kataLaluan(g, akses) {
-  const log = g.state.log.join('\n');
-  return log.match(new RegExp(akses.replace(/[()]/g, '\\$&') + '  =>  (\\S+)'))[1];
+function maklumBalasPenuh(g) {
+  const s = g.get({ action: 'soalanMaklumBalas' });
+  const j = {};
+  s.soalan.forEach((q) => { j[q.id] = q.jenis === 'SKALA' ? 5 : q.jenis === 'PILIHAN' ? q.pilihan[0] : 'Baik'; });
+  return j;
 }
 
-test('soalan dihantar TANPA skema jawapan', () => {
+function kataLaluan(g, akses) {
+  return g.state.log.join('\n').match(new RegExp(akses.replace(/[()]/g, '\\$&') + '  =>  (\\S+)'))[1];
+}
+
+const kolum = (g, baris, k) => g.sheet.rows[baris - 1][k - 1];
+const STATUS = 11, ID = 12;
+
+test('senarai set & soalan dihantar TANPA skema jawapan', () => {
   const g = binaGas('v2');
+  assert.deepEqual(g.get({ action: 'senaraiSet' }).set, ['Set 1', 'Set 2', 'Set 3']);
   const r = g.get({ action: 'soalan', set: 'Set 2' });
   assert.equal(r.status, 'success');
   assert.equal(r.soalan.length, g.bank['Set 2'].length);
-  assert.equal(r.masaMinit, 30);
-  assert.ok(r.soalan.every((q) => !('jawapan' in q) && q.soalan && q.pilihan.length === 4));
+  assert.ok(r.kunci.length > 20);
+  assert.ok(r.soalan.every((q) => !('jawapan' in q) && q.id && q.pilihan.length === 4));
   assert.equal(g.get({ action: 'soalan', set: 'Set 9' }).status, 'error');
-  assert.equal(g.get({ action: 'soalan', set: 'hasOwnProperty' }).status, 'error');
   assert.equal(g.get({}).status, 'error');
 });
 
-test('hantar: markah dari server, tarikh dari server, emel masuk barisan', () => {
+test('hantar ujian: markah TIDAK dipulangkan, disimpan di Sheet, status menunggu maklum balas', () => {
   const g = binaGas('v2');
-  const skema = g.bank['Set 1'].map((q) => q.jawapan);
-  const jawapan = skema.map((j, i) => (i < 2 ? (j + 1) % 4 : j));
-  const r = g.post(peserta(g, { jawapan, skor: 100, tarikh: '1997-01-01' }));
+  const p = ujian(g, { skor: 100 }, (j) => j.map((x, i) => (i < 2 ? (x + 1) % 4 : x)));
+  const r = g.post(p);
   assert.equal(r.status, 'success');
-  assert.equal(r.markahBetul, skema.length - 2);
-  assert.equal(r.jumlah, skema.length);
-  assert.equal(r.tarikh, hariIniMYT());
-  const baris = g.sheet.rows[1];
-  assert.equal(baris[5], hariIniMYT());
-  assert.equal(baris[9], 'MENUNGGU');
-  assert.equal(g.state.peti.length, 0, 'emel tidak dihantar dalam request');
+  assert.equal(r.skor, undefined);
+  assert.equal(r.emel, 'al***@contoh.my');
+  const n = p.jawapan.length;
+  assert.equal(kolum(g, 2, 9), n - 2);
+  assert.equal(kolum(g, 2, 10), n);
+  assert.equal(kolum(g, 2, 8), Math.round(((n - 2) / n) * 100));
+  assert.equal(kolum(g, 2, 6), hariIniMYT());
+  assert.equal(kolum(g, 2, STATUS), 'MENUNGGU MAKLUM BALAS');
+  assert.equal(kolum(g, 2, ID), p.idHantar);
+  assert.equal(JSON.parse(kolum(g, 2, 13)).length, n);
 });
 
-test('hantar semula idHantar sama → satu rekod sahaja', () => {
+test('senarai soalan diubah oleh peserta → ditolak (tandatangan)', () => {
   const g = binaGas('v2');
-  const p = peserta(g);
+  const p = ujian(g);
+  const kurang = Object.assign({}, p, { idSoalan: p.idSoalan.slice(1), jawapan: p.jawapan.slice(1) });
+  assert.equal(g.post(kurang).status, 'error');
+  assert.equal(g.post(Object.assign({}, p, { kunci: 'palsu' })).status, 'error');
+  assert.equal(g.post(Object.assign({}, p, { set: 'Set 2' })).status, 'error');
+  assert.equal(g.post(Object.assign({}, p, { jawapan: p.jawapan.slice(1) })).status, 'error');
+  assert.equal(g.sheet.getLastRow(), 1);
+});
+
+test('hantar semula idHantar sama → satu rekod; had 3 hantaran setiap KP', () => {
+  const g = binaGas('v2');
+  const p = ujian(g);
   assert.deepEqual(g.post(p), g.post(p));
   assert.equal(g.sheet.getLastRow(), 2);
-});
-
-test('had 3 hantaran setiap No. KP dalam 6 jam', () => {
-  const g = binaGas('v2');
-  for (let i = 0; i < 3; i++) assert.equal(g.post(peserta(g)).status, 'success');
-  const r = g.post(peserta(g));
+  g.post(ujian(g));
+  g.post(ujian(g));
+  const r = g.post(ujian(g));
   assert.equal(r.status, 'error');
   assert.equal(r.bolehCubaLagi, false);
-  assert.equal(g.post(peserta(g, { ic: '900101075556' })).status, 'success');
+  assert.equal(g.post(ujian(g, { ic: '900101075556' })).status, 'success');
 });
 
 test('input tidak sah ditolak', () => {
   const g = binaGas('v2');
   const kes = [
     { nama: '<script>alert(1)</script>' }, { nama: '=1+1' }, { ic: '9001' }, { email: 'x' },
-    { daerah: 'SEMUA' }, { set: 'constructor' }, { jawapan: [1, 2] }, { idHantar: '../../' }, { action: 'padam' }
+    { daerah: 'SEMUA' }, { set: 'Set<1>' }, { idHantar: '../../' }, { action: 'padam' }
   ];
-  for (const k of kes) assert.equal(g.post(peserta(g, k)).status, 'error', JSON.stringify(k));
+  for (const k of kes) assert.equal(g.post(ujian(g, k)).status, 'error', JSON.stringify(k));
   assert.equal(g.sheet.getLastRow(), 1);
 });
 
 test('ralat dalaman tidak bocorkan butiran kepada browser', () => {
   const g = binaGas('v2');
-  g.state.ss.sheets[0].name = 'TukarNama';
-  const r = g.post(peserta(g));
+  const p = ujian(g);
+  g.sheet.name = 'TukarNama';
+  const r = g.post(p);
   assert.equal(r.status, 'error');
   assert.equal(r.bolehCubaLagi, true);
   assert.equal(r.message, 'Ralat pelayan. Sila cuba lagi.');
 });
 
-test('barisan emel: hantar, tanda DIHANTAR, escape nama, ikut kuota', () => {
+test('maklum balas: wajib & nilai disemak, disimpan ikut kolum soalan, status → MENUNGGU EMEL', () => {
   const g = binaGas('v2');
-  g.post(peserta(g, { nama: "SITI NUR'AIN", email: 'siti@contoh.my' }));
-  g.post(peserta(g, { ic: '900101075556', email: 'b@contoh.my', jawapan: g.bank['Set 1'].map(() => null) }));
-  g.post(peserta(g, { ic: '900101075557', email: 'c@contoh.my' }));
+  const p = ujian(g);
+  g.post(p);
+  const penuh = maklumBalasPenuh(g);
+
+  const tanpaWajib = Object.assign({}, penuh);
+  delete tanpaWajib.B1;
+  assert.equal(g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: tanpaWajib }).status, 'error');
+  assert.equal(g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: Object.assign({}, penuh, { B1: 9 }) }).status, 'error');
+  assert.equal(g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: Object.assign({}, penuh, { A1: 'Lain' }) }).status, 'error');
+  assert.equal(g.post({ action: 'maklumBalas', idHantar: 'tiada-rekod-123', jawapan: penuh }).status, 'error');
+
+  const r = g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: Object.assign({}, penuh, { F1: '=HYPERLINK("x")' }) });
+  assert.equal(r.status, 'success');
+  assert.equal(r.emel, 'al***@contoh.my');
+  assert.equal(kolum(g, 2, STATUS), 'MENUNGGU EMEL');
+
+  const mb = g.state.ss.getSheetByName('MaklumBalas');
+  assert.equal(mb.getLastRow(), 2);
+  const tajuk = mb.rows[0];
+  assert.equal(tajuk[1], 'ID Hantar');
+  assert.match(tajuk[5], /^A1 - Jantina/);
+  const kolB1 = tajuk.findIndex((t) => /^B1 - /.test(t));
+  assert.equal(mb.rows[1][kolB1], 5);
+  assert.equal(mb.rows[1][1], p.idHantar);
+  assert.equal(mb.rows[1][2], 'Timur Laut');
+  assert.equal(mb.formula.length, 0);
+
+  // Cubaan semula tidak menulis dua kali
+  assert.equal(g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: penuh }).status, 'success');
+  assert.equal(mb.getLastRow(), 2);
+});
+
+test('emel tidak dihantar sebelum maklum balas; selepas itu emel korporat dengan semakan jawapan', () => {
+  const g = binaGas('v2');
+  const p = ujian(g, { nama: "SITI NUR'AIN" }, (j) => j.map((x, i) => (i === 0 ? (x + 1) % 4 : x)));
+  g.post(p);
+  g.ctx.prosesBarisanEmel();
+  assert.equal(g.state.peti.length, 0, 'belum isi maklum balas');
+
+  g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: maklumBalasPenuh(g) });
+  g.ctx.prosesBarisanEmel();
+  assert.equal(g.state.peti.length, 1);
+  const emel = g.state.peti[0];
+  assert.equal(emel.to, 'ali@contoh.my');
+  assert.match(emel.subject, /Keputusan Ujian Minda/);
+  assert.match(emel.htmlBody, /SITI NUR&#39;AIN/);
+  assert.match(emel.htmlBody, /JABATAN HAL EHWAL AGAMA ISLAM PULAU PINANG/);
+  assert.match(emel.htmlBody, /XXXXXX-XX-5555/);
+  assert.doesNotMatch(emel.htmlBody, /900101075555/);
+  const n = p.jawapan.length;
+  assert.match(emel.htmlBody, new RegExp(`${n - 1} / ${n}`));
+  assert.match(emel.htmlBody, /SEMAKAN JAWAPAN \(1 SOALAN/);
+  const q0 = g.bank['Set 1'][0];
+  assert.ok(emel.htmlBody.includes('Jawapan betul: ' + 'ABCD'.charAt(q0.jawapan)));
+  assert.match(kolum(g, 2, STATUS), /^DIHANTAR /);
+  g.ctx.prosesBarisanEmel();
+  assert.equal(g.state.peti.length, 1, 'tiada emel berganda');
+});
+
+test('barisan emel ikut kuota; GAGAL boleh dicuba semula', () => {
+  const g = binaGas('v2');
+  for (let i = 0; i < 3; i++) {
+    const p = ujian(g, { ic: '90010107555' + i });
+    g.post(p);
+    g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: maklumBalasPenuh(g) });
+  }
   g.state.kuotaEmel = 2;
   g.ctx.prosesBarisanEmel();
   assert.equal(g.state.peti.length, 2);
-  assert.match(g.state.peti[0].htmlBody, /SITI NUR&#39;AIN/);
-  assert.match(g.state.peti[0].htmlBody, /Tahniah/);
-  assert.match(g.state.peti[1].htmlBody, /Terima kasih kerana menduduki/);
-  assert.match(g.sheet.rows[1][9], /^DIHANTAR /);
-  assert.equal(g.sheet.rows[3][9], 'MENUNGGU', 'kuota habis — tunggu pusingan seterusnya');
+  assert.equal(kolum(g, 4, STATUS), 'MENUNGGU EMEL');
   g.state.kuotaEmel = 10;
+  g.state.emelGagal = 'Invalid email';
   g.ctx.prosesBarisanEmel();
-  assert.equal(g.state.peti.length, 3);
-  g.ctx.prosesBarisanEmel();
-  assert.equal(g.state.peti.length, 3, 'tiada emel berganda');
-});
-
-test('barisan emel: gagal ditanda, boleh dicuba semula', () => {
-  const g = binaGas('v2');
-  g.post(peserta(g));
-  g.state.emelGagal = 'Invalid email: ali@contoh.my';
-  g.ctx.prosesBarisanEmel();
-  assert.match(g.sheet.rows[1][9], /^GAGAL: Invalid email/);
+  assert.match(kolum(g, 4, STATUS), /^GAGAL: Invalid email/);
   g.state.emelGagal = null;
-  g.ctx.prosesBarisanEmel();
-  assert.equal(g.state.peti.length, 0, 'GAGAL tidak dicuba automatik');
   g.ctx.hantarSemulaEmelGagal();
   g.ctx.prosesBarisanEmel();
-  assert.equal(g.state.peti.length, 1);
+  assert.equal(g.state.peti.length, 3);
 });
 
-test('rekod lama tanpa kolum J tidak diemel semula', () => {
+test('rekod lama (Sheet1 format asal) tidak diemel dan tetap dibaca dashboard', () => {
   const g = binaGas('v2');
   g.sheet.appendRow(['19/4/2026, 3:22:10 PTG', 'LAMA BIN LAMA', "'900101075550", 'lama@contoh.my', 'Barat Daya', '2026-04-19', 'Set 1', 50, 15]);
   g.ctx.prosesBarisanEmel();
   assert.equal(g.state.peti.length, 0);
+  const r = g.post({ action: 'login', pwd: kataLaluan(g, 'SEMUA') });
+  assert.equal(r.data[0].jumlah, 30);
+  assert.equal(r.data[0].status, '');
 });
 
-test('login → token sesi → data → logout', () => {
+test('login → token → data → logout; lepaskan keputusan ikut daerah', () => {
   const g = binaGas('v2');
-  g.ctx.janaKataLaluanBaru();
-  g.post(peserta(g, { daerah: 'Timur Laut' }));
-  g.post(peserta(g, { ic: '900101075556', daerah: 'Barat Daya' }));
+  const p1 = ujian(g, { daerah: 'Timur Laut' });
+  const p2 = ujian(g, { ic: '900101075556', daerah: 'Barat Daya' });
+  g.post(p1);
+  g.post(p2);
 
   const tl = g.post({ action: 'login', pwd: kataLaluan(g, 'Timur Laut') });
   assert.equal(tl.status, 'success');
-  assert.match(tl.token, /^[0-9a-f-]{36}$/);
   assert.deepEqual(tl.data.map((d) => d.daerah), ['Timur Laut']);
-  assert.equal(tl.data[0].statusEmel, 'MENUNGGU');
-  assert.equal(tl.data[0].jumlah, g.bank['Set 1'].length);
+  assert.equal(tl.data[0].status, 'MENUNGGU MAKLUM BALAS');
+  assert.equal(tl.data[0].idHantar, p1.idHantar);
 
-  const d = g.post({ action: 'data', token: tl.token });
-  assert.equal(d.status, 'success');
-  assert.equal(d.akses, 'Timur Laut');
-  assert.equal(d.data.length, 1);
+  // Admin Timur Laut tidak boleh lepaskan rekod Barat Daya
+  assert.equal(g.post({ action: 'lepaskan', token: tl.token, idHantar: p2.idHantar }).status, 'error');
+  assert.equal(kolum(g, 3, STATUS), 'MENUNGGU MAKLUM BALAS');
+  assert.equal(g.post({ action: 'lepaskan', token: tl.token, idHantar: p1.idHantar }).status, 'success');
+  assert.equal(kolum(g, 2, STATUS), 'MENUNGGU EMEL');
 
+  assert.equal(g.post({ action: 'data', token: tl.token }).data.length, 1);
   assert.equal(g.post({ action: 'data', token: 'palsu' }).status, 'unauthorized');
-  assert.equal(g.post({ action: 'data' }).status, 'unauthorized');
   assert.equal(g.post({ action: 'logout', token: tl.token }).status, 'success');
   assert.equal(g.post({ action: 'data', token: tl.token }).status, 'unauthorized');
 });
 
 test('login dikunci selepas 10 cubaan salah', () => {
   const g = binaGas('v2');
-  g.ctx.janaKataLaluanBaru();
   for (let i = 0; i < 10; i++) g.post({ action: 'login', pwd: 'salah' + i });
   assert.equal(g.post({ action: 'login', pwd: kataLaluan(g, 'SEMUA') }).status, 'unauthorized');
 });
 
-test('pasangTrigger: satu trigger sahaja walaupun dijalankan berulang', () => {
+test('bank soalan: hanya admin SEMUA boleh lihat & ubah', () => {
   const g = binaGas('v2');
-  g.ctx.pasangTrigger();
-  g.ctx.pasangTrigger();
-  assert.equal(g.state.trigger.length, 1);
-  assert.equal(g.state.trigger[0].fn, 'prosesBarisanEmel');
-  assert.equal(g.state.trigger[0].minit, 1);
-  assert.equal(g.sheet.rows[0][9], 'Status Emel');
+  const daerah = g.post({ action: 'login', pwd: kataLaluan(g, 'Barat Daya') });
+  assert.equal(g.post({ action: 'bankSoalan', token: daerah.token }).status, 'error');
+  assert.equal(g.post({ action: 'simpanSoalan', token: daerah.token, soalan: {} }).status, 'error');
+
+  const semua = g.post({ action: 'login', pwd: kataLaluan(g, 'SEMUA') });
+  const b = g.post({ action: 'bankSoalan', token: semua.token });
+  assert.equal(b.status, 'success');
+  assert.equal(b.bank.length, Object.values(g.bank).reduce((a, s) => a + s.length, 0));
+  assert.ok('jawapan' in b.bank[0]);
 });
 
-test('arkib: rekod tahun dipilih dipindah, yang lain kekal, No. KP & teks kekal selamat', () => {
+test('bank soalan: tambah, edit, nyahaktif, set baru — terus berkuat kuasa', () => {
   const g = binaGas('v2');
-  const tambah = (tarikh, ic, email) => g.sheet.appendRow(['t', 'NAMA ' + ic, "'" + ic, email, 'Timur Laut', tarikh, 'Set 1', 50, 15, 'DIHANTAR']);
+  const { token } = g.post({ action: 'login', pwd: kataLaluan(g, 'SEMUA') });
+  const simpan = (soalan) => g.post({ action: 'simpanSoalan', token, soalan });
+
+  // Set baru
+  const baru = simpan({ set: 'Set 4', bil: 1, soalan: 'Soalan percubaan set empat?', pilihan: ['Betul', 'Salah', '', ''], jawapan: 0, aktif: true });
+  assert.equal(baru.status, 'success');
+  assert.deepEqual(g.get({ action: 'senaraiSet' }).set, ['Set 1', 'Set 2', 'Set 3', 'Set 4']);
+  const s4 = g.get({ action: 'soalan', set: 'Set 4' });
+  assert.equal(s4.soalan.length, 1);
+  assert.deepEqual(s4.soalan[0].pilihan, ['Betul', 'Salah']);
+
+  // Edit: tukar jawapan → markah ikut skema baru
+  assert.equal(simpan({ id: baru.id, set: 'Set 4', bil: 1, soalan: 'Soalan percubaan set empat?', pilihan: ['Betul', 'Salah'], jawapan: 1, aktif: true }).status, 'success');
+  const p = ujian(g, { set: 'Set 4' }, () => [1]);
+  g.post(p);
+  assert.equal(kolum(g, 2, 9), 1);
+
+  // Nyahaktif → set hilang dari senarai peserta
+  simpan({ id: baru.id, set: 'Set 4', bil: 1, soalan: 'Soalan percubaan set empat?', pilihan: ['Betul', 'Salah'], jawapan: 1, aktif: false });
+  assert.deepEqual(g.get({ action: 'senaraiSet' }).set, ['Set 1', 'Set 2', 'Set 3']);
+
+  // Validasi
+  for (const bad of [
+    { set: 'Set 1', bil: 1, soalan: 'abc', pilihan: ['A', 'B'], jawapan: 0 },
+    { set: 'Set 1', bil: 1, soalan: 'Soalan sah?', pilihan: ['A'], jawapan: 0 },
+    { set: 'Set 1', bil: 1, soalan: 'Soalan sah?', pilihan: ['A', '', 'C'], jawapan: 0 },
+    { set: 'Set 1', bil: 1, soalan: 'Soalan sah?', pilihan: ['A', 'B'], jawapan: 3 },
+    { set: '<Set>', bil: 1, soalan: 'Soalan sah?', pilihan: ['A', 'B'], jawapan: 0 },
+    { set: 'Set 1', bil: 0, soalan: 'Soalan sah?', pilihan: ['A', 'B'], jawapan: 0 },
+    { id: 'TIADA-ID', set: 'Set 1', bil: 1, soalan: 'Soalan sah?', pilihan: ['A', 'B'], jawapan: 0 }
+  ]) assert.equal(simpan(bad).status, 'error', JSON.stringify(bad));
+  // Teks bermula "=" tidak jadi formula
+  assert.equal(simpan({ set: 'Set 5', bil: 1, soalan: '=1+1 berapa?', pilihan: ['=2', '3'], jawapan: 0 }).status, 'success');
+  assert.equal(g.state.ss.getSheetByName('BankSoalan').formula.length, 0);
+});
+
+test('soalan dinyahaktif semasa peserta sedang menjawab → jawapan tetap diterima', () => {
+  const g = binaGas('v2');
+  const p = ujian(g);
+  const { token } = g.post({ action: 'login', pwd: kataLaluan(g, 'SEMUA') });
+  const q = g.post({ action: 'bankSoalan', token }).bank.find((x) => x.id === p.idSoalan[0]);
+  g.post({ action: 'simpanSoalan', token, soalan: Object.assign({}, q, { aktif: false }) });
+  assert.equal(g.post(p).status, 'success');
+});
+
+test('data maklum balas untuk dashboard ikut daerah', () => {
+  const g = binaGas('v2');
+  for (const [ic, daerah] of [['900101075551', 'Timur Laut'], ['900101075552', 'Barat Daya']]) {
+    const p = ujian(g, { ic, daerah });
+    g.post(p);
+    g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: maklumBalasPenuh(g) });
+  }
+  const bd = g.post({ action: 'login', pwd: kataLaluan(g, 'Barat Daya') });
+  const r = g.post({ action: 'dataMaklumBalas', token: bd.token });
+  assert.equal(r.status, 'success');
+  assert.equal(r.rekod.length, 1);
+  assert.equal(r.rekod[0].daerah, 'Barat Daya');
+  assert.equal(r.rekod[0].jawapan.B1, 5);
+  assert.equal(r.labelSkala.length, 5);
+  assert.ok(r.soalan.find((q) => q.id === 'D10'));
+});
+
+test('sediakanSistem selamat dijalankan berulang kali', () => {
+  const g = binaGas('v2');
+  const smb = g.state.ss.getSheetByName('SoalanMaklumBalas');
+  const bil = smb.getLastRow();
+  assert.ok(bil > 30);
+  const hashAsal = g.state.props.AKAUN_HASH;
+  const bank = g.state.ss.getSheetByName('BankSoalan');
+  const bilBank = bank.getLastRow();
+  assert.equal(bilBank - 1, Object.values(g.bank).reduce((a, x) => a + x.length, 0), 'soalan diimport dari BankSoalan.gs');
+  assert.equal(bank.rows[1][0], 'S1-01');
+  g.ctx.sediakanSistem();
+  assert.equal(bank.getLastRow(), bilBank, 'import tidak berganda');
+  assert.equal(smb.getLastRow(), bil);
+  assert.equal(g.state.trigger.length, 1);
+  assert.equal(g.state.props.AKAUN_HASH, hashAsal, 'kata laluan tidak ditukar');
+  assert.deepEqual(g.sheet.rows[0].slice(10, 13), ['Status', 'ID Hantar', 'Butiran Jawapan (JSON)']);
+});
+
+test('contoh emel dihantar ke pemilik skrip', () => {
+  const g = binaGas('v2');
+  g.ctx.hantarEmelContohKepadaSaya();
+  assert.equal(g.state.peti[0].to, 'pemilik@contoh.gov.my');
+  assert.match(g.state.peti[0].subject, /^\[CONTOH\]/);
+});
+
+test('arkib: rekod tahun dipilih dipindah, yang lain kekal', () => {
+  const g = binaGas('v2');
+  const tambah = (tarikh, ic, email) => g.sheet.appendRow(['t', 'NAMA ' + ic, "'" + ic, email, 'Timur Laut', tarikh, 'Set 1', 50, 15, 30, 'DIHANTAR', 'id-' + ic, '[]']);
   tambah('2026-04-19', '010101075551', 'a@contoh.my');
   tambah('2025-12-01', '010101075552', "'=x@contoh.my");
-  tambah('2026-05-01', '010101075553', 'c@contoh.my');
   g.ctx.arkibkanRekodTahun();
   const arkib = g.state.ss.getSheetByName('Arkib 2026');
-  assert.equal(arkib.getLastRow(), 3);
+  assert.equal(arkib.getLastRow(), 2);
   assert.equal(arkib.rows[1][2], '010101075551');
   assert.equal(g.sheet.getLastRow(), 2);
-  assert.equal(g.sheet.rows[1][2], '010101075552');
   assert.equal(g.sheet.rows[1][3], '=x@contoh.my');
   assert.equal(g.sheet.formula.length, 0);
-  // Dijalankan sekali lagi: tiada rekod 2026 tinggal, tiada perubahan
-  g.ctx.arkibkanRekodTahun();
-  assert.equal(arkib.getLastRow(), 3);
 });
