@@ -103,13 +103,16 @@ async function tutupAlert(page) {
   await page.waitForSelector('#modal-overlay.hidden-step', { state: 'attached' });
 }
 
-async function loginAdmin(page, pwd) {
+// v2: pilih akses dalam dropdown; minimal: kata laluan sahaja
+async function loginAdmin(page, pwd, akses) {
   await page.click('text=Akses Platform Admin Daerah');
+  if (akses) await page.selectOption('#input-akses', akses);
   await page.fill('#input-password', pwd);
   await page.click('#btn-akses');
 }
 
 function kataLaluan(g, akses) {
+  if (g.kataLaluan) return g.kataLaluan[akses];
   return g.state.log.join('\n').match(new RegExp(akses.replace(/[()]/g, '\\$&') + '  =>  (\\S+)'))[1];
 }
 
@@ -334,7 +337,7 @@ test('v2: dashboard — XSS tidak jalan, IC bertopeng, status & Lepaskan, CSV & 
   g.sheet.appendRow(['t3', 'SITI BINTI ALI', "'900101075552", 'siti@contoh.my', 'Barat Daya', hari, 'Set 2', 40, 12, 30, 'GAGAL: Invalid email', 'id-tiga-0003', '[]']);
   const { context, page, ralat } = await buka('v2', g);
 
-  await loginAdmin(page, 'salah');
+  await loginAdmin(page, 'salah', 'SEMUA');
   await page.waitForSelector('#password-error:not(.hidden-step)');
   await page.fill('#input-password', kataLaluan(g, 'SEMUA'));
   await page.click('#btn-akses');
@@ -377,7 +380,7 @@ test('v2: admin daerah — data daerah sendiri, tiada panel bank soalan, tidak b
   g.sheet.appendRow(['t1', 'ALI BIN ABU', "'900101075551", 'a@contoh.my', 'Timur Laut', '2026-04-19', 'Set 1', 90, 27, 30, 'MENUNGGU MAKLUM BALAS', 'id-ali-00001', '[]']);
   g.sheet.appendRow(['t2', 'SITI BINTI ALI', "'900101075552", 's@contoh.my', 'Barat Daya', '2026-04-19', 'Set 1', 50, 15, 30, 'MENUNGGU MAKLUM BALAS', 'id-siti-0002', '[]']);
   const { context, page } = await buka('v2', g);
-  await loginAdmin(page, kataLaluan(g, 'Barat Daya'));
+  await loginAdmin(page, kataLaluan(g, 'Barat Daya'), 'Barat Daya');
   await page.waitForSelector('#step-admin:not(.hidden-step)');
   assert.equal(await page.isVisible('#kawasan-filter-daerah'), false);
   assert.equal(await page.isVisible('#panel-bank'), false);
@@ -394,7 +397,7 @@ test('v2: admin daerah — data daerah sendiri, tiada panel bank soalan, tidak b
 test('v2: admin SEMUA tambah & edit soalan → peserta terus nampak', async () => {
   const g = binaGas('v2');
   const { context, page } = await buka('v2', g);
-  await loginAdmin(page, kataLaluan(g, 'SEMUA'));
+  await loginAdmin(page, kataLaluan(g, 'SEMUA'), 'SEMUA');
   await page.waitForSelector('#step-admin:not(.hidden-step)');
   await page.click('#btn-buka-bank');
   await page.waitForSelector('#bank-kandungan:not(.hidden-step)');
@@ -446,7 +449,7 @@ test('v2: ringkasan penilaian kursus & CSV di dashboard', async () => {
   await page.waitForSelector('#step-3:not(.hidden-step)');
   await page.click('text=Kembali ke Laman Utama');
 
-  await loginAdmin(page, kataLaluan(g, 'SEMUA'));
+  await loginAdmin(page, kataLaluan(g, 'SEMUA'), 'SEMUA');
   await page.waitForSelector('#step-admin:not(.hidden-step)');
   await page.click('#btn-muat-mb');
   await page.waitForFunction(() => /1 responden/.test(document.getElementById('mb-ringkasan').textContent));
@@ -462,7 +465,7 @@ test('v2: sesi tamat → Muat Semula Data minta log masuk semula; Log Keluar bat
   const g = binaGas('v2');
   g.sheet.appendRow(['t1', 'ALI BIN ABU', "'900101075551", 'a@contoh.my', 'Timur Laut', '2026-04-19', 'Set 1', 90, 27, 30, 'DIHANTAR', 'id-ali-00001', '[]']);
   const { context, page, pelayan } = await buka('v2', g);
-  await loginAdmin(page, kataLaluan(g, 'SEMUA'));
+  await loginAdmin(page, kataLaluan(g, 'SEMUA'), 'SEMUA');
   await page.waitForSelector('#step-admin:not(.hidden-step)');
 
   g.sheet.appendRow(['t2', 'BARU BIN BARU', "'900101075552", 'b@contoh.my', 'Timur Laut', '2026-04-19', 'Set 1', 60, 18, 30, 'DIHANTAR', 'id-baru-0002', '[]']);
@@ -477,5 +480,10 @@ test('v2: sesi tamat → Muat Semula Data minta log masuk semula; Log Keluar bat
   assert.equal((await page.textContent('#modal-alert-title')).trim(), 'Sesi Tamat');
   assert.equal(await page.isVisible('#step-1'), true);
   assert.equal(g.post({ action: 'data', token }).status, 'unauthorized');
+  // Pilihan akses diingat (kata laluan tidak)
+  await page.reload();
+  await page.click('text=Akses Platform Admin Daerah');
+  assert.equal(await page.inputValue('#input-akses'), 'SEMUA');
+  assert.equal(await page.inputValue('#input-password'), '');
   await context.close();
 });

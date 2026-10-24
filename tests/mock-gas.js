@@ -151,6 +151,7 @@ function binaGas(versi) {
   const ctx = vm.createContext(Object.assign({ console: { log() {}, error: (m) => state.log.push(String(m)), warn() {} } }, gas));
   const failKod = path.join(AKAR, versi, 'Code.gs');
   let sheet;
+  let kataLaluan = null;
   let bank;
   if (versi === 'minimal') {
     for (const f of [failBankSoalan(), failKod]) vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f });
@@ -162,6 +163,8 @@ function binaGas(versi) {
     for (const f of [failBankSoalan(), failKod]) vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f });
     vm.runInContext('sediakanSistem()', ctx);
     sheet = state.ss.getSheetByName('Keputusan');
+    kataLaluan = bacaKataLaluanEmel(state.peti);
+    state.peti.length = 0;
     bank = bacaBankFail();
     Object.keys(bank).forEach((set, si) => bank[set].forEach((q, i) => { q.id = 'S' + (si + 1) + '-' + String(i + 1).padStart(2, '0'); }));
   }
@@ -169,7 +172,18 @@ function binaGas(versi) {
   // Panggil doPost/doGet seperti web app sebenar dan pulangkan JSON
   const post = (body) => JSON.parse(vm.runInContext('doPost', ctx)({ postData: { contents: JSON.stringify(body) } }).getContent());
   const get = (parameter) => JSON.parse(vm.runInContext('doGet', ctx)({ parameter }).getContent());
-  return { ctx, state, sheet, post, get, bank };
+  return { ctx, state, sheet, post, get, bank, kataLaluan };
+}
+
+// Kata laluan dari emel SULIT terakhir: { akses: kataLaluan }
+function bacaKataLaluanEmel(peti) {
+  const emel = [...peti].reverse().find((m) => /Kata Laluan Admin/.test(m.subject));
+  if (!emel) return null;
+  const hasil = {};
+  const re = /<td[^>]*>([^<]+)<\/td><td[^>]*font-family:Consolas[^>]*>([^<]+)<\/td>/g;
+  let m;
+  while ((m = re.exec(emel.htmlBody))) hasil[m[1].replace(' (Pentadbir JHEAIPP)', '').replace(/&amp;/g, '&')] = m[2];
+  return hasil;
 }
 
 // Baca bank soalan dari fail (sebenar atau contoh) sebagai objek biasa
@@ -184,4 +198,4 @@ function hariIniMYT(tambahHari) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(d);
 }
 
-module.exports = { binaGas, hariIniMYT, failBankSoalan };
+module.exports = { binaGas, hariIniMYT, failBankSoalan, bacaKataLaluanEmel };

@@ -10,9 +10,9 @@
 //   3. Trigger setiap minit hantar emel keputusan   (status: DIHANTAR ...)
 //
 // Fungsi yang dijalankan sendiri dari editor (pilih nama fungsi, klik Run):
-//   sediakanSistem()            — SEKALI selepas paste kod: cipta tab, import soalan, kata laluan, trigger
-//   janaKataLaluanBaru()        — jana kata laluan baru semua admin
-//   tukarKataLaluanSatuAkaun()  — tukar kata laluan satu daerah sahaja
+//   sediakanSistem()            — SEKALI selepas paste kod: cipta tab, import soalan, kata laluan (emel), trigger
+//   janaKataLaluanBaru()        — jana kata laluan baru semua admin (diemelkan kepada pentadbir)
+//   tukarKataLaluanSatuAkaun()  — tukar kata laluan satu daerah sahaja (diemelkan kepada pentadbir)
 //   hantarEmelContohKepadaSaya()— hantar contoh emel keputusan ke emel anda
 //   hantarSemulaEmelGagal()     — cuba semula emel yang berstatus GAGAL
 //   arkibkanRekodTahun()        — pindah rekod satu tahun ke tab arkib
@@ -59,8 +59,12 @@ const SENARAI_AKSES = [
 ];
 const SENARAI_DAERAH = SENARAI_AKSES.slice(1);
 
-const HAD_GAGAL_LOGIN = 10;            // Selepas 10 cubaan salah...
-const TEMPOH_KUNCI_LOGIN_SAAT = 900;   // ...login dikunci 15 minit (semua akaun)
+// Kata laluan admin yang baru dijana diemelkan ke alamat ini. Kosong = emel pemilik skrip.
+const EMEL_PENTADBIR = "";
+
+const HAD_GAGAL_LOGIN = 10;            // Selepas 10 cubaan salah bagi satu akses...
+const TEMPOH_KUNCI_LOGIN_SAAT = 900;   // ...akses itu dikunci 15 minit (akses lain tidak terjejas)
+const HAD_GAGAL_LOGIN_KESELURUHAN = 40; // Had keseluruhan semua akses dalam 15 minit (halang cubaan meneka beramai-ramai)
 const TEMPOH_SESI_SAAT = 6 * 60 * 60;  // Sesi admin tamat selepas 6 jam (had CacheService)
 const HAD_HANTAR_SETIAP_IC = 3;        // Maksimum hantaran satu No. KP dalam 6 jam
 const HAD_EMEL_SETIAP_PUSINGAN = 50;   // Emel dihantar setiap minit oleh trigger
@@ -132,7 +136,7 @@ function doPost(e) {
     switch (data.action) {
       case 'hantar': return jsonOutput(handleHantar(data));
       case 'maklumBalas': return jsonOutput(handleMaklumBalas(data));
-      case 'login': return jsonOutput(handleLogin(data.pwd));
+      case 'login': return jsonOutput(handleLogin(data.akses, data.pwd));
       case 'data': return jsonOutput(denganSesi(data.token, null, (akses) => ({ status: "success", akses: akses, data: bacaRekod(akses) })));
       case 'logout': return jsonOutput(handleLogout(data.token));
       case 'lepaskan': return jsonOutput(denganSesi(data.token, null, (akses) => handleLepaskan(akses, data.idHantar)));
@@ -633,17 +637,25 @@ function binaEmelKeputusan(rek) {
 // ==========================================
 // ADMIN: LOGIN, SESI, DATA
 // ==========================================
-function handleLogin(pwd) {
+// Login: pilih akses (dropdown) + kata laluan akses itu
+function handleLogin(akses, pwd) {
+  akses = String(akses || '');
+  const indeks = SENARAI_AKSES.indexOf(akses);
+  if (indeks === -1) return { status: "unauthorized", message: "Sila pilih akses daerah anda." };
+
   const cache = CacheService.getScriptCache();
-  const gagal = Number(cache.get('login_gagal') || 0);
-  if (gagal >= HAD_GAGAL_LOGIN) {
+  const kunciAkses = 'login_gagal_' + indeks;
+  const gagal = Number(cache.get(kunciAkses) || 0);
+  const gagalSemua = Number(cache.get('login_gagal_semua') || 0);
+  if (gagal >= HAD_GAGAL_LOGIN || gagalSemua >= HAD_GAGAL_LOGIN_KESELURUHAN) {
     return { status: "unauthorized", message: "Terlalu banyak cubaan salah. Sila cuba lagi selepas 15 minit." };
   }
-  const akses = semakKataLaluan(String(pwd || ''));
-  if (!akses) {
-    cache.put('login_gagal', String(gagal + 1), TEMPOH_KUNCI_LOGIN_SAAT);
-    return { status: "unauthorized", message: "Kata laluan salah atau tidak wujud." };
+  if (semakKataLaluan(String(pwd || '')) !== akses) {
+    cache.put(kunciAkses, String(gagal + 1), TEMPOH_KUNCI_LOGIN_SAAT);
+    cache.put('login_gagal_semua', String(gagalSemua + 1), TEMPOH_KUNCI_LOGIN_SAAT);
+    return { status: "unauthorized", message: "Kata laluan salah bagi akses ini." };
   }
+  cache.remove(kunciAkses);
   const token = Utilities.getUuid();
   cache.put('sesi_' + token, akses, TEMPOH_SESI_SAAT);
   return { status: "success", akses: akses, token: token, data: bacaRekod(akses) };
@@ -815,7 +827,7 @@ function janaRentetanRawak(panjang) {
 }
 
 // Jana kata laluan baru untuk SEMUA akaun (yang lama terus tidak sah).
-// Klik Run, salin senarai dari Execution log. Kata laluan tidak disimpan di mana-mana.
+// Klik Run — senarai kata laluan diemelkan kepada pentadbir (EMEL_PENTADBIR / pemilik skrip).
 function janaKataLaluanBaru() {
   const salt = janaRentetanRawak(32);
   const akaun = {};
@@ -823,10 +835,10 @@ function janaKataLaluanBaru() {
   SENARAI_AKSES.forEach(akses => {
     const pwd = janaRentetanRawak(12);
     akaun[hashKataLaluan(pwd, salt)] = akses;
-    senarai.push(akses + "  =>  " + pwd);
+    senarai.push([akses, pwd]);
   });
   PropertiesService.getScriptProperties().setProperties({ PWD_SALT: salt, AKAUN_HASH: JSON.stringify(akaun) });
-  Logger.log("KATA LALUAN BARU (salin sekarang):\n" + senarai.join("\n"));
+  emelKataLaluan(senarai, "Semua kata laluan admin telah dijana semula. Kata laluan lama tidak lagi sah.");
 }
 
 // Tukar kata laluan SATU akaun sahaja. Edit nama akses di bawah, kemudian klik Run.
@@ -841,7 +853,47 @@ function tukarKataLaluanSatuAkaun() {
   const pwd = janaRentetanRawak(12);
   akaun[hashKataLaluan(pwd, salt)] = AKSES_UNTUK_DITUKAR;
   props.setProperty('AKAUN_HASH', JSON.stringify(akaun));
-  Logger.log("Kata laluan baru untuk " + AKSES_UNTUK_DITUKAR + "  =>  " + pwd);
+  emelKataLaluan([[AKSES_UNTUK_DITUKAR, pwd]], "Kata laluan bagi akses " + AKSES_UNTUK_DITUKAR + " telah ditukar. Kata laluan akses lain kekal.");
+}
+
+function emelPentadbir() {
+  return EMEL_PENTADBIR || Session.getEffectiveUser().getEmail();
+}
+
+// Emel SULIT kepada pentadbir berisi kata laluan baru. Jika emel gagal, kata laluan dipaparkan
+// dalam Execution log sebagai sandaran (supaya tidak hilang).
+function emelKataLaluan(senarai, keterangan) {
+  const kepada = emelPentadbir();
+  const NAVY = "#0b2a4a", EMAS = "#b8902f", GARIS = "#dfe3e8";
+  let h = "<div style='background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;'>";
+  h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='max-width:640px;margin:0 auto;background:#ffffff;border:1px solid " + GARIS + ";border-collapse:collapse;'>";
+  h += "<tr><td style='background:" + NAVY + ";padding:20px 28px;text-align:center;border-bottom:4px solid " + EMAS + ";'>"
+    + "<div style='color:#ffffff;font-size:16px;font-weight:bold;letter-spacing:1px;'>" + escapeHtml(JABATAN.nama) + "</div>"
+    + "<div style='color:#c9d3e0;font-size:12px;margin-top:4px;'>SISTEM UJIAN MINDA PRAPERKAHWINAN</div></td></tr>";
+  h += "<tr><td style='padding:24px 32px;font-size:14px;color:#111827;line-height:1.6;'>";
+  h += "<p style='margin:0 0 6px;font-weight:bold;color:#b42318;letter-spacing:1px;'>SULIT</p>";
+  h += "<p style='margin:0 0 16px;font-weight:bold;text-decoration:underline;'>KATA LALUAN AKSES PLATFORM ADMIN</p>";
+  h += "<p style='margin:0 0 16px;'>" + escapeHtml(keterangan) + " Dijana pada " + escapeHtml(masaKini()) + ".</p>";
+  h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;border:1px solid " + GARIS + ";'>";
+  h += "<tr><td style='padding:9px 12px;background:#f6f7f9;font-size:12px;font-weight:bold;color:#5b6573;border-bottom:1px solid " + GARIS + ";'>AKSES (pilih dalam dropdown)</td>"
+    + "<td style='padding:9px 12px;background:#f6f7f9;font-size:12px;font-weight:bold;color:#5b6573;border-bottom:1px solid " + GARIS + ";'>KATA LALUAN</td></tr>";
+  senarai.forEach(([akses, pwd]) => {
+    h += "<tr><td style='padding:9px 12px;border-bottom:1px solid " + GARIS + ";'>" + escapeHtml(akses === "SEMUA" ? "SEMUA (Pentadbir JHEAIPP)" : akses) + "</td>"
+      + "<td style='padding:9px 12px;border-bottom:1px solid " + GARIS + ";font-family:Consolas,monospace;font-size:15px;font-weight:bold;letter-spacing:1px;'>" + escapeHtml(pwd) + "</td></tr>";
+  });
+  h += "</table>";
+  h += "<p style='margin:16px 0 0;font-size:13px;'>Panduan: agihkan kata laluan setiap daerah kepada pegawai berkenaan secara peribadi (bukan dalam kumpulan WhatsApp). "
+    + "Kata laluan <strong>SEMUA</strong> memberi akses kepada data semua daerah dan pengurusan bank soalan. Padam emel ini selepas kata laluan diagihkan.</p>";
+  h += "</td></tr>";
+  h += "<tr><td style='background:#f6f7f9;border-top:1px solid " + GARIS + ";padding:12px 32px;font-size:11px;color:#5b6573;'>"
+    + "Emel ini dijana secara automatik apabila kata laluan dijana dari editor Apps Script. Jika anda tidak menjananya, tukar semua kata laluan dengan segera.</td></tr>";
+  h += "</table></div>";
+  try {
+    MailApp.sendEmail({ to: kepada, subject: "[SULIT] Kata Laluan Admin - Sistem Ujian Minda Praperkahwinan", htmlBody: h, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+    Logger.log("Kata laluan baru (" + senarai.length + " akses) telah diemelkan ke " + kepada + ".");
+  } catch (err) {
+    Logger.log("Emel gagal (" + err + "). Salin kata laluan di bawah:\n" + senarai.map(x => x[0] + "  =>  " + x[1]).join("\n"));
+  }
 }
 
 // ==========================================

@@ -34,6 +34,10 @@ Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka boran
 
 ## v2: peranan admin
 
+Untuk log masuk, admin **pilih akses dalam dropdown** dan masukkan kata laluan akses itu. Akses yang dipilih diingat oleh browser, tetapi kata laluan tidak. Kalau berlaku 10 cubaan salah pada satu akses, akses itu sahaja dikunci 15 minit; akses lain tidak terjejas. Ada juga had keseluruhan sebanyak 40 cubaan salah dalam 15 minit.
+
+Kata laluan yang dijana (`sediakanSistem`, `janaKataLaluanBaru`, `tukarKataLaluanSatuAkaun`) **diemelkan sebagai emel SULIT** kepada pentadbir, iaitu `EMEL_PENTADBIR` atau pemilik skrip jika kosong. Kata laluan tidak ditulis dalam Execution log, kecuali jika emel gagal dihantar.
+
 | Akses | Boleh |
 |---|---|
 | **SEMUA** (JHEAIPP) | Semua data, semua daerah. **Urus Bank Soalan**: tambah, edit, nyahaktif soalan, dan buat set baru. Ringkasan penilaian, laporan PDF/CSV. |
@@ -52,7 +56,7 @@ Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka boran
 4. Pilih fungsi **`sediakanSistem`** → **Run** → benarkan akses. Fungsi ini:
    - cipta tab Keputusan / BankSoalan / SoalanMaklumBalas / MaklumBalas
    - import soalan dari `BankSoalan.gs`
-   - jana 8 kata laluan admin (salin dari **Execution log**)
+   - jana 8 kata laluan admin (**diemelkan kepada anda**)
    - pasang trigger emel
 5. Fail `BankSoalan.gs` kini boleh dipadam dari projek. Simpan salinannya di tempat selamat.
 6. *(Pilihan)* Jalankan `hantarEmelContohKepadaSaya` untuk lihat rupa emel keputusan dalam inbox anda.
@@ -71,8 +75,8 @@ Tukar `TAB.KEPUTUSAN` kepada `"Sheet1"` di atas `Code.gs`, kemudian jalankan `se
 
 | Fungsi | Guna |
 |---|---|
-| `janaKataLaluanBaru` | Tukar kata laluan semua admin |
-| `tukarKataLaluanSatuAkaun` | Tukar satu daerah sahaja (edit nama akses dalam fungsi) |
+| `janaKataLaluanBaru` | Tukar kata laluan semua admin. Senarai baru diemelkan kepada pentadbir. |
+| `tukarKataLaluanSatuAkaun` | Tukar satu daerah sahaja (edit nama akses dalam fungsi). Kata laluan baru diemelkan. |
 | `hantarEmelContohKepadaSaya` | Contoh emel keputusan ke emel anda |
 | `hantarSemulaEmelGagal` | Cuba semula emel berstatus GAGAL |
 | `arkibkanRekodTahun` | Pindah rekod satu tahun ke tab "Arkib <tahun>" (backup Sheet dahulu) |
