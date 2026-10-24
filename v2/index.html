@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ujian Minda Praperkahwinan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Library jsPDF & AutoTable untuk bina jadual PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .hidden-step { display: none !important; }
+
+        .fade-in { animation: fadeIn 0.4s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .rank-badge-1 { background-color: #fbbf24; color: #78350f; }
+        .rank-badge-2 { background-color: #9ca3af; color: #1f2937; }
+        .rank-badge-3 { background-color: #d97706; color: #fffbeb; }
+        .rank-badge-other { background-color: #f3f4f6; color: #4b5563; }
+
+        /* Halang highlight teks semasa ujian (kosmetik sahaja — bukan kawalan keselamatan) */
+        .no-copy { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+    </style>
+</head>
+<body class="p-2 sm:p-4 bg-gray-50 min-h-screen flex flex-col items-center no-copy" oncontextmenu="return false;" oncopy="return false;" oncut="return false;">
+
+    <div class="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mt-4 mb-4" id="app-container">
+
+        <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-6 text-center text-white relative">
+            <h2 class="text-2xl font-bold mb-1">Ujian Minda</h2>
+            <p class="text-blue-100 text-sm font-medium">Kursus Praperkahwinan Islam P.Pinang</p>
+        </div>
+
+        <!-- FASA 1: BORANG MAKLUMAT PESERTA -->
+        <div id="step-1" class="p-5 md:p-8 fade-in">
+            <form id="form-maklumat" onsubmit="mulaUjian(event)" class="space-y-4">
+                <div>
+                    <label for="nama" class="block text-[13px] font-bold text-gray-700 mb-1">Nama Penuh <span class="text-[11px] text-red-500 font-normal ml-1">*Ikut ejaan Kad Pengenalan</span></label>
+                    <input type="text" id="nama" required maxlength="100" autocomplete="name" class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none uppercase bg-gray-50 transition text-sm" placeholder="MUHAMMAD BIN ABDULLAH">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="ic" class="block text-[13px] font-bold text-gray-700 mb-1">No. Kad Pengenalan</label>
+                        <input type="text" inputmode="numeric" id="ic" pattern="\d{12}" maxlength="12" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 transition text-sm" placeholder="Cth: 912345678901 (Tanpa -)">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-[13px] font-bold text-gray-700 mb-1">Emel Peserta <span class="text-[11px] text-blue-500 font-normal ml-1">*Untuk terima keputusan</span></label>
+                        <input type="email" id="email" required maxlength="100" autocomplete="email" class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 transition text-sm" placeholder="contoh@gmail.com">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="daerah" class="block text-[13px] font-bold text-gray-700 mb-1">Daerah / Pusat Kursus</label>
+                        <select id="daerah" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none bg-gray-50 cursor-pointer text-sm">
+                            <option value="">-- Pilih Daerah --</option>
+                            <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
+                            <option value="Timur Laut">Timur Laut</option>
+                            <option value="Barat Daya">Barat Daya</option>
+                            <option value="Seberang Perai Utara (SPU) - Butterworth">Seberang Perai Utara (SPU) - Butterworth</option>
+                            <option value="Seberang Perai Utara (SPU) - Kepala Batas">Seberang Perai Utara (SPU) - Kepala Batas</option>
+                            <option value="Seberang Perai Tengah (SPT)">Seberang Perai Tengah (SPT)</option>
+                            <option value="Seberang Perai Selatan (SPS)">Seberang Perai Selatan (SPS)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="set_soalan" class="block text-[13px] font-bold text-gray-700 mb-1">Set Soalan</label>
+                        <select id="set_soalan" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none bg-gray-50 cursor-pointer text-sm">
+                            <option value="">-- Sila Pilih Set --</option>
+                            <option value="Set 1">Set 1</option>
+                            <option value="Set 2">Set 2</option>
+                            <option value="Set 3">Set 3</option>
+                        </select>
+                    </div>
+                </div>
+
+                <p class="text-[12px] text-gray-500">Tarikh kursus: <span id="paparan-tarikh-hari-ini" class="font-bold text-gray-700">-</span> <span class="text-[11px]">(direkod secara automatik)</span></p>
+
+                <!-- NOTIS PRIVASI -->
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[11px] text-gray-600 leading-relaxed">
+                    <p class="font-bold text-gray-700 mb-1">Notis Privasi</p>
+                    <p>Nama, No. Kad Pengenalan, emel, daerah dan markah anda dikumpul oleh Jabatan Hal Ehwal Agama Islam Pulau Pinang (JHEAIPP) untuk merekod keputusan Ujian Minda Kursus Praperkahwinan dan menghantar keputusan kepada anda. Maklumat ini hanya boleh dilihat oleh pegawai JHEAIPP dan urusetia kursus daerah berkenaan, tidak dikongsi dengan pihak luar, dan disimpan mengikut tempoh simpanan rekod yang ditetapkan oleh jabatan.</p>
+                    <label class="flex items-start mt-2 cursor-pointer">
+                        <input type="checkbox" id="setuju" required class="mt-0.5 mr-2 w-4 h-4">
+                        <span class="font-semibold text-gray-700">Saya faham dan bersetuju maklumat saya digunakan seperti di atas.</span>
+                    </label>
+                </div>
+
+                <div class="mt-6">
+                    <p class="text-[11px] font-semibold text-blue-600 text-center mb-2 flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Keputusan penuh akan diemelkan kepada anda selepas selesai menjawab.
+                    </p>
+                    <button type="submit" id="btn-mula" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all active:scale-95 text-sm">
+                        Mula Menjawab
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- FASA 2: SOALAN UJIAN -->
+        <div id="step-2" class="hidden-step p-6 md:p-8 bg-gray-50 fade-in relative">
+            <div class="sticky top-0 z-30 bg-gray-50 pt-2 pb-4 border-b-2 border-blue-200 mb-6 shadow-sm">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
+                    <div class="text-sm font-bold text-gray-600 truncate" id="paparan-nama">NAMA PESERTA</div>
+                    <div class="flex gap-2 items-center">
+                        <div class="text-[10px] sm:text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded-full font-bold shadow-sm" id="paparan-daerah-badge">DAERAH</div>
+                        <div class="text-[10px] sm:text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold shadow-sm flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
+                            <span id="paparan-masa">30:00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1 overflow-hidden">
+                    <div class="bg-blue-500 h-2.5 rounded-full transition-all duration-300" id="progress-bar" style="width: 0%"></div>
+                </div>
+                <div class="text-[11px] font-bold text-gray-500 text-right" id="paparan-progress">0 / 0 Dijawab</div>
+            </div>
+
+            <form id="form-ujian" onsubmit="hantarJawapan(event)">
+                <div id="ruangan-soalan" class="space-y-6"></div>
+
+                <button type="submit" id="btn-hantar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl mt-8 shadow-md transition-all active:scale-95">
+                    Hantar Jawapan & Simpan
+                </button>
+
+                <div id="status-hantar" class="text-center mt-6 text-sm font-bold text-blue-600 hidden-step flex flex-col items-center">
+                    <svg class="animate-spin h-8 w-8 text-blue-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Sedang menyimpan jawapan...
+                </div>
+            </form>
+        </div>
+
+        <!-- FASA 3: KEPUTUSAN & LINK PENILAIAN -->
+        <div id="step-3" class="hidden-step p-4 md:p-8 text-center fade-in max-w-3xl mx-auto">
+            <div class="bg-yellow-50 border-2 border-yellow-400 text-yellow-800 p-4 rounded-xl mb-6 shadow-sm flex flex-col items-center justify-center">
+                <svg class="w-6 h-6 mb-1 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <p class="font-extrabold text-sm md:text-base">Peringatan Penting!</p>
+                <p class="text-xs md:text-sm font-medium mt-1">Sila semak jawapan anda dan <span class="font-bold underline">tatal (scroll) ke bawah sekali</span> untuk melengkapkan Borang Maklum Balas / Penilaian Kursus.</p>
+            </div>
+
+            <div id="ikon-lulus" class="mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-green-100 text-green-600"></div>
+
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-2" id="tajuk-keputusan">Tahniah!</h2>
+            <p class="text-gray-600 mb-6 font-bold text-sm">Jawapan anda telah disimpan. Keputusan akan dihantar ke emel anda dalam beberapa minit.</p>
+
+            <div class="rounded-2xl p-6 mb-8 border-2 bg-white shadow-sm border-gray-100">
+                <p class="text-sm text-gray-500 font-bold mb-2 uppercase">Markah Anda</p>
+                <p class="text-6xl font-black text-gray-800" id="paparan-markah">0<span class="text-3xl">%</span></p>
+                <p class="text-sm text-gray-600 font-semibold mt-2" id="paparan-markah-betul">Betul: 0/30</p>
+            </div>
+
+            <div class="text-left mb-10">
+                <h3 class="text-lg font-extrabold text-gray-800 mb-4 border-b-2 border-gray-200 pb-2 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg>
+                    Semakan Jawapan Keseluruhan
+                </h3>
+                <div id="ruangan-semakan-jawapan" class="space-y-4"></div>
+            </div>
+
+            <div class="bg-blue-50 rounded-2xl p-6 mb-6 border border-blue-100 shadow-sm">
+                <h4 class="text-sm font-extrabold text-blue-900 mb-2">Borang Penilaian Kursus</h4>
+                <p class="text-xs text-blue-700 mb-4 font-medium">Sila lengkapkan borang penilaian pelaksanaan kursus praperkahwinan di bawah sebelum anda bersurai.</p>
+
+                <a href="https://forms.gle/wm15M8eZLFZiL9qT6" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md active:scale-95">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Buka Borang Penilaian
+                </a>
+            </div>
+
+            <button type="button" onclick="kembaliKeLamanUtama()" class="text-xs font-semibold text-gray-400 hover:text-gray-600 transition underline decoration-dotted underline-offset-4 mt-2">
+                Kembali ke Laman Utama
+            </button>
+        </div>
+
+        <!-- FASA 4: DASHBOARD ADMIN DAERAH -->
+        <div id="step-admin" class="hidden-step p-6 md:p-8 fade-in bg-gray-50">
+            <div class="flex justify-between items-center mb-6 pb-4 border-b-2 border-gray-200 gap-2">
+                <div>
+                    <h3 class="text-xl font-extrabold text-gray-800">Dashboard Admin</h3>
+                    <p class="text-sm font-semibold text-blue-600" id="admin-akses-badge">Akses: -</p>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" id="btn-muat-semula" onclick="muatSemulaData()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-bold py-2 px-4 rounded-lg transition">
+                        Muat Semula Data
+                    </button>
+                    <button type="button" onclick="tutupAdmin()" class="bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-2 px-4 rounded-lg transition">
+                        Log Keluar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panel Kawalan Saringan -->
+            <div class="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex-1" id="kawasan-filter-daerah">
+                    <label for="admin-daerah-selector" class="block text-sm font-bold text-gray-700 mb-2">Saringan Daerah:</label>
+                    <select id="admin-daerah-selector" onchange="kemaskiniFilterDaerah()" class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:outline-none bg-gray-50 font-semibold text-sm cursor-pointer">
+                        <option value="SEMUA" class="font-bold text-blue-700">-- Papar Keseluruhan Daerah --</option>
+                        <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
+                        <option value="Timur Laut">Timur Laut</option>
+                        <option value="Barat Daya">Barat Daya</option>
+                        <option value="Seberang Perai Utara (SPU) - Butterworth">Seberang Perai Utara (SPU) - Butterworth</option>
+                        <option value="Seberang Perai Utara (SPU) - Kepala Batas">Seberang Perai Utara (SPU) - Kepala Batas</option>
+                        <option value="Seberang Perai Tengah (SPT)">Seberang Perai Tengah (SPT)</option>
+                        <option value="Seberang Perai Selatan (SPS)">Seberang Perai Selatan (SPS)</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label for="admin-tarikh-selector" class="block text-sm font-bold text-gray-700 mb-2">Saringan Tarikh Kursus:</label>
+                    <select id="admin-tarikh-selector" onchange="janaJadualAdmin()" class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:outline-none bg-gray-50 font-semibold text-sm cursor-pointer">
+                        <option value="">-- Semua Tarikh --</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button type="button" onclick="resetSaringan()" class="w-full md:w-auto bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-xl transition text-sm">Reset</button>
+                </div>
+            </div>
+
+            <!-- Statistik -->
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase mb-1">Jumlah Peserta</p>
+                    <p class="text-3xl font-black text-blue-600" id="admin-stat-jumlah">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase mb-1">Purata Markah</p>
+                    <p class="text-3xl font-black text-green-600" id="admin-stat-purata">0%</p>
+                </div>
+            </div>
+
+            <!-- Panel Jana & Cetak Laporan -->
+            <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 mb-8 shadow-sm">
+                <h4 class="text-sm font-bold text-blue-800 mb-4 uppercase tracking-wider flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Jana & Muat Turun Laporan
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label for="laporan-jenis" class="block text-xs font-bold text-gray-700 mb-1.5">Kategori Tempoh Masa</label>
+                        <select id="laporan-jenis" onchange="tukarInputLaporan()" class="w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer">
+                            <option value="harian">Harian (Pilih Tarikh Spesifik)</option>
+                            <option value="bulanan">Bulanan (Pilih Bulan & Tahun)</option>
+                            <option value="tahunan">Tahunan (Pilih Tahun Saja)</option>
+                            <option value="keseluruhan">Keseluruhan (Semua Rekod)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5" id="label-input-masa">Pilih Tarikh Spesifik</label>
+                        <select id="laporan-input-harian" class="w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer"></select>
+                        <select id="laporan-input-bulanan" class="hidden-step w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer"></select>
+                        <select id="laporan-input-tahunan" class="hidden-step w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer"></select>
+                        <div id="laporan-input-semua" class="hidden-step w-full border-2 border-gray-100 bg-gray-100 rounded-xl p-3 text-sm font-bold text-gray-500 text-center">Rekod Sepanjang Masa</div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <button type="button" id="btn-jana-pdf" onclick="cetakLaporanPDF()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm flex justify-center items-center">
+                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                            Muat Turun PDF
+                        </button>
+                        <button type="button" id="btn-jana-excel" onclick="cetakLaporanExcel()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm flex justify-center items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Muat Turun EXCEL (CSV)
+                        </button>
+                    </div>
+                </div>
+                <p class="text-[11px] text-blue-600 mt-3 font-medium">* Laporan yang dimuat turun merujuk kepada <span class="font-bold underline">Saringan Daerah</span> di atas dan mengandungi No. KP penuh — simpan dengan selamat dan padam selepas digunakan.</p>
+            </div>
+
+            <!-- Jadual Top 10 -->
+            <h4 class="text-sm font-bold text-yellow-600 mb-3 uppercase tracking-wider flex items-center">
+                <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                10 Peserta Terbaik <span class="text-gray-400 text-xs ml-2 normal-case">(Saringan Semasa)</span>
+            </h4>
+            <div class="bg-white rounded-xl shadow-sm border border-yellow-200 overflow-hidden mb-8">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-yellow-50 border-b border-yellow-200">
+                            <tr>
+                                <th scope="col" class="px-5 py-3 text-center w-16">Rank</th>
+                                <th scope="col" class="px-5 py-3">Nama Peserta</th>
+                                <th scope="col" class="px-5 py-3 text-center">Set</th>
+                                <th scope="col" class="px-5 py-3 text-center">Markah/Betul</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-top10-tbody">
+                            <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Jadual Markah Rendah -->
+            <h4 class="text-sm font-bold text-red-600 mb-3 uppercase tracking-wider flex items-center">
+                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                Perhatian: Markah Bawah 7 Betul
+            </h4>
+            <div class="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden mb-8">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-red-800 uppercase bg-red-50 border-b border-red-200">
+                            <tr>
+                                <th scope="col" class="px-5 py-3">Nama Peserta</th>
+                                <th scope="col" class="px-5 py-3">No. KP & Daerah</th>
+                                <th scope="col" class="px-5 py-3 text-center">Set</th>
+                                <th scope="col" class="px-5 py-3 text-center">Betul / %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-gagal-tbody">
+                            <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Jadual Keseluruhan -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-3">
+                <h4 class="text-sm font-bold text-gray-800 uppercase tracking-wider">Senarai Keseluruhan Peserta <span id="label-jumlah-carian" class="text-blue-600 normal-case ml-2 text-xs bg-blue-100 px-3 py-1 rounded-full font-bold shadow-sm">0 Rekod</span></h4>
+                <div class="relative w-full md:w-72">
+                    <input type="text" id="carian-peserta" oninput="renderJadualKeseluruhan()" placeholder="Cari Nama atau No. KP..." class="w-full border-2 border-gray-200 rounded-xl p-2.5 pl-9 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition">
+                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+            <p class="text-[11px] text-gray-400 mb-2">No. KP dipaparkan 4 digit terakhir sahaja. Carian tetap boleh guna No. KP penuh. Tanda <span class="font-bold text-amber-600">×2</span> bermaksud No. KP sama menghantar lebih sekali.</p>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b border-gray-200">
+                            <tr>
+                                <th scope="col" class="px-5 py-3 text-center w-12">Bil.</th>
+                                <th scope="col" class="px-5 py-3">Nama Peserta</th>
+                                <th scope="col" class="px-5 py-3">No. KP & Daerah</th>
+                                <th scope="col" class="px-5 py-3 text-center">Set</th>
+                                <th scope="col" class="px-5 py-3 text-center">Markah</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-tbody">
+                            <tr><td colspan="5" class="px-5 py-8 text-center text-gray-400 italic">Sila pilih saringan di atas untuk melihat data.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pautan Admin -->
+    <div class="mt-2 mb-6 text-center">
+        <button type="button" onclick="bukaModal('modal-password')" class="text-xs font-semibold text-gray-400 hover:text-blue-600 transition underline decoration-dotted underline-offset-4">
+            Akses Platform Admin Daerah
+        </button>
+    </div>
+
+    <!-- KONTENA MODAL UI -->
+    <div id="modal-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-60 z-50 hidden-step flex items-center justify-center p-4">
+
+        <div id="modal-alert" role="alertdialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
+            <h3 id="modal-alert-title" class="text-lg font-bold text-gray-800 mb-2">Peringatan</h3>
+            <p id="modal-alert-desc" class="text-sm text-gray-600 mb-6 font-medium">Mesej di sini</p>
+            <button type="button" onclick="tutupSemuaModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition">Faham & Tutup</button>
+        </div>
+
+        <div id="modal-confirm" role="dialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
+            <h3 id="modal-confirm-title" class="text-lg font-bold text-gray-800 mb-2">Adakah Anda Pasti?</h3>
+            <p id="modal-confirm-desc" class="text-sm text-gray-600 mb-6 font-medium">Sila pastikan anda telah menyemak kesemua soalan.</p>
+            <div class="flex gap-3">
+                <button type="button" onclick="tutupSemuaModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-xl transition">Batal</button>
+                <button type="button" onclick="sahkanTindakan()" id="btn-modal-confirm-sah" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-md">Ya, Teruskan</button>
+            </div>
+        </div>
+
+        <div id="modal-password" role="dialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Akses Admin</h3>
+            <p class="text-sm text-gray-600 mb-4 font-medium">Sila masukkan kata laluan daerah anda untuk meneruskan.</p>
+            <input type="password" id="input-password" autocomplete="current-password" class="w-full border-2 border-gray-200 rounded-xl p-3 mb-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition" placeholder="Kata Laluan">
+            <p id="password-error" class="hidden-step text-red-500 text-xs font-bold mb-4">Kata laluan tidak tepat atau tidak wujud.</p>
+            <div class="flex gap-3 mt-4">
+                <button type="button" onclick="tutupSemuaModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-xl transition">Batal</button>
+                <button type="button" id="btn-akses" onclick="semakPassword()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-md">Akses</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // URL GOOGLE APPS SCRIPT (Web App)
+        // Kalau deploy baru (bukan "edit deployment"), tukar URL ini.
+        // ==========================================
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJp9l03wiC3JunqeULQ9eRxsCEa25wiHw0NZmMj0liDPzP9Dz1cncdUEeRmxuMfwpe/exec";
+
+        const PERATUS_LULUS = 50;
+        const HAD_MARKAH_RENDAH = 7; // jadual "Perhatian" — bilangan betul bawah nilai ini
+
+        // ==========================================
+        // UTILITI
+        // ==========================================
+        const $ = (id) => document.getElementById(id);
+
+        // Semua teks dari Sheet/peserta di-escape sebelum masuk innerHTML (elak XSS)
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function tarikhTempatan(d) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function standardkanTarikh(raw) {
+            const s = String(raw == null ? '' : raw).trim();
+            if (!s || /^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+            const d = new Date(s);
+            return isNaN(d.getTime()) ? s : tarikhTempatan(d);
+        }
+
+        function janaId() {
+            if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+            return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+        }
+
+        function tidur(ms) { return new Promise(selesai => setTimeout(selesai, ms)); }
+
+        function topengIC(ic) {
+            const s = String(ic || '');
+            return s.length >= 4 ? '••••••••' + s.slice(-4) : s;
+        }
+
+        function namaDaerahPendek(d) {
+            if (d.includes('Butterworth')) return 'Butterworth';
+            if (d.includes('Kepala Batas')) return 'Kepala Batas';
+            return d;
+        }
+
+        // POST ke Apps Script. Cuba semula jika rangkaian terputus atau server sesak
+        // (tunggu 2-4 saat, kemudian 4-6 saat). Ralat input (bolehCubaLagi: false) tidak dicuba semula.
+        async function panggilServer(badan, cubaan) {
+            cubaan = cubaan || 1;
+            for (let i = 1; ; i++) {
+                try {
+                    const res = await fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(badan)
+                    });
+                    const data = await res.json();
+                    if (data.status === 'error' && data.bolehCubaLagi !== false && i < cubaan) throw new Error(data.message);
+                    return data;
+                } catch (err) {
+                    if (i >= cubaan) throw err;
+                    await tidur(i * 2000 + Math.random() * 2000);
+                }
+            }
+        }
+
+        async function ambilSoalan(set) {
+            for (let i = 1; ; i++) {
+                try {
+                    const res = await fetch(GOOGLE_SCRIPT_URL + '?action=soalan&set=' + encodeURIComponent(set));
+                    return await res.json();
+                } catch (err) {
+                    if (i >= 3) throw err;
+                    await tidur(i * 1500);
+                }
+            }
+        }
+
+        // ==========================================
+        // MODAL
+        // ==========================================
+        let tindakanSahCallback = null;
+        const SENARAI_MODAL = ['modal-alert', 'modal-confirm', 'modal-password'];
+
+        function bukaModal(modalId) {
+            $('modal-overlay').classList.remove('hidden-step');
+            SENARAI_MODAL.forEach(id => $(id).classList.add('hidden-step'));
+            const aktif = $(modalId);
+            aktif.classList.remove('hidden-step');
+            setTimeout(() => {
+                aktif.classList.remove('scale-95', 'opacity-0');
+                aktif.classList.add('scale-100', 'opacity-100');
+                if (modalId === 'modal-password') $('input-password').focus();
+            }, 10);
+        }
+
+        function tutupSemuaModal() {
+            SENARAI_MODAL.forEach(id => {
+                $(id).classList.remove('scale-100', 'opacity-100');
+                $(id).classList.add('scale-95', 'opacity-0');
+            });
+            setTimeout(() => {
+                $('modal-overlay').classList.add('hidden-step');
+                SENARAI_MODAL.forEach(id => $(id).classList.add('hidden-step'));
+            }, 200);
+        }
+
+        function paparAlert(tajuk, mesej) {
+            $('modal-alert-title').innerText = tajuk;
+            $('modal-alert-desc').innerText = mesej;
+            bukaModal('modal-alert');
+        }
+
+        function paparConfirm(tajuk, mesej, teksButangSah, callback) {
+            $('modal-confirm-title').innerText = tajuk;
+            $('modal-confirm-desc').innerText = mesej;
+            $('btn-modal-confirm-sah').innerText = teksButangSah || "Ya, Teruskan";
+            tindakanSahCallback = callback;
+            bukaModal('modal-confirm');
+        }
+
+        function sahkanTindakan() {
+            tutupSemuaModal();
+            const cb = tindakanSahCallback;
+            tindakanSahCallback = null;
+            if (cb) cb();
+        }
+
+        function hideAllSteps() {
+            ['step-1', 'step-2', 'step-3', 'step-admin'].forEach(id => $(id).classList.add('hidden-step'));
+        }
+
+        function paparStep(id) {
+            hideAllSteps();
+            $(id).classList.remove('hidden-step');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ==========================================
+        // UJIAN PESERTA
+        // ==========================================
+        const ujian = {
+            maklumat: null, soalan: [], jawapan: [], skema: [],
+            tamatPada: 0, pemasa: null, dikunci: false, sedangHantar: false
+        };
+        let sedangUjian = false; // perangkap back/refresh semasa ujian
+
+        async function mulaUjian(e) {
+            e.preventDefault();
+            const nama = $('nama').value.trim().toUpperCase().replace(/\s+/g, ' ');
+            const ic = $('ic').value.trim();
+            const email = $('email').value.trim();
+            const daerah = $('daerah').value;
+            const set = $('set_soalan').value;
+
+            if (!nama || !ic || !email || !daerah || !set) {
+                paparAlert("Maklumat Tidak Lengkap", "Sila isi semua ruangan (Nama, No. KP, Emel, Daerah & Set Soalan) sebelum mula menjawab.");
+                return;
+            }
+            if (!/^\d{12}$/.test(ic)) {
+                paparAlert("Format No. KP Tidak Sah", "Sila masukkan No. Kad Pengenalan tepat 12 digit nombor tanpa sengkang (-).");
+                return;
+            }
+            // Semakan sama seperti server, supaya peserta tidak ditolak selepas habis menjawab
+            if (nama.length < 3 || nama.length > 100 || !/^[A-Z0-9 .,'’‘`@\/()\-]+$/.test(nama)) {
+                paparAlert("Nama Tidak Sah", "Sila tulis nama ikut ejaan Kad Pengenalan. Hanya huruf dan tanda . ' - @ / dibenarkan.");
+                return;
+            }
+            if (email.length > 100 || !/^[^\s@<>"'(),;:\\]+@[^\s@<>"'(),;:\\]+\.[^\s@<>"'(),;:\\]+$/.test(email)) {
+                paparAlert("Emel Tidak Sah", "Sila semak semula alamat emel anda.");
+                return;
+            }
+            if (!$('setuju').checked) {
+                paparAlert("Notis Privasi", "Sila tandakan persetujuan pada Notis Privasi sebelum mula menjawab.");
+                return;
+            }
+
+            const btnMula = $('btn-mula');
+            btnMula.disabled = true;
+            btnMula.innerText = "Memuatkan soalan...";
+            let data;
+            try {
+                data = await ambilSoalan(set);
+            } catch (err) {
+                console.error(err);
+                data = { status: 'error', message: "Tiada sambungan internet atau server sesak. Sila cuba lagi." };
+            }
+            btnMula.disabled = false;
+            btnMula.innerText = "Mula Menjawab";
+            if (data.status !== 'success') {
+                paparAlert("Soalan Tidak Dapat Dimuatkan", data.message || "Sila cuba lagi.");
+                return;
+            }
+
+            Object.assign(ujian, {
+                maklumat: { nama, ic, email, daerah, set, idHantar: janaId() },
+                soalan: data.soalan, jawapan: [], skema: [], dikunci: false, sedangHantar: false
+            });
+
+            $('paparan-nama').innerText = nama;
+            $('paparan-daerah-badge').innerText = namaDaerahPendek(daerah);
+            $('btn-hantar').innerText = "Hantar Jawapan & Simpan";
+            $('btn-hantar').classList.remove('hidden-step');
+            $('status-hantar').classList.add('hidden-step');
+            janaUISoalan();
+            kemaskiniProgress();
+            mulakanPemasa(data.masaMinit || 30);
+
+            sedangUjian = true;
+            history.pushState(null, document.title, location.href);
+            paparStep('step-2');
+        }
+
+        function janaUISoalan() {
+            const container = $('ruangan-soalan');
+            container.innerHTML = '';
+            ujian.soalan.forEach((item, index) => {
+                const htmlPilihan = item.pilihan.map((pil, idxPil) => `
+                    <label class="flex items-start p-4 border-2 border-gray-100 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-200 mb-3 transition group">
+                        <input type="radio" name="soalan_${index}" value="${idxPil}" onchange="kemaskiniProgress()" required class="mt-1 mr-3 text-blue-600 focus:ring-blue-500 w-4 h-4">
+                        <span class="text-sm font-medium text-gray-700 leading-snug group-hover:text-blue-800">${esc(pil)}</span>
+                    </label>`).join('');
+
+                const div = document.createElement('div');
+                div.className = "bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-200 fade-in";
+                div.innerHTML = `
+                    <p class="font-bold text-gray-800 mb-5 whitespace-pre-wrap"><span class="text-blue-600 mr-1">${index + 1}.</span> ${esc(item.soalan)}</p>
+                    <div class="space-y-1">${htmlPilihan}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function jawapanSemasa() {
+            return ujian.soalan.map((_, index) => {
+                const dipilih = document.querySelector(`input[name="soalan_${index}"]:checked`);
+                return dipilih ? parseInt(dipilih.value, 10) : null;
+            });
+        }
+
+        function kemaskiniProgress() {
+            const dijawab = jawapanSemasa().filter(j => j !== null).length;
+            const jumlah = ujian.soalan.length;
+            $('paparan-progress').innerText = `${dijawab} / ${jumlah} Dijawab`;
+            $('progress-bar').style.width = `${jumlah ? (dijawab / jumlah) * 100 : 0}%`;
+        }
+
+        // Pemasa ikut masa tamat sebenar — tetap tepat walaupun skrin telefon terkunci
+        function mulakanPemasa(minit) {
+            hentikanPemasa();
+            ujian.tamatPada = Date.now() + minit * 60 * 1000;
+            detikPemasa();
+            ujian.pemasa = setInterval(detikPemasa, 1000);
+        }
+
+        function hentikanPemasa() {
+            if (ujian.pemasa) clearInterval(ujian.pemasa);
+            ujian.pemasa = null;
+        }
+
+        function detikPemasa() {
+            const baki = Math.max(0, Math.ceil((ujian.tamatPada - Date.now()) / 1000));
+            $('paparan-masa').innerText = `${String(Math.floor(baki / 60)).padStart(2, '0')}:${String(baki % 60).padStart(2, '0')}`;
+            if (baki <= 0 && ujian.pemasa) {
+                hentikanPemasa();
+                tutupSemuaModal();
+                paparAlert("Masa Tamat!", "Masa menjawab telah tamat. Sistem menghantar jawapan anda secara automatik.");
+                prosesHantar();
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && ujian.pemasa) detikPemasa();
+        });
+
+        function hantarJawapan(e) {
+            e.preventDefault();
+            paparConfirm("Hantar Jawapan?", "Sila pastikan anda telah menyemak kesemua soalan. Jawapan yang dihantar tidak boleh diubah lagi.", "Ya, Hantar", prosesHantar);
+        }
+
+        async function prosesHantar() {
+            if (ujian.sedangHantar) return; // elak hantar dua kali serentak
+            ujian.sedangHantar = true;
+            sedangUjian = false;
+            hentikanPemasa();
+            $('btn-hantar').classList.add('hidden-step');
+            $('status-hantar').classList.remove('hidden-step');
+
+            // Kunci jawapan pada cubaan pertama; cubaan semula hantar jawapan yang sama
+            if (!ujian.dikunci) {
+                ujian.jawapan = jawapanSemasa();
+                ujian.dikunci = true;
+                document.querySelectorAll('#ruangan-soalan input[type="radio"]').forEach(r => { r.disabled = true; });
+            }
+
+            let data, ralatRangkaian = false;
+            try {
+                data = await panggilServer(Object.assign({ action: 'hantar', jawapan: ujian.jawapan }, ujian.maklumat), 3);
+            } catch (err) {
+                console.error("Ralat Hantar:", err);
+                ralatRangkaian = true;
+            }
+            ujian.sedangHantar = false;
+
+            if (data && data.status === 'success') {
+                ujian.skema = data.skema;
+                paparKeputusan(data.skor, data.markahBetul, data.jumlah || ujian.soalan.length);
+                return;
+            }
+
+            // Belum berjaya — jawapan masih dalam halaman ini, peserta boleh cuba semula
+            sedangUjian = true;
+            $('status-hantar').classList.add('hidden-step');
+            $('btn-hantar').innerText = "Cuba Hantar Semula";
+            $('btn-hantar').classList.remove('hidden-step');
+            if (!ralatRangkaian && data && data.bolehCubaLagi === false) {
+                paparAlert("Jawapan Tidak Diterima", (data.message || "Ralat.") + " Sila maklumkan kepada urusetia.");
+            } else {
+                paparAlert("Trafik Agak Sesak", "Jawapan anda BELUM berjaya dihantar. Jangan tutup halaman ini. Tekan butang 'Cuba Hantar Semula' di bawah, atau maklumkan kepada urusetia.");
+            }
+        }
+
+        function paparKeputusan(skor, betul, jumlah) {
+            paparStep('step-3');
+            const lulus = skor >= PERATUS_LULUS;
+            $('paparan-markah').innerHTML = `${esc(skor)}<span class="text-3xl">%</span>`;
+            $('paparan-markah').className = lulus ? "text-6xl font-black text-green-600" : "text-6xl font-black text-gray-800";
+            $('paparan-markah-betul').innerText = `Betul: ${betul}/${jumlah}`;
+            $('tajuk-keputusan').innerText = lulus ? "Tahniah!" : "Ujian Selesai";
+
+            const ikon = $('ikon-lulus');
+            if (lulus) {
+                ikon.className = "mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-green-100 text-green-600";
+                ikon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+            } else {
+                ikon.className = "mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-gray-100 text-gray-600";
+                ikon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+            }
+            janaUIJawapan();
+        }
+
+        function janaUIJawapan() {
+            const container = $('ruangan-semakan-jawapan');
+            container.innerHTML = '';
+            ujian.soalan.forEach((item, index) => {
+                const pilihanPeserta = ujian.jawapan[index];
+                const betul = ujian.skema[index];
+                const tepat = pilihanPeserta === betul;
+
+                const icon = tepat
+                    ? `<svg class="w-5 h-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`
+                    : `<svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+
+                const pilihanHTML = item.pilihan.map((pil, i) => {
+                    let kelas = 'text-gray-600', tanda = '';
+                    if (i === betul) {
+                        kelas = 'text-green-700 font-bold';
+                        tanda = ' <span class="inline-block text-[10px] bg-green-200 text-green-800 px-2 py-0.5 rounded-full ml-2">Jawapan Sebenar</span>';
+                    } else if (i === pilihanPeserta) {
+                        kelas = 'text-red-600 font-bold line-through';
+                        tanda = ' <span class="inline-block text-[10px] bg-red-200 text-red-800 px-2 py-0.5 rounded-full ml-2">Pilihan Anda</span>';
+                    }
+                    return `<div class="mb-1.5 text-sm ${kelas}">${String.fromCharCode(65 + i)}. ${esc(pil)}${tanda}</div>`;
+                }).join('');
+
+                const div = document.createElement('div');
+                div.className = `p-4 md:p-5 rounded-xl border-2 ${tepat ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`;
+                div.innerHTML = `
+                    <div class="flex items-start mb-3">
+                        ${icon}
+                        <p class="font-bold text-gray-800 text-sm whitespace-pre-wrap"><span class="mr-1">${index + 1}.</span> ${esc(item.soalan)}</p>
+                    </div>
+                    <div class="ml-7 pl-3 border-l-2 border-gray-300 space-y-1">${pilihanHTML}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function kembaliKeLamanUtama() {
+            sedangUjian = false;
+            hentikanPemasa();
+            Object.assign(ujian, { maklumat: null, soalan: [], jawapan: [], skema: [], dikunci: false, sedangHantar: false });
+            $('form-maklumat').reset();
+            $('ruangan-soalan').innerHTML = '';
+            $('btn-hantar').innerText = "Hantar Jawapan & Simpan";
+            $('btn-hantar').classList.remove('hidden-step');
+            $('status-hantar').classList.add('hidden-step');
+            paparStep('step-1');
+        }
+
+        // ==========================================
+        // ADMIN
+        // ==========================================
+        // Token sesi disimpan dalam memori sahaja (hilang bila tab ditutup). Server semak token setiap permintaan.
+        const admin = { akses: "", token: "", rekod: [], ditapis: [], bilIc: new Map() };
+
+        async function semakPassword() {
+            const pwd = $('input-password').value;
+            const ralat = $('password-error');
+            if (!pwd) {
+                ralat.innerText = "Sila masukkan kata laluan.";
+                ralat.classList.remove('hidden-step');
+                return;
+            }
+            const btn = $('btn-akses');
+            btn.innerText = "Menyemak...";
+            btn.disabled = true;
+            let data;
+            try {
+                data = await panggilServer({ action: 'login', pwd: pwd });
+            } catch (err) {
+                console.error("Ralat Rangkaian:", err);
+                data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
+            }
+            btn.innerText = "Akses";
+            btn.disabled = false;
+            $('input-password').value = '';
+
+            if (data.status !== 'success') {
+                ralat.innerText = data.message || "Kata laluan tidak tepat.";
+                ralat.classList.remove('hidden-step');
+                return;
+            }
+            ralat.classList.add('hidden-step');
+            tutupSemuaModal();
+            admin.akses = data.akses;
+            admin.token = data.token;
+            setRekod(data.data);
+            bukaAdmin();
+        }
+
+        $('input-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') semakPassword(); });
+
+        function setRekod(rows) {
+            admin.rekod = (Array.isArray(rows) ? rows : []).map(d => Object.assign({}, d, { tarikh: standardkanTarikh(d.tarikh) }));
+            admin.bilIc = new Map();
+            admin.rekod.forEach(d => admin.bilIc.set(d.ic, (admin.bilIc.get(d.ic) || 0) + 1));
+        }
+
+        async function muatSemulaData() {
+            const btn = $('btn-muat-semula');
+            btn.disabled = true;
+            btn.innerText = "Memuatkan...";
+            let data;
+            try {
+                data = await panggilServer({ action: 'data', token: admin.token }, 2);
+            } catch (err) {
+                data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
+            }
+            btn.disabled = false;
+            btn.innerText = "Muat Semula Data";
+            if (data.status === 'unauthorized') {
+                paparAlert("Sesi Tamat", data.message || "Sila log masuk semula.");
+                tutupAdmin();
+                return;
+            }
+            if (data.status !== 'success') {
+                paparAlert("Ralat", data.message || "Data tidak dapat dimuatkan.");
+                return;
+            }
+            const tarikhDipilih = $('admin-tarikh-selector').value;
+            setRekod(data.data);
+            kemaskiniFilterDaerah(tarikhDipilih);
+            kemaskiniDropdownLaporan();
+        }
+
+        function bukaAdmin() {
+            paparStep('step-admin');
+            $('admin-akses-badge').innerText = `Akses: ${admin.akses}`;
+            const selector = $('admin-daerah-selector');
+            if (admin.akses === "SEMUA") {
+                $('kawasan-filter-daerah').classList.remove('hidden-step');
+                selector.value = "SEMUA";
+            } else {
+                $('kawasan-filter-daerah').classList.add('hidden-step');
+                selector.value = admin.akses;
+            }
+            kemaskiniFilterDaerah();
+            kemaskiniDropdownLaporan();
+        }
+
+        function tutupAdmin() {
+            if (admin.token) panggilServer({ action: 'logout', token: admin.token }).catch(() => {});
+            Object.assign(admin, { akses: "", token: "", rekod: [], ditapis: [], bilIc: new Map() });
+            $('input-password').value = '';
+            $('carian-peserta').value = '';
+            ['admin-top10-tbody', 'admin-gagal-tbody', 'admin-tbody'].forEach(id => { $(id).innerHTML = ''; });
+            kembaliKeLamanUtama();
+        }
+
+        function daerahAktif() {
+            return admin.akses === "SEMUA" ? $('admin-daerah-selector').value : admin.akses;
+        }
+
+        function kemaskiniFilterDaerah(tarikhKekal) {
+            const daerah = daerahAktif();
+            const dropdown = $('admin-tarikh-selector');
+            const setTarikh = new Set();
+            admin.rekod.forEach(d => { if ((daerah === 'SEMUA' || d.daerah === daerah) && d.tarikh) setTarikh.add(d.tarikh); });
+            const senarai = Array.from(setTarikh).sort().reverse();
+            dropdown.innerHTML = '<option value="">-- Semua Tarikh --</option>' +
+                senarai.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+
+            const hariIni = tarikhTempatan(new Date());
+            if (tarikhKekal !== undefined && (tarikhKekal === '' || setTarikh.has(tarikhKekal))) dropdown.value = tarikhKekal;
+            else if (setTarikh.has(hariIni)) dropdown.value = hariIni;
+            else dropdown.value = senarai[0] || "";
+            janaJadualAdmin();
+        }
+
+        function resetSaringan() {
+            if (admin.akses === "SEMUA") $('admin-daerah-selector').value = "SEMUA";
+            $('carian-peserta').value = '';
+            kemaskiniFilterDaerah();
+        }
+
+        function jumlahSoalanRekod(d) { return d.jumlah || 30; }
+
+        function janaJadualAdmin() {
+            const daerah = daerahAktif();
+            const tarikh = $('admin-tarikh-selector').value;
+            let data = admin.rekod;
+            if (daerah !== 'SEMUA') data = data.filter(d => d.daerah === daerah);
+            if (tarikh) data = data.filter(d => d.tarikh === tarikh);
+            admin.ditapis = data;
+
+            const tbodyTop10 = $('admin-top10-tbody');
+            const tbodyGagal = $('admin-gagal-tbody');
+            const kosong = (n) => `<tr><td colspan="${n}" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>`;
+
+            if (data.length === 0) {
+                $('admin-tbody').innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-gray-500 font-medium">Tiada rekod peserta dijumpai.</td></tr>`;
+                $('label-jumlah-carian').innerText = `0 Rekod`;
+                tbodyTop10.innerHTML = kosong(4);
+                tbodyGagal.innerHTML = kosong(4);
+                $('admin-stat-jumlah').innerText = "0";
+                $('admin-stat-purata').innerText = "0%";
+                return;
+            }
+
+            $('admin-stat-jumlah').innerText = data.length;
+            $('admin-stat-purata').innerText = `${Math.round(data.reduce((a, d) => a + (d.skor || 0), 0) / data.length)}%`;
+
+            renderJadualKeseluruhan();
+
+            const lencana = (d) => `<span class="px-2 py-1 bg-gray-100 rounded text-xs font-bold text-gray-600">${esc(d.set || '-')}</span>`;
+
+            tbodyTop10.innerHTML = [...data].sort((a, b) => (b.skor || 0) - (a.skor || 0)).slice(0, 10).map((d, i) => {
+                const kelas = ['rank-badge-1', 'rank-badge-2', 'rank-badge-3'][i] || 'rank-badge-other';
+                const label = ['🥇', '🥈', '🥉'][i] || (i + 1);
+                return `<tr class="border-b border-yellow-100 hover:bg-yellow-50 transition bg-white">
+                    <td class="px-5 py-4 text-center"><span class="inline-flex items-center justify-center w-8 h-8 rounded-full font-black shadow-sm ${kelas}">${label}</span></td>
+                    <td class="px-5 py-4 font-bold text-gray-800">${esc(d.nama || "Tiada Nama")}<br><span class="text-xs font-normal text-gray-400">KP: ${esc(topengIC(d.ic))}</span></td>
+                    <td class="px-5 py-4 text-center">${lencana(d)}</td>
+                    <td class="px-5 py-4 text-center"><div class="flex flex-col items-center">
+                        <span class="px-3 py-1 rounded-full font-black text-sm text-green-700 bg-green-100 mb-1">${esc(d.skor || 0)}%</span>
+                        <span class="text-[10px] font-bold text-gray-500">B: ${esc(d.markahBetul)}/${esc(jumlahSoalanRekod(d))}</span>
+                    </div></td>
+                </tr>`;
+            }).join('');
+
+            const rendah = data.filter(d => (d.markahBetul || 0) < HAD_MARKAH_RENDAH).sort((a, b) => (a.skor || 0) - (b.skor || 0));
+            tbodyGagal.innerHTML = rendah.length === 0
+                ? `<tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Syabas! Tiada peserta mendapat markah bawah ${HAD_MARKAH_RENDAH}.</td></tr>`
+                : rendah.map(d => `<tr class="border-b border-red-100 hover:bg-red-50 transition bg-white">
+                    <td class="px-5 py-4 font-bold text-red-800">${esc(d.nama || "Tiada Nama")}<br><span class="text-xs font-normal text-gray-400">${esc(d.tarikh || '-')}</span></td>
+                    <td class="px-5 py-4 text-gray-600">${esc(topengIC(d.ic))}<br><span class="text-xs font-semibold text-red-600">${esc(d.daerah || '-')}</span></td>
+                    <td class="px-5 py-4 text-center">${lencana(d)}</td>
+                    <td class="px-5 py-4 text-center"><div class="flex flex-col items-center">
+                        <span class="px-3 py-1 rounded-full font-black text-sm text-white bg-red-600 mb-1">${esc(d.markahBetul)} / ${esc(jumlahSoalanRekod(d))}</span>
+                        <span class="text-[10px] font-bold text-red-500">${esc(d.skor || 0)}%</span>
+                    </div></td>
+                </tr>`).join('');
+        }
+
+        function renderJadualKeseluruhan() {
+            const tbody = $('admin-tbody');
+            const kataKunci = $('carian-peserta').value.trim().toLowerCase();
+            let data = admin.ditapis;
+            if (kataKunci) {
+                data = data.filter(d => String(d.nama || '').toLowerCase().includes(kataKunci) || String(d.ic || '').includes(kataKunci));
+            }
+            $('label-jumlah-carian').innerText = `${data.length} Rekod`;
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-gray-400 italic">Tiada padanan ditemui untuk "${esc(kataKunci)}". Sila semak semula ejaan Nama/No. KP.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = [...data].reverse().map((d, i) => {
+                const skor = d.skor || 0;
+                const warna = skor >= PERATUS_LULUS ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
+                const ulang = admin.bilIc.get(d.ic) > 1 ? ` <span class="text-[10px] font-bold text-amber-600" title="No. KP ini menghantar lebih sekali">×${admin.bilIc.get(d.ic)}</span>` : '';
+                const emelGagal = /^GAGAL/.test(d.statusEmel || '') ? `<br><span class="text-[10px] font-bold text-red-500" title="${esc(d.statusEmel)}">Emel gagal</span>` : '';
+                return `<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                    <td class="px-5 py-4 text-center font-bold text-gray-400">${i + 1}</td>
+                    <td class="px-5 py-4 font-bold text-gray-800">${esc(d.nama || "Tiada Nama")}<br><span class="text-xs font-normal text-gray-400">${esc(d.timestamp || d.tarikh || '-')}</span></td>
+                    <td class="px-5 py-4 text-gray-600">${esc(topengIC(d.ic))}${ulang}<br><span class="text-xs font-semibold text-blue-600">${esc(d.daerah || '-')}</span></td>
+                    <td class="px-5 py-4 text-center"><span class="px-2 py-1 bg-gray-100 rounded text-xs font-bold text-gray-600">${esc(d.set || '-')}</span></td>
+                    <td class="px-5 py-4 text-center"><span class="px-3 py-1 rounded-full font-bold text-sm ${warna}">${esc(skor)}%</span>${emelGagal}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ==========================================
+        // LAPORAN PDF & CSV
+        // ==========================================
+        function kemaskiniDropdownLaporan() {
+            const harian = new Set(), bulanan = new Set(), tahunan = new Set();
+            admin.rekod.forEach(d => {
+                if (!d.tarikh) return;
+                harian.add(d.tarikh);
+                bulanan.add(d.tarikh.substring(0, 7));
+                tahunan.add(d.tarikh.substring(0, 4));
+            });
+            const isi = (id, set) => {
+                const senarai = Array.from(set).sort().reverse();
+                $(id).innerHTML = senarai.length
+                    ? senarai.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('')
+                    : `<option value="">Tiada Data</option>`;
+            };
+            isi('laporan-input-harian', harian);
+            isi('laporan-input-bulanan', bulanan);
+            isi('laporan-input-tahunan', tahunan);
+        }
+
+        function tukarInputLaporan() {
+            const jenis = $('laporan-jenis').value;
+            const peta = {
+                harian: ['laporan-input-harian', 'Pilih Tarikh Spesifik'],
+                bulanan: ['laporan-input-bulanan', 'Pilih Bulan & Tahun'],
+                tahunan: ['laporan-input-tahunan', 'Pilih Tahun'],
+                keseluruhan: ['laporan-input-semua', 'Keseluruhan Data']
+            };
+            Object.values(peta).forEach(([id]) => $(id).classList.add('hidden-step'));
+            $(peta[jenis][0]).classList.remove('hidden-step');
+            $('label-input-masa').innerText = peta[jenis][1];
+        }
+
+        function dapatkanDataTapis() {
+            const jenis = $('laporan-jenis').value;
+            const daerah = daerahAktif();
+            let nilaiMasa = '', tajukMasa = 'Semua Rekod Terkumpul';
+            if (jenis !== 'keseluruhan') {
+                nilaiMasa = $('laporan-input-' + jenis).value;
+                tajukMasa = { harian: 'Tarikh', bulanan: 'Bulan', tahunan: 'Tahun' }[jenis] + ': ' + nilaiMasa;
+                if (!nilaiMasa) {
+                    paparAlert("Maklumat Cetakan Tidak Lengkap", "Sila pilih Tarikh/Bulan/Tahun di ruangan panel jana laporan terlebih dahulu.");
+                    return null;
+                }
+            }
+            let data = admin.rekod;
+            if (daerah !== 'SEMUA') data = data.filter(d => d.daerah === daerah);
+            if (jenis === 'harian') data = data.filter(d => d.tarikh === nilaiMasa);
+            else if (jenis !== 'keseluruhan') data = data.filter(d => d.tarikh && d.tarikh.startsWith(nilaiMasa));
+            if (data.length === 0) {
+                paparAlert("Tiada Data", "Tiada rekod peserta ditemui untuk saringan yang dipilih.");
+                return null;
+            }
+            data = [...data].sort((a, b) => ((b.skor || 0) - (a.skor || 0)) || String(a.nama || "").localeCompare(String(b.nama || "")));
+            return { data, daerah, tajukMasa, nilaiMasa };
+        }
+
+        function namaFail(awalan, daerah, nilaiMasa, sambungan) {
+            return `${awalan}_${daerah.replace(/[^a-zA-Z0-9]/g, '_')}_${(nilaiMasa || 'Keseluruhan').replace(/[^0-9-]/g, '')}.${sambungan}`;
+        }
+
+        function cetakLaporanPDF() {
+            const hasil = dapatkanDataTapis();
+            if (!hasil) return;
+            const { data, daerah, tajukMasa, nilaiMasa } = hasil;
+            if (!window.jspdf) {
+                paparAlert("PDF Tidak Dapat Dijana", "Library PDF gagal dimuatkan. Sila guna Muat Turun EXCEL (CSV).");
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'pt', 'a4');
+            const lulus = data.filter(d => (d.skor || 0) >= PERATUS_LULUS).length;
+            const purata = Math.round(data.reduce((a, d) => a + (d.skor || 0), 0) / data.length);
+
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text("LAPORAN KEPUTUSAN UJIAN MINDA PRAPERKAHWINAN", 40, 40);
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Daerah: ${daerah === 'SEMUA' ? 'Keseluruhan Pulau Pinang' : daerah}`, 40, 60);
+            doc.text(tajukMasa, 40, 75);
+            doc.setFontSize(10);
+            doc.text(`Jumlah Peserta: ${data.length} Orang  |  Lulus (>=${PERATUS_LULUS}%): ${lulus}  |  Gagal (<${PERATUS_LULUS}%): ${data.length - lulus}  |  Purata: ${purata}%`, 40, 95);
+
+            const semua = daerah === 'SEMUA';
+            const head = [semua
+                ? ['Bil', 'Nama Penuh Peserta', 'No KP', 'Daerah', 'Set', 'Betul', 'Markah (%)']
+                : ['Bil', 'Nama Penuh Peserta', 'No KP', 'Set', 'Betul', 'Markah (%)']];
+            const body = data.map((d, i) => {
+                const row = [i + 1, d.nama || "TIADA NAMA", d.ic || "-", d.set || "-", `${d.markahBetul}/${jumlahSoalanRekod(d)}`, `${d.skor || 0}%`];
+                if (semua) row.splice(3, 0, d.daerah || "-");
+                return row;
+            });
+            const kolMarkah = semua ? 6 : 5;
+
+            doc.autoTable({
+                head, body, startY: 110, theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 4 },
+                headStyles: { fillColor: [229, 231, 235], textColor: [0, 0, 0], fontStyle: 'bold' },
+                columnStyles: { 0: { halign: 'center', cellWidth: 30 }, 1: { fontStyle: 'bold' }, 2: { halign: 'center' }, [kolMarkah]: { halign: 'center', fontStyle: 'bold' } },
+                didParseCell: (c) => {
+                    if (c.section === 'body' && c.column.index === kolMarkah) {
+                        c.cell.styles.textColor = parseInt(c.cell.raw, 10) >= PERATUS_LULUS ? [22, 101, 52] : [153, 27, 27];
+                    }
+                }
+            });
+
+            const muka = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= muka; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(100);
+                doc.text(`Sistem Ujian Minda Praperkahwinan Islam P.Pinang  |  Dicetak: ${new Date().toLocaleString('ms-MY')}  |  Muka Surat ${i} / ${muka}`, 40, doc.internal.pageSize.height - 20);
+            }
+            doc.save(namaFail('Laporan', daerah, nilaiMasa, 'pdf'));
+        }
+
+        // Sel CSV selamat: petik dua digandakan, teks bermula = + - @ tidak dibaca sebagai formula Excel
+        function selCsv(nilai) {
+            let t = String(nilai == null ? '' : nilai);
+            if (/^[=+\-@]/.test(t)) t = "'" + t;
+            return '"' + t.replace(/"/g, '""') + '"';
+        }
+
+        function cetakLaporanExcel() {
+            const hasil = dapatkanDataTapis();
+            if (!hasil) return;
+            const { data, daerah, nilaiMasa } = hasil;
+            const baris = [["Bil", "Nama Penuh Peserta", "No Kad Pengenalan", "Daerah/Pusat", "Set Soalan", "Markah Betul", "Markah Keseluruhan (%)", "Tarikh Kursus", "Emel Peserta", "Status Emel"].join(",")];
+            data.forEach((d, i) => {
+                const ic = String(d.ic || '').replace(/\D/g, '');
+                baris.push([
+                    i + 1,
+                    selCsv(d.nama || "TIADA NAMA"),
+                    ic ? `"=""${ic}"""` : '"-"', // ="..." supaya Excel kekalkan 0 di depan
+                    selCsv(d.daerah || "-"),
+                    selCsv(d.set || "-"),
+                    Number(d.markahBetul) || 0,
+                    Number(d.skor) || 0,
+                    selCsv(d.tarikh || "-"),
+                    selCsv(d.email || "-"),
+                    selCsv(d.statusEmel || "-")
+                ].join(","));
+            });
+            const blob = new Blob(["﻿" + baris.join("\n") + "\n"], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = namaFail('Rekod_Excel', daerah, nilaiMasa, 'csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        // ==========================================
+        // HALANG BACK/REFRESH SEMASA UJIAN
+        // ==========================================
+        window.addEventListener('popstate', function () {
+            if (!sedangUjian) return;
+            history.pushState(null, document.title, location.href);
+            paparConfirm(
+                "Amaran!",
+                "Anda sedang di pertengahan ujian. Jika anda kembali, jawapan anda TIDAK akan disimpan. Adakah anda pasti?",
+                "Ya, Batalkan Ujian",
+                kembaliKeLamanUtama
+            );
+        });
+
+        window.addEventListener('beforeunload', function (e) {
+            if (sedangUjian) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        $('paparan-tarikh-hari-ini').innerText = new Date().toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    </script>
+</body>
+</html>

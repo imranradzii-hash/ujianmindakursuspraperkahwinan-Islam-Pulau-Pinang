@@ -1,0 +1,5 @@
+# Bank soalan sebenar (ada skema jawapan) — JANGAN commit, repo ini public.
+BankSoalan.gs
+node_modules/
+tests/output/
+.clasp.json

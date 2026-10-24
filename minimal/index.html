@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ujian Minda Praperkahwinan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Library jsPDF & AutoTable untuk bina jadual PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .hidden-step { display: none !important; }
+
+        .fade-in { animation: fadeIn 0.4s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .rank-badge-1 { background-color: #fbbf24; color: #78350f; }
+        .rank-badge-2 { background-color: #9ca3af; color: #1f2937; }
+        .rank-badge-3 { background-color: #d97706; color: #fffbeb; }
+        .rank-badge-other { background-color: #f3f4f6; color: #4b5563; }
+
+        /* CSS Untuk Halang Copy Paste & Highlight Text */
+        .no-copy {
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* IE10+/Edge */
+            user-select: none; /* Standard */
+        }
+    </style>
+</head>
+<body class="p-2 sm:p-4 bg-gray-50 min-h-screen flex flex-col items-center no-copy" oncontextmenu="return false;" oncopy="return false;" oncut="return false;" onpaste="return false;">
+
+    <div class="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mt-4 mb-4" id="app-container">
+
+        <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-6 text-center text-white relative">
+            <h2 class="text-2xl font-bold mb-1">Ujian Minda</h2>
+            <p class="text-blue-100 text-sm font-medium">Kursus Praperkahwinan Islam P.Pinang</p>
+        </div>
+
+        <!-- FASA 1: BORANG MAKLUMAT PELAJAR -->
+        <div id="step-1" class="p-5 md:p-8 fade-in">
+            <form id="form-maklumat" onsubmit="mulaUjian(event)" class="space-y-4">
+                <div>
+                    <label class="block text-[13px] font-bold text-gray-700 mb-1">Nama Penuh <span class="text-[11px] text-red-500 font-normal ml-1">*Ikut ejaan Kad Pengenalan</span></label>
+                    <input type="text" id="nama" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none uppercase bg-gray-50 transition text-sm" placeholder="MUHAMMAD BIN ABDULLAH">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[13px] font-bold text-gray-700 mb-1">No. Kad Pengenalan</label>
+                        <input type="tel" id="ic" pattern="\d{12}" maxlength="12" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 transition text-sm" placeholder="Cth: 912345678901 (Tanpa -)">
+                    </div>
+                    <div>
+                        <label class="block text-[13px] font-bold text-gray-700 mb-1">Emel Peserta <span class="text-[11px] text-blue-500 font-normal ml-1">*Untuk terima keputusan</span></label>
+                        <input type="email" id="email" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 transition text-sm" placeholder="contoh@gmail.com">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[13px] font-bold text-gray-700 mb-1">Daerah / Pusat Kursus</label>
+                        <select id="daerah" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none bg-gray-50 cursor-pointer text-sm">
+                            <option value="">-- Pilih Daerah --</option>
+                            <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
+                            <option value="Timur Laut">Timur Laut</option>
+                            <option value="Barat Daya">Barat Daya</option>
+                            <option value="Seberang Perai Utara (SPU) - Butterworth">Seberang Perai Utara (SPU) - Butterworth</option>
+                            <option value="Seberang Perai Utara (SPU) - Kepala Batas">Seberang Perai Utara (SPU) - Kepala Batas</option>
+                            <option value="Seberang Perai Tengah (SPT)">Seberang Perai Tengah (SPT)</option>
+                            <option value="Seberang Perai Selatan (SPS)">Seberang Perai Selatan (SPS)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[13px] font-bold text-gray-700 mb-1">Tarikh Kursus <span class="text-[11px] text-red-500 font-normal ml-1">*Pilih hari ini</span></label>
+                        <input type="date" id="tarikh" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 transition cursor-pointer text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[13px] font-bold text-gray-700 mb-1">Set Soalan</label>
+                    <select id="set_soalan" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none bg-gray-50 cursor-pointer text-sm">
+                        <option value="">-- Sila Pilih Set --</option>
+                        <option value="Set 1">Set 1</option>
+                        <option value="Set 2">Set 2</option>
+                        <option value="Set 3">Set 3</option>
+                    </select>
+                </div>
+
+                <div class="mt-6">
+                    <p class="text-[11px] font-semibold text-blue-600 text-center mb-2 flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Keputusan penuh akan diemelkan kepada anda sebaik sahaja selesai menjawab.
+                    </p>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all active:scale-95 text-sm">
+                        Mula Menjawab
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- FASA 2: SOALAN UJIAN -->
+        <div id="step-2" class="hidden-step p-6 md:p-8 bg-gray-50 fade-in relative">
+            <div class="sticky top-0 z-30 bg-gray-50 pt-2 pb-4 border-b-2 border-blue-200 mb-6 shadow-sm">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
+                    <div class="text-sm font-bold text-gray-600 truncate" id="paparan-nama">NAMA PELAJAR</div>
+                    <div class="flex gap-2 items-center">
+                        <div class="text-[10px] sm:text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded-full font-bold shadow-sm" id="paparan-daerah-badge">DAERAH</div>
+                        <div class="text-[10px] sm:text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold shadow-sm flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
+                            <span id="paparan-masa">30:00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1 overflow-hidden">
+                    <div class="bg-blue-500 h-2.5 rounded-full transition-all duration-300" id="progress-bar" style="width: 0%"></div>
+                </div>
+                <div class="text-[11px] font-bold text-gray-500 text-right" id="paparan-progress">0 / 0 Dijawab</div>
+            </div>
+
+            <form id="form-ujian" onsubmit="hantarJawapan(event)">
+                <div id="ruangan-soalan" class="space-y-6"></div>
+
+                <button type="submit" id="btn-hantar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl mt-8 shadow-md transition-all active:scale-95">
+                    Hantar Jawapan & Simpan
+                </button>
+
+                <div id="status-hantar" class="text-center mt-6 text-sm font-bold text-blue-600 hidden-step flex flex-col items-center">
+                    <svg class="animate-spin h-8 w-8 text-blue-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Sedang menyimpan & menghantar emel...
+                </div>
+            </form>
+        </div>
+
+        <!-- FASA 3: KEPUTUSAN & LINK PENILAIAN -->
+        <div id="step-3" class="hidden-step p-4 md:p-8 text-center fade-in max-w-3xl mx-auto">
+            <div class="bg-yellow-50 border-2 border-yellow-400 text-yellow-800 p-4 rounded-xl mb-6 shadow-sm flex flex-col items-center justify-center animate-pulse">
+                <svg class="w-6 h-6 mb-1 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <p class="font-extrabold text-sm md:text-base">Peringatan Penting!</p>
+                <p class="text-xs md:text-sm font-medium mt-1">Sila semak jawapan anda dan <span class="font-bold underline">tatal (scroll) ke bawah sekali</span> untuk melengkapkan Borang Maklum Balas / Penilaian Kursus.</p>
+            </div>
+
+            <div id="ikon-lulus" class="mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-green-100 text-green-600"></div>
+
+            <h2 class="text-3xl font-extrabold text-gray-800 mb-2" id="tajuk-keputusan">Tahniah!</h2>
+            <p class="text-gray-600 mb-6 font-bold text-sm">Maklumat & keputusan telah dihantar ke emel anda.</p>
+
+            <div class="rounded-2xl p-6 mb-8 border-2 bg-white shadow-sm border-gray-100">
+                <p class="text-sm text-gray-500 font-bold mb-2 uppercase">Markah Anda</p>
+                <p class="text-6xl font-black text-gray-800" id="paparan-markah">0<span class="text-3xl">%</span></p>
+                <p class="text-sm text-gray-600 font-semibold mt-2" id="paparan-markah-betul">Betul: 0/30</p>
+            </div>
+
+            <div class="text-left mb-10">
+                <h3 class="text-lg font-extrabold text-gray-800 mb-4 border-b-2 border-gray-200 pb-2 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg>
+                    Semakan Jawapan Keseluruhan
+                </h3>
+                <div id="ruangan-semakan-jawapan" class="space-y-4"></div>
+            </div>
+
+            <div class="bg-blue-50 rounded-2xl p-6 mb-6 border border-blue-100 shadow-sm">
+                <h4 class="text-sm font-extrabold text-blue-900 mb-2">Borang Penilaian Kursus</h4>
+                <p class="text-xs text-blue-700 mb-4 font-medium">Sila lengkapkan borang penilaian pelaksanaan kursus praperkahwinan di bawah sebelum anda bersurai.</p>
+
+                <a href="https://forms.gle/wm15M8eZLFZiL9qT6" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md active:scale-95">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Buka Borang Penilaian
+                </a>
+            </div>
+
+            <button type="button" onclick="kembaliKeLamanUtama()" class="text-xs font-semibold text-gray-400 hover:text-gray-600 transition underline decoration-dotted underline-offset-4 mt-2">
+                Kembali ke Laman Utama
+            </button>
+        </div>
+
+        <!-- FASA 4: DASHBOARD ADMIN DAERAH -->
+        <div id="step-admin" class="hidden-step p-6 md:p-8 fade-in bg-gray-50">
+            <div class="flex justify-between items-center mb-6 pb-4 border-b-2 border-gray-200">
+                <div>
+                    <h3 class="text-xl font-extrabold text-gray-800">Dashboard Admin</h3>
+                    <p class="text-sm font-semibold text-blue-600" id="admin-akses-badge">Akses: SEMUA</p>
+                </div>
+                <button type="button" onclick="tutupAdmin()" class="bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-2 px-4 rounded-lg transition">
+                    Log Keluar
+                </button>
+            </div>
+
+            <!-- Panel Kawalan Saringan -->
+            <div class="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex-1" id="kawasan-filter-daerah">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Saringan Daerah:</label>
+                    <select id="admin-daerah-selector" onchange="kemaskiniFilterDaerah()" class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:outline-none bg-gray-50 font-semibold text-sm cursor-pointer">
+                        <option value="SEMUA" class="font-bold text-blue-700">-- Papar Keseluruhan Daerah --</option>
+                        <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
+                        <option value="Timur Laut">Timur Laut</option>
+                        <option value="Barat Daya">Barat Daya</option>
+                        <option value="Seberang Perai Utara (SPU) - Butterworth">Seberang Perai Utara (SPU) - Butterworth</option>
+                        <option value="Seberang Perai Utara (SPU) - Kepala Batas">Seberang Perai Utara (SPU) - Kepala Batas</option>
+                        <option value="Seberang Perai Tengah (SPT)">Seberang Perai Tengah (SPT)</option>
+                        <option value="Seberang Perai Selatan (SPS)">Seberang Perai Selatan (SPS)</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Saringan Tarikh Kursus:</label>
+                    <select id="admin-tarikh-selector" onchange="janaJadualAdmin()" class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:outline-none bg-gray-50 font-semibold text-sm cursor-pointer">
+                        <option value="">-- Semua Tarikh --</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="resetSaringan()" class="w-full md:w-auto bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-xl transition text-sm">Reset</button>
+                </div>
+            </div>
+
+            <!-- Statistik -->
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase mb-1">Jumlah Peserta</p>
+                    <p class="text-3xl font-black text-blue-600" id="admin-stat-jumlah">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                    <p class="text-xs text-gray-500 font-bold uppercase mb-1">Purata Markah</p>
+                    <p class="text-3xl font-black text-green-600" id="admin-stat-purata">0%</p>
+                </div>
+            </div>
+
+            <!-- Panel Jana & Cetak Laporan -->
+            <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 mb-8 shadow-sm">
+                <h4 class="text-sm font-bold text-blue-800 mb-4 uppercase tracking-wider flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Jana & Muat Turun Laporan
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Kategori Tempoh Masa</label>
+                        <select id="laporan-jenis" onchange="tukarInputLaporan()" class="w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer">
+                            <option value="harian">Harian (Pilih Tarikh Spesifik)</option>
+                            <option value="bulanan">Bulanan (Pilih Bulan & Tahun)</option>
+                            <option value="tahunan">Tahunan (Pilih Tahun Saja)</option>
+                            <option value="keseluruhan">Keseluruhan (Semua Rekod)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5" id="label-input-masa">Pilih Tarikh</label>
+                        <select id="laporan-input-harian" class="w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer"></select>
+                        <select id="laporan-input-bulanan" class="hidden-step w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer"></select>
+                        <select id="laporan-input-tahunan" class="hidden-step w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer"></select>
+                        <div id="laporan-input-semua" class="hidden-step w-full border-2 border-gray-100 bg-gray-100 rounded-xl p-3 text-sm font-bold text-gray-500 text-center">Rekod Sepanjang Masa</div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <!-- BUTANG PDF -->
+                        <button type="button" id="btn-jana-pdf" onclick="cetakLaporanPDF()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm flex justify-center items-center">
+                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                            Muat Turun PDF
+                        </button>
+                        <!-- BUTANG EXCEL -->
+                        <button type="button" id="btn-jana-excel" onclick="cetakLaporanExcel()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm flex justify-center items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Muat Turun EXCEL (CSV)
+                        </button>
+                    </div>
+                </div>
+                <p class="text-[11px] text-blue-600 mt-3 font-medium">* Laporan yang dimuat turun akan merujuk kepada <span class="font-bold underline">Saringan Daerah</span> di atas. Jika fail PDF tidak terhasil, sila guna Muat Turun EXCEL (Jauh lebih sesuai untuk semakan petugas).</p>
+            </div>
+
+            <!-- Jadual Top 10 -->
+            <h4 class="text-sm font-bold text-yellow-600 mb-3 uppercase tracking-wider flex items-center">
+                <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                10 Pelajar Terbaik <span class="text-gray-400 text-xs ml-2 normal-case">(Saringan Semasa)</span>
+            </h4>
+            <div class="bg-white rounded-xl shadow-sm border border-yellow-200 overflow-hidden mb-8">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-yellow-50 border-b border-yellow-200">
+                            <tr>
+                                <th scope="col" class="px-5 py-3 text-center w-16">Rank</th>
+                                <th scope="col" class="px-5 py-3">Nama Pelajar</th>
+                                <th scope="col" class="px-5 py-3 text-center">Set</th>
+                                <th scope="col" class="px-5 py-3 text-center">Markah/Betul</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-top10-tbody">
+                            <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Jadual Gagal Teruk (< 7 Markah) -->
+            <h4 class="text-sm font-bold text-red-600 mb-3 uppercase tracking-wider flex items-center">
+                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                Perhatian: Markah Bawah 7 Betul
+            </h4>
+            <div class="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden mb-8">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-red-800 uppercase bg-red-50 border-b border-red-200">
+                            <tr>
+                                <th scope="col" class="px-5 py-3">Nama Pelajar</th>
+                                <th scope="col" class="px-5 py-3">No. KP & Daerah</th>
+                                <th scope="col" class="px-5 py-3 text-center">Set</th>
+                                <th scope="col" class="px-5 py-3 text-center">Betul / %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-gagal-tbody">
+                            <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Jadual Keseluruhan -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-3">
+                <h4 class="text-sm font-bold text-gray-800 uppercase tracking-wider">Senarai Keseluruhan Peserta <span id="label-jumlah-carian" class="text-blue-600 normal-case ml-2 text-xs bg-blue-100 px-3 py-1 rounded-full font-bold shadow-sm">0 Rekod</span></h4>
+                <div class="relative w-full md:w-72">
+                    <input type="text" id="carian-peserta" onkeyup="carianKeseluruhan()" placeholder="Cari Nama atau No. KP..." class="w-full border-2 border-gray-200 rounded-xl p-2.5 pl-9 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition">
+                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b border-gray-200">
+                            <tr>
+                                <th scope="col" class="px-5 py-3 text-center w-12">Bil.</th>
+                                <th scope="col" class="px-5 py-3">Nama Pelajar</th>
+                                <th scope="col" class="px-5 py-3">No. KP & Daerah</th>
+                                <th scope="col" class="px-5 py-3 text-center">Set</th>
+                                <th scope="col" class="px-5 py-3 text-center">Markah</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-tbody">
+                            <tr><td colspan="5" class="px-5 py-8 text-center text-gray-400 italic">Sila pilih saringan di atas untuk melihat data.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pautan Admin -->
+    <div class="print-hide mt-2 mb-6 text-center">
+        <button onclick="bukaModal('modal-password')" class="text-xs font-semibold text-gray-400 hover:text-blue-600 transition underline decoration-dotted underline-offset-4">
+            Akses Platform Admin Daerah
+        </button>
+    </div>
+
+    <!-- KONTENA MODAL UI -->
+    <div id="modal-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-60 z-50 hidden-step flex items-center justify-center p-4">
+
+        <div id="modal-alert" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
+            <h3 id="modal-alert-title" class="text-lg font-bold text-gray-800 mb-2">Peringatan</h3>
+            <p id="modal-alert-desc" class="text-sm text-gray-600 mb-6 font-medium">Mesej di sini</p>
+            <button onclick="tutupSemuaModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition">Faham & Tutup</button>
+        </div>
+
+        <div id="modal-confirm" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
+            <h3 id="modal-confirm-title" class="text-lg font-bold text-gray-800 mb-2">Adakah Anda Pasti?</h3>
+            <p id="modal-confirm-desc" class="text-sm text-gray-600 mb-6 font-medium">Sila pastikan anda telah menyemak kesemua soalan. Jawapan yang dihantar tidak boleh diubah lagi.</p>
+            <div class="flex gap-3">
+                <button onclick="tutupSemuaModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-xl transition">Batal</button>
+                <button onclick="sahkanTindakan()" id="btn-modal-confirm-sah" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-md">Ya, Teruskan</button>
+            </div>
+        </div>
+
+        <div id="modal-password" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Akses Admin</h3>
+            <p class="text-sm text-gray-600 mb-4 font-medium">Sila masukkan kata laluan daerah anda untuk meneruskan.</p>
+            <input type="password" id="input-password" class="w-full border-2 border-gray-200 rounded-xl p-3 mb-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition" placeholder="Kata Laluan">
+            <p id="password-error" class="hidden-step text-red-500 text-xs font-bold mb-4">Kata laluan tidak tepat atau tidak wujud.</p>
+            <div class="flex gap-3 mt-4">
+                <button onclick="tutupSemuaModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-xl transition">Batal</button>
+                <button id="btn-akses" onclick="semakPassword()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-md">Akses</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // URL GOOGLE APPS SCRIPT
+        // MASUKKAN URL BARU SELEPAS ANDA DEPLOY SCRIPT
+        // ==========================================
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJp9l03wiC3JunqeULQ9eRxsCEa25wiHw0NZmMj0liDPzP9Dz1cncdUEeRmxuMfwpe/exec";
+
+        // [FIX #2] Escape teks dari Sheet/peserta sebelum dimasukkan ke innerHTML (elak XSS)
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function tarikhTempatan(d) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function standardkanTarikh(rawDate) {
+            if (!rawDate) return "";
+            if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate.toString().trim())) return rawDate.toString().trim();
+            try {
+                const d = new Date(rawDate);
+                if (isNaN(d.getTime())) return rawDate;
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            } catch(e) {
+                return rawDate;
+            }
+        }
+
+        // [FIX #1] Skema jawapan TIDAK lagi ada di sini. Ia disimpan dalam BankSoalan.gs (server)
+        // dan hanya dihantar balik selepas peserta hantar jawapan.
+        // Kalau soalan diubah di sini, ubah juga di BankSoalan.gs (susunan mesti sama).
+        const bankSoalan = {
+            "Set 1": [
+                { soalan: "Solat 5 waktu sehari semalam adalah amalan yang wajib dilakukan oleh setiap muslim. Senaraikan mengikut turutan waktu yang betul.", pilihan: ["Asar, Zohor, Maghrib, Isyak, Subuh", "Isyak, Subuh, Asar, Zohor, Maghrib", "Subuh, Dhuha, Zohor, Asar, Maghrib, Isyak", "Subuh, Zohor, Asar, Maghrib, Isyak"] },
+                { soalan: "Antara berikut manakah rukun mandi wajib?\ni) Niat\nii) Menghilangkan sesuatu yang menghalang air sampai ke anggota badan\niii) Menggunakan air mutlak\niv) Meratakan air keseluruh anggota badan", pilihan: ["i, ii, iii", "iii, ii, i", "i, ii, iv", "iii dan iv"] },
+                { soalan: "Memperolehi makanan yang halal adalah satu kewajiban bagi setiap Muslim. Ciri-ciri makanan halal adalah seperti berikut:\ni. Binatang halal yang disembelih dengan menyebut nama Allah\nii. Makanan yang beracun dan memudaratkan\niii. Makan harta anak yatim dengan cara terlarang\niv. Membeli makanan yang diproses dari sumber yang tidak meragukan", pilihan: ["i dan iv", "i, ii dan iv", "i, ii dan iii", "Semua di atas"] },
+                { soalan: "Apakah maksud sifat Mahmudah?", pilihan: ["Suka membawang/mengumpat", "Sifat terpuji pada syarak", "Perangai jahat", "Sifat-sifat yang dikeji pada syarak"] },
+                { soalan: "Berikan maksud lafaz syahadah?", pilihan: ["Aku Bersaksi Bahawa Allah SWT Yang Maha Esa Dan Nabi Muhammad SAW Kekasih Allah", "Aku Bersaksi Bahawa Tiada Tuhan Yang Disembah", "Aku Bersaksi Bahawa Tiada Tuhan Melainkan Allah Dan Aku Bersaksi bahawa Nabi Muhammad Itu utusan Allah", "Aku Bersaksi Bahawa Nabi Muhammad Itu Pesuruh Allah"] },
+                { soalan: "Suami menceraikan isteri dengan syarat isteri menyerahkan semua wang yang dipersetujui jumlahnya oleh suami di hadapan Hakim. Pernyataan di atas merujuk kepada pengertian :", pilihan: ["Khulu’", "Ila’", "Li’an", "Semua jawapan di atas salah"] },
+                { soalan: "Semua berikut merupakan sebab seorang perempuan yang hendak bernikah menggunakan wali hakim KECUALI", pilihan: ["Tiada wali nasab", "Wali ghaib", "Anak tidak sah taraf", "Wali dungu (safih)"] },
+                { soalan: "Apakah hukum berkahwin sekiranya seseorang itu mampu serta berkeinginan untuk berkahwin tetapi boleh kawal diri.", pilihan: ["Makruh", "Haram", "Harus", "Sunat"] },
+                { soalan: "Apakah Maqasid Syariah dalam perkahwinan?", pilihan: ["Untuk memelihara kesucian keturunan / nasab", "Untuk memiliki mertua yang sah disisi Islam", "Untuk meningkatkan syiar Islam", "Untuk meramaikan umat Nabi Muhammad SAW"] },
+                { soalan: "Perpindahan wali nasab adalah disebabkan", pilihan: ["Tidak sempurna akal", "Tinggal berasingan", "Bercerai dengan ibu kandung", "Berada dalam Ihram"] },
+                { soalan: "Manakah antara berikut adalah implikasi Li'an?\ni. Pasangan bercerai selama-lamanya\nii. Boleh rujuk semula\niii. Tidak mengurangkan bilangan talak\niv. Anak boleh dinasabkan kepada ibunya", pilihan: ["i dan iv", "i dan ii", "i dan iii", "Semua di atas"] },
+                { soalan: "Manakah antara berikut adalah lafaz talak secara kinayah?", pilihan: ["“Aku ceraikan kamu dengan talak satu’’", "“Jika kamu keluar dari rumah ini maka tertalaklah kamu’’", "“Aku ceraikan kamu dengan bayaran RM1000.00’’", "“Aku bebaskan kamu’’"] },
+                { soalan: "Adakah jatuh talak sekiranya suami melafazkan talak melalui aplikasi whatsapp?", pilihan: ["Jatuh", "Tidak jatuh", "Jatuh walaupun tanpa niat", "Jatuh jika ada niat"] },
+                { soalan: "Maksud Khulu' ialah", pilihan: ["Suami serah talak kepada isteri", "Isteri mohon talak dari suami", "Tebus talak dengan bayaran tertentu", "Suami enggan mentalakkan isteri"] },
+                { soalan: "Isteri yang diceraikan secara talak raji'e dalam keadaan tidak mengandung berhak mendapat perkara berikut\ni. Tempat tinggal\nii. Perubatan\niii. Nafkah batin\niv. Pusaka", pilihan: ["i dan ii", "i, ii dan iii", "i, ii dan iv", "Semua di atas"] },
+                { soalan: "Suami telah bergurau dengan isterinya dengan mengatakan “Abang ceraikan sayang dengan talak satu”. Apakah kesan gurauan tersebut?", pilihan: ["Jatuh talak satu", "Jatuh talak jika ada niat", "Tidak memberi apa-apa kesan", "Tidak jatuh talak jika suami berniat ruju'"] },
+                { soalan: "Aini berumur 18 tahun dan ingin berkahwin, manakala ayahnya sedang berihram haji. Apakah tindakan yang perlu dilakukan oleh Aini bagi permohonan perkahwinan tersebut?", pilihan: ["Menggunakan saudara lelaki seibu sebapa", "Menggunakan bapa saudara", "Menggunakan wali bapa", "Menggunakan wali hakim"] },
+                { soalan: "Apakah kesan pernikahan tanpa kebenaran menurut Enakmen Undang-Undang Keluarga Islam Negeri Pulau Pinang?", pilihan: ["Salah di sisi undang-undang dan boleh dikenakan denda", "Perkahwinan tidak sah", "Dibolehkan mengikut hukum syara’", "Mendaftar perkahwinan tersebut di Jabatan Agama Islam Negeri"] },
+                { soalan: "Berapakah kelayakan umur untuk berkahwin bagi lelaki dan perempuan mengikut Enakmen Undang-Undang Keluarga Islam Negeri Pulau Pinang?", pilihan: ["16,16", "18,16", "18,18", "21,21"] },
+                { soalan: "Apakah kewajipan suami?\ni. Memberi Mas Kahwin\nii. Menyediakan makanan, pakaian dan tempat tinggal\niii. Taat kepada ibu bapa\niv. Memberi perhatian dan meluangkan masa", pilihan: ["Semua di atas", "i, ii, iii", "i, ii, iv", "i, iii, iv"] },
+                { soalan: "Apakah yang dimaksudkan dengan Syiqaq?", pilihan: ["Konflik yang berpunca daripada keburukan dua-dua pihak seperti bertengkar, dan ungkit-mengungkit", "Konflik yang berpunca daripada penganiayaan fizikal, mental atau emosi", "Konflik yang merujuk kepada perlakuan derhaka oleh satu pihak sama ada suami atau isteri", "Menyamakan anggota fizikal isteri dengan mahram suami"] },
+                { soalan: "Antara berikut merupakan tingkah laku yang boleh merosakkan komunikasi suami isteri kecuali\ni. Ego dan mudah sensitif\nii. Bangga diri dan menyakiti pasangan\niii. Selalu berbincang\niv. Jujur antara satu sama lain", pilihan: ["i dan ii", "ii dan iii", "iii dan iv", "Semua di atas"] },
+                { soalan: "Isteri Ahmad bekerja sebagai seorang pegawai berjawatan tinggi manakala Ahmad bekerja sebagai seorang kerani. Hukum Ahmad memberi nafkah kepada isterinya adalah:-", pilihan: ["Harus", "Sekiranya mampu", "Wajib", "Sunat"] },
+                { soalan: "Apakah hukum membenarkan kawan lelaki masuk ke rumah tanpa keizinan suami?", pilihan: ["Harus jika suami seorang yang penyabar", "Makruh kerana boleh menimbulkan fitnah", "Haram kerana melanggar hak suami dan boleh menimbulkan fitnah", "Wajib jika lelaki itu orang yang dikenali isteri"] },
+                { soalan: "Berdasarkan keputusan muzakarah fatwa, apakah kaedah pemakaian inai bagi pengantin perempuan?", pilihan: ["Dibolehkan hanya pada sebilangan jari sahaja", "Tidak harus pada kedua-dua tangan dan kaki", "Corak atau ukiran yang dibenarkan seperti daun dan tumbuhan", "Bersifat kekal seperti tatu"] },
+                { soalan: "Antara perkara berikut disunatkan selepas majlis akad nikah:\ni. Solat sunat dua rakaat\nii. Sujud syukur\niii. Doa suami kepada isteri\niv. Sesi bergambar", pilihan: ["i dan iii", "i, ii, dan iii", "ii dan iii", "Semua di atas"] },
+                { soalan: "Selepas selesai majlis akad nikah, Ahmad telah selamat diijabkabulkan dengan pilihan hatinya akan tetapi Ahmad enggan untuk membaca ta’lik yang telah disediakan. Apakah tindakan jurunikah tersebut?", pilihan: ["Menerangkan kepentingan ta’lik dan memastikan Ahmad membacanya", "Membiarkan Ahmad tidak membaca lafaz ta’lik", "Mengesyorkan kepada Ahmad untuk membaca ta’lik sendiri", "Jurunikah membaca lafaz ta’lik bagi pihak Ahmad"] },
+                { soalan: "Pasangan kepada Y telah terlibat dengan ketagihan dadah. Apakah tindakan yang sewajarnya dilakukan oleh Y?", pilihan: ["Melapor kepada pihak berkuasa yang berkaitan", "Merujuk pasangan untuk mendapatkan rawatan dan pemulihan", "Menolong pasangan mendapatkan bekalan dadah", "Hanya berdiam diri dan bersedih hati"] },
+                { soalan: "Berapakah tempoh sahlaku keputusan Ujian Saringan HIV?", pilihan: ["5 bulan", "10 bulan", "6 bulan", "2 bulan"] },
+                { soalan: "Berikut adalah jenis penyakit kelamin kecuali :-", pilihan: ["Rubella", "HIV", "Syphilis", "Herpes"] }
+            ],
+            "Set 2": [
+                { soalan: "Berikan pengertian tepat lafaz Syahadah berikut:\nأَشْهَدُ أَنْ لآ إِلَهَ إِلاَّ اللهُ وَ أَشْهَدُ أَنَّ مُحَمَّدًا رَسُوْلُ اللهِ", pilihan: ["Aku bersaksi bahawa tiada tuhan melainkan Allah dan aku bersaksi bahawa Nabi Muhammad itu utusan Allah", "Aku bersaksi bahawa tiada tuhan yang disembah melainkan Allah", "Aku bersaksi bahawa Allah Yang Maha Esa dan Nabi Muhammad kekasih Allah", "Aku bersaksi bahawa Nabi Muhammad itu pesuruh Allah"] },
+                { soalan: "Antara berikut manakah BUKAN rukun mandi wajib?", pilihan: ["Niat", "Menghilangkan sesuatu yang menghalang air sampai ke anggota badan", "Menghadap kiblat", "Meratakan air keseluruh anggota badan"] },
+                { soalan: "Ibadah terbahagi kepada dua, iaitu:", pilihan: ["Ibadah khusus dan ibadah umum", "Ibadah sunat dan ibadah wajib", "Ibadah haji dan ibadah solat", "Ibadah wajib dan ibadah rukun"] },
+                { soalan: "Encik A mengisytiharkan diri keluar daripada agama Islam. Pernyataan di atas menyebabkan Encik A menjadi …........", pilihan: ["Muflis", "Murtad", "Musykil", "Mufrad"] },
+                { soalan: "Kesan-kesan daripada pengamalan ajaran sesat ialah?\ni. Akidah terbatal\nii. Kehidupan menjadi huru hara\niii. Sentiasa didampingi masyarakat\niv. Ilmu yang diperolehi tidak berkat", pilihan: ["i,ii dan iii", "i,ii dan iv", "i,iii dan iv", "ii,iii dan iv"] },
+                { soalan: "Berikut adalah akhlak yang baik KECUALI", pilihan: ["Jujur", "Menepati janji", "Berbohong", "Tolong menolong"] },
+                { soalan: "Berikut adalah sifat-sifat Mazmumah KECUALI", pilihan: ["Mengumpat", "Amanah", "Perangai jahat", "Fitnah"] },
+                { soalan: "Di antara berikut adalah Rukun Nikah bagi yang berpoligami KECUALI", pilihan: ["Izin isteri pertama", "Wali", "Dua orang saksi", "Ijab dan Qabul"] },
+                { soalan: "Setiap pasangan yang berkahwin inginkan sebuah keluarga yang ___________ KECUALI", pilihan: ["Sakinah", "Mawaddah", "Warrahmah", "Dharurah"] },
+                { soalan: "Apakah hukum seseorang mengambil wuduk menggunakan air musta’mal?", pilihan: ["Tidak sah", "Makruh", "Haram", "Harus"] },
+                { soalan: "Pasangan suami isteri mesti mempunyai strategi membina akhlak yang terpuji KECUALI", pilihan: ["Memperbaiki kelemahan diri", "Meningkatkan ilmu dan kemahiran", "Mempelajari ilmu pengasih dan ilmu kebal", "Menghayati tuntutan Islam"] },
+                { soalan: "Semua yang berikut merupakan sebab seorang perempuan yang hendak bernikah menggunakan wali hakim KECUALI", pilihan: ["Tiada wali nasab", "Wali ghaib", "Anak tidak sah taraf", "Wali dungu (safih)"] },
+                { soalan: "Berdasarkan keputusan muzakarah fatwa, apakah kaedah pemakaian inai bagi pengantin perempuan?", pilihan: ["Dibolehkan hanya pada sebilangan jari sahaja", "Tidak harus pada kedua-dua tangan dan kaki", "Corak atau ukiran yang dibenarkan seperti daun dan tumbuhan", "Bersifat kekal seperti tatu"] },
+                { soalan: "Pasangan kepada Y telah terlibat dengan ketagihan dadah. Apakah tindakan yang sewajarnya dilakukan oleh Y?", pilihan: ["Melapor kepada pengerusi masjid", "Merujuk pasangan untuk mendapatkan rawatan dan pemulihan", "Menolong pasangan mendapatkan bekalan dadah", "Hanya berdiam diri dan bersedih hati"] },
+                { soalan: "Antara kaedah-kaedah pengurusan kewangan yang baik ialah:", pilihan: ["Melabur Skim Cepat Kaya", "Selalu berhutang dalam pembelian aset", "Berlebih-lebihan dalam berbelanja", "Membeli takaful perlindungan"] },
+                { soalan: "Kesan akibat kegagalan hubungan kelamin boleh menyebabkan tekanan dan konflik di dalam rumahtangga. Apakah kemungkinan lain yang boleh berlaku akibat kegagalan ini?", pilihan: ["Kebahagian rumahtangga dikecapi", "Kecurangan terhadap pasangan dan penzinaan", "Kemesraan antara suami dan isteri bertambah", "Keharmonian dan persefahaman antara suami dan isteri terjalin"] },
+                { soalan: "Encik A suka memukul isterinya apabila dia ketiadaan duit dan menghadapi tekanan. Apakah bentuk konflik ini?", pilihan: ["Syiqaq", "Nusyuz", "Murtad", "Dharar"] },
+                { soalan: "Perkara-perkara yang perlu dititikberatkan semasa proses kehamilan dan kelahiran adalah", pilihan: ["Pemakanan yang seimbang", "Memenuhi rutin pemeriksaan doktor pada tarikh yang ditetapkan", "Sokongan emosi daripada pihak suami", "Semua di atas adalah benar"] },
+                { soalan: "Berikut cara-cara HIV/Aids merebak KECUALI", pilihan: ["Ciuman", "Jarum suntikan yang digunakan pesakit Aids", "Seks bebas", "Ibu yang dijangkiti kepada bayi yang dilahirkan"] },
+                { soalan: "Kadang kala pasangan suami isteri mendapat mentua yang cerewet. Untuk mengambil hati mentua, pasangan hendaklah:", pilihan: ["Berpindah rumah", "Menerima dan melayan karenah mentua dengan baik dan sabar", "Buat tidak tahu", "Menggunakan bahasa yang kasar"] },
+                { soalan: "Berikut merupakan teknik yang mesra dan efektif untuk memberi teguran kepada pasangan KECUALI", pilihan: ["Gunakan perkataan yang lembut, tetapi tegas", "Tidak mengasari pasangan", "Bermaaf-maafan", "Mengeluarkan kata-kata kesat"] },
+                { soalan: "Antara yang berikut merupakan tanda-tanda individu sedang menghadapi tekanan KECUALI", pilihan: ["Sentiasa riang dan ceria", "Cepat lesu", "Selalu murung", "Cepat marah"] },
+                { soalan: "(Nama Pengantin Lelaki) saya nikahkan kamu dengan (Hubungan Pengantin Perempuan Dengan Wali) saya (Nama Pengantin Perempuan) dengan mas kahwin sebanyak …… tunai/hutang.”\n\nSiapakah di antara berikut yang melafazkan kenyataan di atas?", pilihan: ["Wakil wali", "Wali nasab", "Pendaftar nikah", "Pengantin lelaki"] },
+                { soalan: "Antara yang berikut merupakan kebaikan mendapatkan perkhidmatan rundingcara KECUALI", pilihan: ["Masalah dapat dikesan pada peringkat awal", "Hubungan suami isteri menjadi harmoni", "Menyebar rahsia dan sifat sebenar pasangan", "Menyelesaikan konflik secara baik"] },
+                { soalan: "Sebarang perceraian yang dilakukan di luar mahkamah dan tidak dilaporkan merupakan suatu kesalahan di bawah Undang-undang Keluarga Islam.", pilihan: ["Betul", "Salah", "Tidak pasti", "Mungkin"] },
+                { soalan: "Seorang isteri meminta cerai daripada suaminya. Tetapi si suami enggan menceraikannya. Si suami membuat permintaan hanya bersetuju cerai sekiranya dibayar sebanyak RM2,000. Apakah jenis pembubaran perkahwinan ini?", pilihan: ["Ila’", "Lian", "Khulu’", "Fasakh"] },
+                { soalan: "Berikut langkah yang perlu dilakukan oleh pihak isteri sekiranya dipukul atau dicederakan oleh suami KECUALI", pilihan: ["Buat aduan di jabatan agama", "Dapatkan rawatan di klinik atau hospital", "Lapor kepada polis", "Berdiam diri"] },
+                { soalan: "Antara contoh lafaz cerai sarih adalah seperti yang berikut KECUALI", pilihan: ["“Saya ceraikan kamu dengan talak seribu”", "“Andai kamu keluar rumah, jatuhlah talak bagi diri kamu”", "“Saya ceraikan kamu dengan talak 3”", "“Saya ceraikan kamu”"] },
+                { soalan: "Apakah tindakan awal sekiranya pasangan anda mengalami masalah kecelaruan identiti?", pilihan: ["Adu kepada Majlis Bandaraya Pulau Pinang (MBPP)", "Lapor kepada Suruhanjaya Pencegahan Rasuah Malaysia (SPRM)", "Berbincang dengan kaunselor khidmat nasihat Jabatan Agama Islam", "Lapor ke Jabatan Veterinar"] },
+                { soalan: "Suami telah bergurau dengan isterinya dengan mengatakan “abang ceraikan sayang dengan talak satu.” Apakah kesan gurauan tersebut?", pilihan: ["Jatuh Talak satu", "Jatuh Talak jika ada niat", "Tidak memberi apa-apa kesan", "Tidak jatuh talak jika suami berniat ruju’"] }
+            ],
+            "Set 3": [
+                { soalan: "Antara berikut manakah BUKAN rukun mandi wajib?", pilihan: ["Niat", "Menghilangkan sesuatu yang menghalang air sampai ke anggota badan", "Menggunakan air mutlak", "Meratakan air keseluruh anggota badan"] },
+                { soalan: "Bagaimana peranan aqidah dalam membentuk keluarga bahagia?", pilihan: ["Membina pergaulan baik suami isteri", "Melahirkan sikap bertanggungjawab", "Membangkit rasa syukur dan qanaah", "Semua yang di atas adalah betul"] },
+                { soalan: "Apa maksud sifat Mahmudah?", pilihan: ["Perangai baik", "Perangai elok", "Sifat yang terpuji pada syarak", "Akhlak mulia"] },
+                { soalan: "Apakah Maqasid Syariah dalam perkahwinan?", pilihan: ["Untuk memelihara kesucian keturunan / nasab", "Untuk memiliki mertua yang sah disisi Islam", "Untuk meningkatkan syiar Islam", "Untuk meramaikan umat Nabi Muhammad SAW"] },
+                { soalan: "Antara berikut adalah rukun nikah bagi yang mahu berpoligami KECUALI", pilihan: ["Izin isteri", "Wali", "Dua orang saksi", "Ijab dan qabul"] },
+                { soalan: "Semua berikut merupakan sebab seorang perempuan yang hendak bernikah menggunakan wali hakim KECUALI", pilihan: ["Tiada wali nasab", "Wali ghaib", "Anak tidak sah taraf", "Wali dungu (safih)"] },
+                { soalan: "Apakah hukum berkahwin sekiranya seseorang itu bimbang atau yakin akan menzalimi serta memudaratkan pasangannya?", pilihan: ["Makruh", "Haram", "Harus", "Tidak sah"] },
+                { soalan: "Menurut Undang-Undang Keluarga Islam, perceraian mestilah:", pilihan: ["Dengan izin mahkamah dan persetujuan wali", "Suami isteri hendaklah bersetuju", "Berlaku di mahkamah syariah dan dengan kebenaran hakim", "Suami membayar muta'ah"] },
+                { soalan: "Maksud Khulu' ialah", pilihan: ["Suami serah talak kepada isteri", "Isteri mohon talak dari suami", "Tebus talak dengan bayaran tertentu", "Suami enggan mentalakkan isteri"] },
+                { soalan: "Selepas bercerai, seorang bapa bertanggungjawab menanggung nafkah anaknya yang merangkumi perkara berikut:", pilihan: ["Keperluan asas, pendidikan dan perubatan", "Melancong dan bersukan", "Mengerjakan umrah", "Menyediakan simpanan dalam Tabung Haji"] },
+                { soalan: "Aini berumur 18 tahun dan ingin berkahwin, manakala ayahnya sedang berihram haji. Apakah tindakan yang perlu dilakukan oleh Aini bagi permohonan perkahwinan tersebut?", pilihan: ["Menggunakan saudara lelaki seibu sebapa", "Menggunakan bapa saudara", "Menggunakan wali bapa", "Menggunakan wali hakim"] },
+                { soalan: "Apakah kesan pernikahan tanpa kebenaran menurut Enakmen Undang-Undang Keluarga Islam Negeri Pulau Pinang?", pilihan: ["Salah di sisi undang-undang dan boleh dikenakan denda", "Perkahwinan tidak sah", "Dibolehkan mengikut hukum syara’", "Mendaftar perkahwinan tersebut di Jabatan Agama Islam Negeri"] },
+                { soalan: "Apakah kewajipan isteri terhadap suami?\ni. Memohon izin suami sebelum keluar rumah\nii. Taat kepada suami selaras dengan hukum syara’\niii. Memasak makanan untuk suami\niv. Menjaga harta suami", pilihan: ["Semua di atas", "i, ii dan iii", "i, ii dan iv", "i, iii dan iv"] },
+                { soalan: "Antara berikut, manakah bukan amalan yang disunatkan selepas kelahiran anak mengikut hukum syara’?", pilihan: ["Bertahnik (membelah mulut)", "Majlis berendoi", "Aqiqah", "Azan dan iqamah"] },
+                { soalan: "Apakah yang dimaksudkan dengan konflik darar?", pilihan: ["Konflik yang berpunca daripada keburukan dua-dua pihak seperti bertengkar dan ungkit-mengungkit", "Konflik yang berpunca daripada penganiayaan fizikal, mental atau emosi", "Konflik yang merujuk kepada perlakuan derhaka oleh satu pihak sama ada suami atau isteri", "Menyamakan anggota fizikal isteri dengan mahram suami"] },
+                { soalan: "Jika wali adalah saudara lelaki seibu sebapa, apakah dokumen yang membuktikan beliau layak mewalikan pemohon?\ni. Sijil kematian bapa/datuk kandung\nii. Salinan kad pengenalan\niii. Salinan sijil kelahiran wali dan pemohon\niv. Salinan sijil nikah ibu bapa pemohon dan wali", pilihan: ["i dan iii", "i, iii dan iv", "ii, iii dan iv", "Semua di atas"] },
+                { soalan: "Tekanan (stress) boleh menyebabkan kesan positif terhadap suami isteri KECUALI", pilihan: ["Bersikap optimis", "Perubahan diri", "Sensitif", "Motivasi diri"] },
+                { soalan: "Antara berikut merupakan tingkah laku yang boleh merosakkan komunikasi suami isteri\ni. Ego dan mudah sensitif\nii. Bangga diri dan menyakiti pasangan\niii. Cemburu buta\niv. Suka mengungkit", pilihan: ["i dan ii", "ii dan iii", "iii dan iv", "Semua di atas"] },
+                { soalan: "Berikut merupakan peranan isteri sekiranya pendapatan suami tidak mencukupi KECUALI", pilihan: ["Membuat aduan dan dapatkan khidmat kaunseling di Pejabat Agama", "Merancang dan mengurus kewangan dengan baik", "Memasak untuk keluarga", "Minta cerai"] },
+                { soalan: "Apakah ucapan yang digalakkan dalam hubungan suami isteri?", pilihan: ["Sayang", "Oh", "Wah", "Alahai"] },
+                { soalan: "Suami _______ memberi nafkah kepada isteri sekalipun isterinya bekerja dan berpendapatan tinggi.", pilihan: ["Harus", "Sekiranya mampu", "Wajib", "Sunat"] },
+                { soalan: "Tips perbelanjaan berhemah\ni. Pilih harga terbaik\nii. Rancang pembelian\niii. Beli secara tunai\niv. Beli secara hutang", pilihan: ["Semua di atas", "i dan ii", "ii dan iii", "i, ii dan iii"] },
+                { soalan: "Antara berikut adalah bentuk pembelian yang boleh menjamin masa depan KECUALI", pilihan: ["Rumah", "Kenderaan", "Hartanah", "Emas"] },
+                { soalan: "Apakah hukum mengadakan majlis akad nikah di masjid?", pilihan: ["Wajib", "Makruh", "Harus", "Sunat"] },
+                { soalan: "Berdasarkan keputusan muzakarah fatwa, apakah kaedah pemakaian inai bagi pengantin perempuan?", pilihan: ["Dibolehkan hanya pada sebilangan jari sahaja", "Tidak harus pada kedua-dua tangan dan kaki", "Corak atau ukiran yang dibenarkan seperti daun dan tumbuhan", "Bersifat kekal seperti tatu"] },
+                { soalan: "Sebelum melafazkan akad nikah, pengantin akan diminta membaca", pilihan: ["Membaca doa iftitah", "Membaca doa qunut", "Lafaz Selawat", "Membaca doa tahlil"] },
+                { soalan: "Apakah hukum walimatul urus?", pilihan: ["Sunat", "Harus", "Wajib", "Sunat Muakkad"] },
+                { soalan: "Menurut keputusan Jawatankuasa Fatwa Negeri Pulau Pinang Bil.4/2013 & Bil. 5/2018 hukum merokok adalah haram. Apakah implikasi merokok dalam kehidupan suami isteri?\ni. Boleh menjejaskan ekonomi rumah tangga\nii. Bahaya kepada kandungan (kelahiran pramatang)\niii. Memberikan ketenangan dan kedamaian\niv. Kehamilan luar rahim", pilihan: ["i, ii dan iii", "ii, iii dan iv", "i, ii dan iv", "Semua di atas"] },
+                { soalan: "Dengan memberi imunisasi kepada anak, apakah penyakit yang boleh dicegah dengannya?", pilihan: ["Tuberculosis (Batuk kering)", "Pertussis (Batuk kokol)", "Rubella", "Semua di atas"] },
+                { soalan: "Antara berikut merupakan kaedah perancangan keluarga KECUALI", pilihan: ["Pil perancang", "Implan", "Menggunakan kondom", "Suntikan vitamin C"] }
+            ]
+        };
+
+        let hakAksesSemasa = "";
+        let tindakanSahCallback = null;
+
+        let maklumatPelajar = {};
+        let soalanSemasa = [];
+        let jawapanPelajarSemasa = [];
+        let skemaSemasa = [];
+        let jawapanDikunci = false;
+        let sedangHantar = false;
+        let pemasaInterval;
+        let masaTinggalSeconds = 30 * 60;
+        let rekodServer = [];
+        let dataSemasaAdmin = [];
+        let sedangUjian = false;
+
+        function bukaModal(modalId) {
+            document.getElementById('modal-overlay').classList.remove('hidden-step');
+            const modalEls = ['modal-alert', 'modal-confirm', 'modal-password'];
+            modalEls.forEach(id => document.getElementById(id).classList.add('hidden-step'));
+            const activeModal = document.getElementById(modalId);
+            activeModal.classList.remove('hidden-step');
+            setTimeout(() => {
+                activeModal.classList.remove('scale-95', 'opacity-0');
+                activeModal.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function tutupSemuaModal() {
+            const modalEls = ['modal-alert', 'modal-confirm', 'modal-password'];
+            modalEls.forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('scale-100', 'opacity-100');
+                el.classList.add('scale-95', 'opacity-0');
+            });
+            setTimeout(() => {
+                document.getElementById('modal-overlay').classList.add('hidden-step');
+                modalEls.forEach(id => document.getElementById(id).classList.add('hidden-step'));
+            }, 200);
+        }
+
+        function paparAlert(tajuk, mesej) {
+            document.getElementById('modal-alert-title').innerText = tajuk;
+            document.getElementById('modal-alert-desc').innerText = mesej;
+            bukaModal('modal-alert');
+        }
+
+        function paparConfirm(tajuk, mesej, teksButangSah, callback) {
+            document.getElementById('modal-confirm-title').innerText = tajuk;
+            document.getElementById('modal-confirm-desc').innerText = mesej;
+            const btnSah = document.getElementById('btn-modal-confirm-sah');
+            btnSah.innerText = teksButangSah || "Ya, Teruskan";
+            tindakanSahCallback = callback;
+            bukaModal('modal-confirm');
+        }
+
+        function sahkanTindakan() {
+            tutupSemuaModal();
+            if(tindakanSahCallback) {
+                tindakanSahCallback();
+                tindakanSahCallback = null;
+            }
+        }
+
+        // ==========================================
+        // FUNGSI PENGESAHAN PASSWORD DENGAN SERVER
+        // ==========================================
+        function semakPassword() {
+            const inputPwd = document.getElementById('input-password').value;
+            if(!inputPwd) {
+                document.getElementById('password-error').innerText = "Sila masukkan kata laluan.";
+                document.getElementById('password-error').classList.remove('hidden-step');
+                return;
+            }
+
+            const btnAkses = document.getElementById('btn-akses');
+            if(btnAkses) {
+                btnAkses.innerText = "Menyemak...";
+                btnAkses.disabled = true;
+            }
+
+            // [FIX #3] Hantar kata laluan ke server melalui POST (bukan dalam URL)
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'login', pwd: inputPwd })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(btnAkses) {
+                    btnAkses.innerText = "Akses";
+                    btnAkses.disabled = false;
+                }
+
+                if(data.status === "success") {
+                    hakAksesSemasa = data.akses; // Tarik maklumat daerah dari Server
+                    document.getElementById('password-error').classList.add('hidden-step');
+                    tutupSemuaModal();
+
+                    // Simpan data yang telah ditapis dari server
+                    let rawData = Array.isArray(data.data) ? data.data : [];
+                    rekodServer = rawData.map(d => ({
+                        ...d,
+                        tarikh: standardkanTarikh(d.tarikh)
+                    }));
+
+                    bukaAdmin();
+                } else {
+                    // Password salah atau ralat
+                    document.getElementById('password-error').innerText = data.message || "Kata laluan tidak tepat.";
+                    document.getElementById('password-error').classList.remove('hidden-step');
+                }
+            })
+            .catch(err => {
+                if(btnAkses) {
+                    btnAkses.innerText = "Akses";
+                    btnAkses.disabled = false;
+                }
+                console.error("Ralat Rangkaian:", err);
+                document.getElementById('password-error').innerText = "Tiada sambungan internet atau ralat pelayan.";
+                document.getElementById('password-error').classList.remove('hidden-step');
+            });
+        }
+
+        function mulaUjian(e) {
+            e.preventDefault();
+            const namaVal = document.getElementById('nama').value.trim();
+            const icVal = document.getElementById('ic').value.trim();
+            const emailVal = document.getElementById('email').value.trim();
+            const daerahVal = document.getElementById('daerah').value;
+            const tarikhVal = document.getElementById('tarikh').value;
+            const setVal = document.getElementById('set_soalan').value;
+
+            if(!namaVal || !icVal || !emailVal || !daerahVal || !tarikhVal || !setVal) {
+                paparAlert("Maklumat Tidak Lengkap", "Sila pastikan semua ruangan (Nama, No. KP, Emel, Daerah, Tarikh Kursus & Set Soalan) diisi dengan lengkap sebelum mula menjawab.");
+                return;
+            }
+
+            if(!/^\d{12}$/.test(icVal)) {
+                paparAlert("Format No. KP Tidak Sah", "Sila pastikan Nombor Kad Pengenalan dimasukkan tepat 12 digit nombor sahaja tanpa sebarang sengkang (-).");
+                return;
+            }
+
+            // [FIX #4] Semakan sama seperti server, supaya peserta tidak ditolak selepas habis menjawab
+            const namaBersih = namaVal.toUpperCase().replace(/\s+/g, ' ');
+            if(namaBersih.length < 3 || namaBersih.length > 100 || !/^[A-Z0-9 .,'’‘`@\/()\-]+$/.test(namaBersih)) {
+                paparAlert("Nama Tidak Sah", "Sila tulis nama ikut ejaan Kad Pengenalan. Hanya huruf dan tanda . ' - @ / dibenarkan.");
+                return;
+            }
+            if(emailVal.length > 100 || !/^[^\s@<>"'(),;:\\]+@[^\s@<>"'(),;:\\]+\.[^\s@<>"'(),;:\\]+$/.test(emailVal)) {
+                paparAlert("Emel Tidak Sah", "Sila semak semula alamat emel anda.");
+                return;
+            }
+            const tarikhInput = document.getElementById('tarikh');
+            if(tarikhVal < tarikhInput.min || tarikhVal > tarikhInput.max) {
+                paparAlert("Tarikh Tidak Sah", "Sila pilih tarikh kursus hari ini.");
+                return;
+            }
+
+            maklumatPelajar = {
+                nama: namaBersih,
+                ic: icVal,
+                email: emailVal, // DATA EMEL DI HANTAR KE BACKEND
+                daerah: daerahVal,
+                tarikh: tarikhVal,
+                set: setVal,
+                // ID unik ujian ini — server guna untuk elak rekod berganda bila cuba semula
+                idHantar: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12)
+            };
+            jawapanDikunci = false;
+            sedangHantar = false;
+
+            document.getElementById('paparan-nama').innerText = maklumatPelajar.nama;
+            document.getElementById('paparan-daerah-badge').innerText = maklumatPelajar.daerah.includes('Butterworth') ? 'Butterworth' : maklumatPelajar.daerah.includes('Kepala Batas') ? 'Kepala Batas' : maklumatPelajar.daerah;
+
+            soalanSemasa = bankSoalan[maklumatPelajar.set];
+            janaUI_Soalan();
+
+            mulakanPemasa();
+            kemaskiniProgress();
+
+            // AKTIFKAN PERANGKAP KESELAMATAN
+            sedangUjian = true;
+            history.pushState(null, document.title, location.href);
+
+            hideAllSteps();
+            document.getElementById('step-2').classList.remove('hidden-step');
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        function janaUI_Soalan() {
+            const container = document.getElementById('ruangan-soalan');
+            container.innerHTML = '';
+
+            soalanSemasa.forEach((item, index) => {
+                let htmlPilihan = '';
+                item.pilihan.forEach((pil, idxPil) => {
+                    htmlPilihan += `
+                        <label class="flex items-start p-4 border-2 border-gray-100 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-200 mb-3 transition group">
+                            <input type="radio" name="soalan_${index}" value="${idxPil}" onchange="kemaskiniProgress()" required class="mt-1 mr-3 text-blue-600 focus:ring-blue-500 w-4 h-4">
+                            <span class="text-sm font-medium text-gray-700 leading-snug group-hover:text-blue-800">${pil}</span>
+                        </label>
+                    `;
+                });
+
+                const soalanDiv = document.createElement('div');
+                soalanDiv.className = "bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-200 fade-in";
+                soalanDiv.innerHTML = `
+                    <p class="font-bold text-gray-800 mb-5 whitespace-pre-wrap"><span class="text-blue-600 mr-1">${index + 1}.</span> ${item.soalan}</p>
+                    <div class="space-y-1">${htmlPilihan}</div>
+                `;
+                container.appendChild(soalanDiv);
+            });
+        }
+
+        function kemaskiniProgress() {
+            let jumlahDijawab = 0;
+            soalanSemasa.forEach((item, index) => {
+                const pilihanUser = document.querySelector(`input[name="soalan_${index}"]:checked`);
+                if(pilihanUser) jumlahDijawab++;
+            });
+
+            document.getElementById('paparan-progress').innerText = `${jumlahDijawab} / ${soalanSemasa.length} Dijawab`;
+
+            const peratusan = (jumlahDijawab / soalanSemasa.length) * 100;
+            document.getElementById('progress-bar').style.width = `${peratusan}%`;
+        }
+
+        function mulakanPemasa() {
+            masaTinggalSeconds = 30 * 60;
+            paparkanMasa();
+            if(pemasaInterval) clearInterval(pemasaInterval);
+            pemasaInterval = setInterval(() => {
+                masaTinggalSeconds--;
+                paparkanMasa();
+                if(masaTinggalSeconds <= 0) {
+                    clearInterval(pemasaInterval);
+                    tutupSemuaModal();
+                    paparAlert("Masa Tamat!", "Masa 30 minit telah tamat. Sistem menghantar jawapan anda secara automatik.");
+                    prosesHantar();
+                }
+            }, 1000);
+        }
+
+        function paparkanMasa() {
+            const minit = Math.floor(masaTinggalSeconds / 60);
+            const saat = masaTinggalSeconds % 60;
+            document.getElementById('paparan-masa').innerText = `${minit.toString().padStart(2, '0')}:${saat.toString().padStart(2, '0')}`;
+        }
+
+        function hantarJawapan(e) {
+            e.preventDefault();
+            paparConfirm("Hantar Jawapan?", "Sila pastikan anda telah menyemak kesemua soalan. Jawapan yang dihantar tidak boleh diubah lagi.", "Ya, Hantar", () => {
+                if(pemasaInterval) clearInterval(pemasaInterval);
+                prosesHantar();
+            });
+        }
+
+        function prosesHantar() {
+            if (sedangHantar) return; // elak hantar dua kali serentak (cth. masa tamat semasa modal terbuka)
+            sedangHantar = true;
+            sedangUjian = false; // TUTUP PERANGKAP KESELAMATAN SELEPAS HANTAR
+            if(pemasaInterval) clearInterval(pemasaInterval);
+            document.getElementById('btn-hantar').classList.add('hidden-step');
+            document.getElementById('status-hantar').classList.remove('hidden-step');
+
+            // Kunci jawapan pada cubaan pertama; cubaan semula hantar jawapan yang sama
+            if (!jawapanDikunci) {
+                jawapanPelajarSemasa = soalanSemasa.map((item, index) => {
+                    const pilihanUser = document.querySelector(`input[name="soalan_${index}"]:checked`);
+                    return pilihanUser ? parseInt(pilihanUser.value) : null;
+                });
+                jawapanDikunci = true;
+                document.querySelectorAll('#ruangan-soalan input[type="radio"]').forEach(r => { r.disabled = true; });
+                simpanKeLocalStorage(maklumatPelajar);
+            }
+
+            // [FIX #1] Hantar pilihan jawapan sahaja. Markah dikira oleh server.
+            const payload = Object.assign({}, maklumatPelajar, { jawapan: jawapanPelajarSemasa });
+
+            hantarDenganCubaSemula(payload, 3)
+            .then(data => {
+                sedangHantar = false;
+                skemaSemasa = data.skema;
+                maklumatPelajar.skor = data.skor;
+                maklumatPelajar.markahBetul = data.markahBetul;
+                paparKeputusan(data.skor, data.markahBetul);
+            })
+            .catch(err => {
+                sedangHantar = false;
+                console.error("Ralat Hantar:", err);
+                sedangUjian = true; // masih belum dihantar — beri amaran jika peserta cuba tutup halaman
+                document.getElementById('status-hantar').classList.add('hidden-step');
+                const btn = document.getElementById('btn-hantar');
+                btn.innerText = "Cuba Hantar Semula";
+                btn.classList.remove('hidden-step');
+                if (err.pengguna) {
+                    paparAlert("Jawapan Tidak Diterima", err.message + " Sila maklumkan kepada urusetia.");
+                } else {
+                    paparAlert("Trafik Agak Sesak", "Jawapan anda BELUM berjaya dihantar. Jangan tutup halaman ini. Tekan butang 'Cuba Hantar Semula' di bawah, atau maklumkan kepada urusetia.");
+                }
+            });
+        }
+
+        // Cuba hantar sehingga 3 kali (tunggu 2-4 saat, kemudian 4-6 saat) jika rangkaian/server sesak
+        function hantarDenganCubaSemula(payload, bakiCubaan) {
+            return fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") return data;
+                const err = new Error(data.message || "Ralat Pelayan");
+                err.pengguna = data.bolehCubaLagi === false;
+                throw err;
+            })
+            .catch(err => {
+                if (err.pengguna || bakiCubaan <= 1) throw err;
+                const tunggu = (4 - bakiCubaan) * 2000 + Math.random() * 2000;
+                return new Promise(selesai => setTimeout(selesai, tunggu))
+                    .then(() => hantarDenganCubaSemula(payload, bakiCubaan - 1));
+            });
+        }
+
+        function paparKeputusan(peratusSkor, jawapanBetul) {
+            hideAllSteps();
+            document.getElementById('step-3').classList.remove('hidden-step');
+            window.scrollTo({top: 0, behavior: 'smooth'});
+
+            const paparanMarkah = document.getElementById('paparan-markah');
+            const tajukKeputusan = document.getElementById('tajuk-keputusan');
+            const paparanMarkahBetul = document.getElementById('paparan-markah-betul');
+
+            paparanMarkah.innerHTML = `${peratusSkor}<span class="text-3xl">%</span>`;
+            paparanMarkahBetul.innerText = `Betul: ${jawapanBetul}/${soalanSemasa.length}`;
+
+            const ikonLulus = document.getElementById('ikon-lulus');
+            if(peratusSkor >= 50) {
+                ikonLulus.className = "mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-green-100 text-green-600";
+                ikonLulus.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+                paparanMarkah.className = "text-6xl font-black text-green-600";
+                tajukKeputusan.innerText = "Tahniah!";
+            } else {
+                ikonLulus.className = "mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-gray-100 text-gray-600";
+                ikonLulus.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+                paparanMarkah.className = "text-6xl font-black text-gray-800";
+                tajukKeputusan.innerText = "Ujian Selesai";
+                tajukKeputusan.className = "text-3xl font-extrabold text-gray-800 mb-2";
+            }
+
+            janaUIAwapan();
+        }
+
+        function janaUIAwapan() {
+            const container = document.getElementById('ruangan-semakan-jawapan');
+            container.innerHTML = '';
+
+            soalanSemasa.forEach((item, index) => {
+                const userAns = jawapanPelajarSemasa[index];
+                const correctAns = skemaSemasa[index];
+                const isCorrect = userAns === correctAns;
+
+                const icon = isCorrect
+                    ? `<svg class="w-5 h-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`
+                    : `<svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+
+                const bgClass = isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+
+                let pilihanHTML = '';
+                item.pilihan.forEach((pil, pilIdx) => {
+                    let textClass = 'text-gray-600';
+                    let indicator = '';
+
+                    if (pilIdx === correctAns) {
+                        textClass = 'text-green-700 font-bold';
+                        indicator = ' <span class="inline-block text-[10px] bg-green-200 text-green-800 px-2 py-0.5 rounded-full ml-2">Jawapan Sebenar</span>';
+                    } else if (pilIdx === userAns && !isCorrect) {
+                        textClass = 'text-red-600 font-bold line-through';
+                        indicator = ' <span class="inline-block text-[10px] bg-red-200 text-red-800 px-2 py-0.5 rounded-full ml-2">Pilihan Anda</span>';
+                    }
+                    pilihanHTML += `<div class="mb-1.5 text-sm ${textClass}">${String.fromCharCode(65 + pilIdx)}. ${pil}${indicator}</div>`;
+                });
+
+                const div = document.createElement('div');
+                div.className = `p-4 md:p-5 rounded-xl border-2 ${bgClass}`;
+                div.innerHTML = `
+                    <div class="flex items-start mb-3">
+                        ${icon}
+                        <p class="font-bold text-gray-800 text-sm whitespace-pre-wrap"><span class="mr-1">${index + 1}.</span> ${item.soalan}</p>
+                    </div>
+                    <div class="ml-7 pl-3 border-l-2 border-gray-300 space-y-1">
+                        ${pilihanHTML}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function simpanKeLocalStorage(data) {
+            let senarai = JSON.parse(localStorage.getItem('rekodUjianPraperkahwinan')) || [];
+            senarai.push(data);
+            localStorage.setItem('rekodUjianPraperkahwinan', JSON.stringify(senarai));
+        }
+
+        function bukaAdmin() {
+            hideAllSteps();
+            document.getElementById('step-admin').classList.remove('hidden-step');
+            document.getElementById('admin-akses-badge').innerText = `Akses: ${hakAksesSemasa}`;
+
+            const filterDaerahUI = document.getElementById('kawasan-filter-daerah');
+            const selectorDaerah = document.getElementById('admin-daerah-selector');
+
+            if(hakAksesSemasa === "SEMUA") {
+                filterDaerahUI.classList.remove('hidden-step');
+                selectorDaerah.value = "SEMUA";
+            } else {
+                filterDaerahUI.classList.add('hidden-step');
+                selectorDaerah.value = hakAksesSemasa;
+            }
+
+            kemaskiniFilterDaerah();
+            kemaskiniDropdownLaporan();
+        }
+
+        function kemaskiniFilterDaerah() {
+            let daerah = document.getElementById('admin-daerah-selector').value;
+            if (hakAksesSemasa !== "SEMUA") daerah = hakAksesSemasa;
+            kemaskiniDropdownSaringanTarikh(daerah);
+        }
+
+        function kemaskiniDropdownSaringanTarikh(daerah) {
+            const dropdown = document.getElementById('admin-tarikh-selector');
+            dropdown.innerHTML = '<option value="">-- Semua Tarikh --</option>';
+
+            let setTarikhDitemui = new Set();
+            const semuaData = rekodServer || [];
+            semuaData.forEach(d => {
+                if (daerah === 'SEMUA' || d.daerah === daerah) {
+                    if (d.tarikh) setTarikhDitemui.add(d.tarikh);
+                }
+            });
+
+            const tarikhKumpul = Array.from(setTarikhDitemui).sort().reverse();
+            tarikhKumpul.forEach(t => {
+                dropdown.innerHTML += `<option value="${esc(t)}">${esc(t)}</option>`;
+            });
+
+            const today = new Date();
+            const tarikhHariIni = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+            if (setTarikhDitemui.has(tarikhHariIni)) {
+                dropdown.value = tarikhHariIni;
+            } else if (tarikhKumpul.length > 0) {
+                dropdown.value = tarikhKumpul[0];
+            } else {
+                dropdown.value = "";
+            }
+
+            janaJadualAdmin();
+        }
+
+        function tutupAdmin() {
+            document.getElementById('input-password').value = '';
+            hakAksesSemasa = "";
+            rekodServer = []; // Kosongkan cache
+            kembaliKeLamanUtama();
+        }
+
+        function kembaliKeLamanUtama() {
+            sedangUjian = false; // TUTUP PERANGKAP KESELAMATAN
+            document.getElementById('form-maklumat').reset();
+            document.getElementById('btn-hantar').classList.remove('hidden-step');
+            document.getElementById('btn-hantar').innerText = "Hantar Jawapan & Simpan";
+            document.getElementById('status-hantar').classList.add('hidden-step');
+            if(pemasaInterval) clearInterval(pemasaInterval);
+
+            hideAllSteps();
+            document.getElementById('step-1').classList.remove('hidden-step');
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        function hideAllSteps() {
+            document.getElementById('step-1').classList.add('hidden-step');
+            document.getElementById('step-2').classList.add('hidden-step');
+            document.getElementById('step-3').classList.add('hidden-step');
+            document.getElementById('step-admin').classList.add('hidden-step');
+        }
+
+        function resetSaringan() {
+            if (hakAksesSemasa === "SEMUA") {
+                document.getElementById('admin-daerah-selector').value = "SEMUA";
+                kemaskiniDropdownSaringanTarikh('SEMUA');
+            } else {
+                kemaskiniDropdownSaringanTarikh(hakAksesSemasa);
+            }
+        }
+
+        function janaJadualAdmin() {
+            let daerahPilihan = document.getElementById('admin-daerah-selector').value;
+            const tarikhPilihan = document.getElementById('admin-tarikh-selector').value;
+
+            if (hakAksesSemasa !== "SEMUA") daerahPilihan = hakAksesSemasa;
+
+            const tbodyTop10 = document.getElementById('admin-top10-tbody');
+            const tbodyGagal = document.getElementById('admin-gagal-tbody');
+            const statJumlah = document.getElementById('admin-stat-jumlah');
+            const statPurata = document.getElementById('admin-stat-purata');
+
+            const semuaData = rekodServer || [];
+
+            let dataDitapis = semuaData;
+            if (daerahPilihan !== 'SEMUA') dataDitapis = dataDitapis.filter(d => d.daerah === daerahPilihan);
+            if (tarikhPilihan) dataDitapis = dataDitapis.filter(d => d.tarikh === tarikhPilihan);
+
+            dataSemasaAdmin = dataDitapis;
+
+            if (dataDitapis.length === 0) {
+                document.getElementById('admin-tbody').innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-gray-500 font-medium">Tiada rekod pelajar dijumpai.</td></tr>`;
+                document.getElementById('label-jumlah-carian').innerText = `0 Rekod`;
+                tbodyTop10.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>`;
+                tbodyGagal.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>`;
+                statJumlah.innerText = "0";
+                statPurata.innerText = "0%";
+                return;
+            }
+
+            statJumlah.innerText = dataDitapis.length;
+            const jumlahMarkah = dataDitapis.reduce((acc, curr) => acc + (curr.skor || 0), 0);
+            const purata = Math.round(jumlahMarkah / dataDitapis.length);
+            statPurata.innerText = `${purata}%`;
+
+            const getMarkahBetul = (d) => d.markahBetul !== undefined ? d.markahBetul : Math.round(((d.skor || 0)/100) * 30);
+
+            renderJadualKeseluruhan();
+
+            tbodyTop10.innerHTML = '';
+            const top10Data = [...dataDitapis].sort((a, b) => (b.skor || 0) - (a.skor || 0)).slice(0, 10);
+            top10Data.forEach((d, i) => {
+                const kedudukan = i + 1;
+                let kelasRank = "rank-badge-other";
+                let emojiRank = kedudukan;
+
+                if(kedudukan === 1) { kelasRank = "rank-badge-1"; emojiRank = "🥇"; }
+                else if(kedudukan === 2) { kelasRank = "rank-badge-2"; emojiRank = "🥈"; }
+                else if(kedudukan === 3) { kelasRank = "rank-badge-3"; emojiRank = "🥉"; }
+
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-yellow-100 hover:bg-yellow-50 transition bg-white";
+                tr.innerHTML = `
+                    <td class="px-5 py-4 text-center">
+                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full font-black shadow-sm ${kelasRank}">${emojiRank}</span>
+                    </td>
+                    <td class="px-5 py-4 font-bold text-gray-800">${esc(d.nama || "Tiada Nama")}<br><span class="text-xs font-normal text-gray-400">KP: ${esc(d.ic || '-')}</span></td>
+                    <td class="px-5 py-4 text-center"><span class="px-2 py-1 bg-gray-100 rounded text-xs font-bold text-gray-600">${esc(d.set || '-')}</span></td>
+                    <td class="px-5 py-4 text-center">
+                        <div class="flex flex-col items-center">
+                            <span class="px-3 py-1 rounded-full font-black text-sm text-green-700 bg-green-100 mb-1">${esc(d.skor || 0)}%</span>
+                            <span class="text-[10px] font-bold text-gray-500">B: ${esc(getMarkahBetul(d))}/30</span>
+                        </div>
+                    </td>
+                `;
+                tbodyTop10.appendChild(tr);
+            });
+
+            tbodyGagal.innerHTML = '';
+            const dataGagal = dataDitapis.filter(d => getMarkahBetul(d) < 7).sort((a, b) => (a.skor || 0) - (b.skor || 0));
+            if(dataGagal.length === 0) {
+                tbodyGagal.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Syabas! Tiada pelajar mendapat markah bawah 7.</td></tr>`;
+            } else {
+                dataGagal.forEach(d => {
+                    const markahBetul = getMarkahBetul(d);
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-red-100 hover:bg-red-50 transition bg-white";
+                    tr.innerHTML = `
+                        <td class="px-5 py-4 font-bold text-red-800">${esc(d.nama || "Tiada Nama")}<br><span class="text-xs font-normal text-gray-400">${esc(d.tarikh || '-')}</span></td>
+                        <td class="px-5 py-4 text-gray-600">${esc(d.ic || '-')}<br><span class="text-xs font-semibold text-red-600">${esc(d.daerah || '-')}</span></td>
+                        <td class="px-5 py-4 text-center"><span class="px-2 py-1 bg-gray-100 rounded text-xs font-bold text-gray-600">${esc(d.set || '-')}</span></td>
+                        <td class="px-5 py-4 text-center">
+                            <div class="flex flex-col items-center">
+                                <span class="px-3 py-1 rounded-full font-black text-sm text-white bg-red-600 mb-1">${esc(markahBetul)} / 30</span>
+                                <span class="text-[10px] font-bold text-red-500">${esc(d.skor || 0)}%</span>
+                            </div>
+                        </td>
+                    `;
+                    tbodyGagal.appendChild(tr);
+                });
+            }
+        }
+
+        function carianKeseluruhan() {
+            renderJadualKeseluruhan();
+        }
+
+        function renderJadualKeseluruhan() {
+            const tbody = document.getElementById('admin-tbody');
+            const kataKunci = document.getElementById('carian-peserta').value.toLowerCase();
+            const labelJumlah = document.getElementById('label-jumlah-carian');
+
+            let dataUntukDipapar = dataSemasaAdmin;
+
+            if (kataKunci) {
+                dataUntukDipapar = dataSemasaAdmin.filter(d =>
+                    (d.nama && String(d.nama).toLowerCase().includes(kataKunci)) ||
+                    (d.ic && String(d.ic).includes(kataKunci))
+                );
+            }
+
+            labelJumlah.innerText = `${dataUntukDipapar.length} Rekod`;
+            tbody.innerHTML = '';
+
+            if (dataUntukDipapar.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-gray-400 italic">Tiada padanan ditemui untuk "${esc(kataKunci)}". Sila semak semula ejaan Nama/No. KP.</td></tr>`;
+                return;
+            }
+
+            [...dataUntukDipapar].reverse().forEach((d, index) => {
+                const skorSelamat = d.skor || 0;
+                const warnaMarkah = skorSelamat >= 50 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-100 hover:bg-gray-50 transition";
+                tr.innerHTML = `
+                    <td class="px-5 py-4 text-center font-bold text-gray-400">${index + 1}</td>
+                    <td class="px-5 py-4 font-bold text-gray-800">${esc(d.nama || "Tiada Nama")}<br><span class="text-xs font-normal text-gray-400">${esc(d.timestamp || d.tarikh || '-')}</span></td>
+                    <td class="px-5 py-4 text-gray-600">${esc(d.ic || '-')}<br><span class="text-xs font-semibold text-blue-600">${esc(d.daerah || '-')}</span></td>
+                    <td class="px-5 py-4 text-center"><span class="px-2 py-1 bg-gray-100 rounded text-xs font-bold text-gray-600">${esc(d.set || '-')}</span></td>
+                    <td class="px-5 py-4 text-center">
+                        <span class="px-3 py-1 rounded-full font-bold text-sm ${warnaMarkah}">${esc(skorSelamat)}%</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function kemaskiniDropdownLaporan() {
+            const semuaData = rekodServer || [];
+            let setHarian = new Set();
+            let setBulanan = new Set();
+            let setTahunan = new Set();
+
+            semuaData.forEach(d => {
+                if(d.tarikh) {
+                    setHarian.add(d.tarikh);
+                    setBulanan.add(d.tarikh.substring(0, 7));
+                    setTahunan.add(d.tarikh.substring(0, 4));
+                }
+            });
+
+            const isiDropdown = (id, dataSet) => {
+                const drop = document.getElementById(id);
+                drop.innerHTML = '';
+                if(dataSet.size === 0) {
+                    drop.innerHTML = `<option value="">Tiada Data</option>`;
+                    return;
+                }
+                const senarai = Array.from(dataSet).sort().reverse();
+                senarai.forEach(item => {
+                    drop.innerHTML += `<option value="${esc(item)}">${esc(item)}</option>`;
+                });
+            };
+
+            isiDropdown('laporan-input-harian', setHarian);
+            isiDropdown('laporan-input-bulanan', setBulanan);
+            isiDropdown('laporan-input-tahunan', setTahunan);
+        }
+
+        function tukarInputLaporan() {
+            const jenis = document.getElementById('laporan-jenis').value;
+            const inputHarian = document.getElementById('laporan-input-harian');
+            const inputBulanan = document.getElementById('laporan-input-bulanan');
+            const inputTahunan = document.getElementById('laporan-input-tahunan');
+            const inputSemua = document.getElementById('laporan-input-semua');
+            const labelMasa = document.getElementById('label-input-masa');
+
+            inputHarian.classList.add('hidden-step');
+            inputBulanan.classList.add('hidden-step');
+            inputTahunan.classList.add('hidden-step');
+            inputSemua.classList.add('hidden-step');
+
+            if(jenis === 'harian') {
+                inputHarian.classList.remove('hidden-step');
+                labelMasa.innerText = "Pilih Tarikh Spesifik";
+            } else if(jenis === 'bulanan') {
+                inputBulanan.classList.remove('hidden-step');
+                labelMasa.innerText = "Pilih Bulan & Tahun";
+            } else if(jenis === 'tahunan') {
+                inputTahunan.classList.remove('hidden-step');
+                labelMasa.innerText = "Pilih Tahun";
+            } else {
+                inputSemua.classList.remove('hidden-step');
+                labelMasa.innerText = "Keseluruhan Data";
+            }
+        }
+
+        function dapatkanDataTapis() {
+            const jenis = document.getElementById('laporan-jenis').value;
+            let daerah = document.getElementById('admin-daerah-selector').value;
+            if(hakAksesSemasa !== "SEMUA") daerah = hakAksesSemasa;
+
+            let nilaiMasa = '';
+            let tajukMasa = 'Semua Rekod Terkumpul';
+
+            if(jenis === 'harian') {
+                nilaiMasa = document.getElementById('laporan-input-harian').value;
+                tajukMasa = `Tarikh: ${nilaiMasa}`;
+            } else if(jenis === 'bulanan') {
+                nilaiMasa = document.getElementById('laporan-input-bulanan').value;
+                tajukMasa = `Bulan: ${nilaiMasa}`;
+            } else if(jenis === 'tahunan') {
+                nilaiMasa = document.getElementById('laporan-input-tahunan').value;
+                tajukMasa = `Tahun: ${nilaiMasa}`;
+            }
+
+            if(jenis !== 'keseluruhan' && !nilaiMasa) {
+                paparAlert("Maklumat Cetakan Tidak Lengkap", "Sila pilih Tarikh/Bulan/Tahun di ruangan panel jana laporan terlebih dahulu.");
+                return null;
+            }
+
+            const semuaData = rekodServer || [];
+            let dataDitapis = semuaData;
+
+            if (daerah !== 'SEMUA') dataDitapis = dataDitapis.filter(d => d.daerah === daerah);
+            if (jenis === 'harian') dataDitapis = dataDitapis.filter(d => d.tarikh && d.tarikh === nilaiMasa);
+            else if (jenis === 'bulanan') dataDitapis = dataDitapis.filter(d => d.tarikh && d.tarikh.startsWith(nilaiMasa));
+            else if (jenis === 'tahunan') dataDitapis = dataDitapis.filter(d => d.tarikh && d.tarikh.startsWith(nilaiMasa));
+
+            return { dataDitapis, daerah, tajukMasa, nilaiMasa };
+        }
+
+        function cetakLaporanPDF() {
+            const result = dapatkanDataTapis();
+            if (!result) return;
+            const { dataDitapis, daerah, tajukMasa, nilaiMasa } = result;
+
+            if (dataDitapis.length === 0) {
+                paparAlert("Tiada Data", "Tiada rekod pelajar ditemui untuk saringan yang dipilih.");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'pt', 'a4');
+
+            const lulusCount = dataDitapis.filter(d => (d.skor || 0) >= 50).length;
+            const gagalCount = dataDitapis.length - lulusCount;
+            const purataLaporan = dataDitapis.length > 0 ? Math.round(dataDitapis.reduce((acc, curr) => acc + (curr.skor || 0), 0) / dataDitapis.length) : 0;
+
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text("LAPORAN KEPUTUSAN UJIAN MINDA PRAPERKAHWINAN", 40, 40);
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Daerah: ${daerah === 'SEMUA' ? 'Keseluruhan Pulau Pinang' : daerah}`, 40, 60);
+            doc.text(`${tajukMasa}`, 40, 75);
+
+            doc.setFontSize(10);
+            doc.text(`Jumlah Peserta: ${dataDitapis.length} Orang  |  Lulus (>=50%): ${lulusCount}  |  Gagal (<50%): ${gagalCount}  |  Purata: ${purataLaporan}%`, 40, 95);
+
+            const head = [['Bil', 'Nama Penuh Peserta', 'No KP', 'Set', 'Betul', 'Markah (%)']];
+            if (daerah === 'SEMUA') {
+                head[0].splice(3, 0, 'Daerah');
+            }
+
+            dataDitapis.sort((a,b) => {
+                if (b.skor !== a.skor) return (b.skor || 0) - (a.skor || 0);
+                return (a.nama || "").localeCompare(b.nama || "");
+            });
+
+            const bodyData = [];
+            dataDitapis.forEach((d, index) => {
+                const skor = d.skor || 0;
+                const markahBetul = d.markahBetul !== undefined ? d.markahBetul : Math.round((skor/100) * 30);
+                const row = [
+                    index + 1,
+                    d.nama || "TIADA NAMA",
+                    d.ic || "-",
+                    d.set || "-",
+                    `${markahBetul}/30`,
+                    `${skor}%`
+                ];
+                if (daerah === 'SEMUA') row.splice(3, 0, d.daerah || "-");
+                bodyData.push(row);
+            });
+
+            doc.autoTable({
+                head: head,
+                body: bodyData,
+                startY: 110,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 4 },
+                headStyles: { fillColor: [229, 231, 235], textColor: [0,0,0], fontStyle: 'bold' },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 30 },
+                    1: { fontStyle: 'bold' },
+                    2: { halign: 'center' },
+                    4: { halign: 'center' },
+                    5: { halign: 'center', fontStyle: 'bold' }
+                },
+                didParseCell: function(data) {
+                    const markahColIndex = daerah === 'SEMUA' ? 6 : 5;
+                    if (data.section === 'body' && data.column.index === markahColIndex) {
+                        const cellValue = parseInt(data.cell.raw);
+                        if (cellValue >= 50) {
+                            data.cell.styles.textColor = [22, 101, 52];
+                        } else {
+                            data.cell.styles.textColor = [153, 27, 27];
+                        }
+                    }
+                }
+            });
+
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(100);
+                const footerText = `Sistem Ujian Minda Praperkahwinan Islam P.Pinang  |  Dicetak: ${new Date().toLocaleString('ms-MY')}  |  Muka Surat ${i} / ${pageCount}`;
+                doc.text(footerText, 40, doc.internal.pageSize.height - 20);
+            }
+
+            const safeFilename = `Laporan_${daerah.replace(/[^a-zA-Z0-9]/g, '_')}_${nilaiMasa || 'Keseluruhan'}.pdf`;
+            doc.save(safeFilename);
+        }
+
+        // [FIX #2] Sel CSV selamat: petik dua digandakan, dan teks yang bermula = + - @ tidak dibaca sebagai formula Excel
+        function selCsv(nilai) {
+            let t = String(nilai == null ? '' : nilai);
+            if (/^[=+\-@]/.test(t)) t = "'" + t;
+            return '"' + t.replace(/"/g, '""') + '"';
+        }
+
+        function cetakLaporanExcel() {
+            const result = dapatkanDataTapis();
+            if (!result) return;
+            const { dataDitapis, daerah, nilaiMasa } = result;
+
+            if (dataDitapis.length === 0) {
+                paparAlert("Tiada Data", "Tiada rekod pelajar ditemui untuk saringan yang dipilih.");
+                return;
+            }
+
+            let csvContent = "﻿";
+            let headers = ["Bil", "Nama Penuh Peserta", "No Kad Pengenalan", "Daerah/Pusat", "Set Soalan", "Markah Betul", "Markah Keseluruhan (%)", "Tarikh Jawab", "Emel Peserta"];
+            csvContent += headers.join(",") + "\n";
+
+            dataDitapis.sort((a,b) => {
+                if (b.skor !== a.skor) return (b.skor || 0) - (a.skor || 0);
+                return (a.nama || "").localeCompare(b.nama || "");
+            }).forEach((d, index) => {
+                const skor = d.skor || 0;
+                const markahBetul = d.markahBetul !== undefined ? d.markahBetul : Math.round((skor/100) * 30);
+
+                let baris = [
+                    index + 1,
+                    selCsv(d.nama || "TIADA NAMA"),
+                    `"='${String(d.ic || "").replace(/\D/g, '') || "-"}'"`,
+                    selCsv(d.daerah || "-"),
+                    selCsv(d.set || "-"),
+                    markahBetul,
+                    skor,
+                    selCsv(d.tarikh || "-"),
+                    selCsv(d.email || "-")
+                ];
+                csvContent += baris.join(",") + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Rekod_Excel_${daerah.replace(/[^a-zA-Z0-9]/g, '_')}_${nilaiMasa || 'Keseluruhan'}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ==========================================
+        // SISTEM KESELAMATAN (HALANG BACK/REFRESH)
+        // ==========================================
+        window.addEventListener('popstate', function(event) {
+            if (sedangUjian) {
+                history.pushState(null, document.title, location.href);
+                paparConfirm(
+                    "Amaran Keselamatan!",
+                    "Anda sedang di pertengahan ujian. Jika anda kembali, ujian akan dibatalkan dan jawapan anda TIDAK akan disimpan. Adakah anda pasti?",
+                    "Ya, Batalkan Ujian",
+                    () => {
+                        sedangUjian = false;
+                        if(pemasaInterval) clearInterval(pemasaInterval);
+                        kembaliKeLamanUtama();
+                    }
+                );
+            }
+        });
+
+        // [FIX #4] Tarikh kursus: lalai hari ini, hanya 7 hari lepas hingga hari ini boleh dipilih
+        (function sediakanTarikhKursus() {
+            const input = document.getElementById('tarikh');
+            const hariIni = new Date();
+            const tujuhHariLepas = new Date();
+            tujuhHariLepas.setDate(hariIni.getDate() - 7);
+            input.max = tarikhTempatan(hariIni);
+            input.min = tarikhTempatan(tujuhHariLepas);
+            input.defaultValue = input.max;
+            input.value = input.max;
+        })();
+
+        window.addEventListener('beforeunload', function (e) {
+            if (sedangUjian) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+    </script>
+</body>
+</html>
