@@ -311,6 +311,22 @@ test('v2: masa tamat → hantar automatik → borang penilaian', async () => {
   await context.close();
 });
 
+test('v2: soalan belum dijawab disekat; navigator & langkah dikemas kini', async () => {
+  const g = binaGas('v2');
+  const { context, page } = await buka('v2', g);
+  assert.equal(await page.getAttribute('#stepper [data-langkah="1"]', 'aria-current'), 'step');
+  await mula(page, 'v2');
+  assert.equal(await page.getAttribute('#stepper [data-langkah="2"]', 'aria-current'), 'step');
+  await jawab(page, (await skemaDipapar(page, g)).map((j, i) => (i < 1 ? j : null)));
+  assert.equal(await page.locator('#navigator-soalan .nav-soalan.dijawab').count(), 1);
+  await page.click('#btn-hantar');
+  await page.waitForSelector('#modal-alert:not(.hidden-step)');
+  assert.equal((await page.textContent('#modal-alert-title')).trim(), 'Soalan Belum Dijawab');
+  assert.ok(await page.locator('#kad-soalan-1.belum-jawab').count());
+  assert.equal(g.sheet.getLastRow(), 1); // tiada apa-apa dihantar
+  await context.close();
+});
+
 test('v2: nama berbahaya ditolak; persetujuan privasi wajib', async () => {
   const g = binaGas('v2');
   const { context, page, pelayan } = await buka('v2', g);

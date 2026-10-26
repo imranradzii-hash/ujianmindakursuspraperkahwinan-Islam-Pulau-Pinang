@@ -11,193 +11,307 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        /* Warna rasmi — sama dengan emel keputusan */
+        :root {
+            --navy: #0b2a4a;
+            --navy-2: #163e68;
+            --navy-muda: #eaf0f7;
+            --emas: #b8902f;
+            --emas-muda: #f8f1e1;
+            --latar: #f3f5f8;
+            --garis: #e2e7ee;
+        }
+        body { font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: var(--latar); color: #1f2937; }
         .hidden-step { display: none !important; }
 
-        .fade-in { animation: fadeIn 0.4s ease-in; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .fade-in { animation: fadeIn 0.35s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-        .rank-badge-1 { background-color: #fbbf24; color: #78350f; }
-        .rank-badge-2 { background-color: #9ca3af; color: #1f2937; }
-        .rank-badge-3 { background-color: #d97706; color: #fffbeb; }
-        .rank-badge-other { background-color: #f3f4f6; color: #4b5563; }
+        /* Komponen asas */
+        .kad { background: #fff; border: 1px solid var(--garis); border-radius: 16px; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+        .tajuk-seksyen { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--navy); }
+        .label { display: block; font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; }
+        .medan { width: 100%; border: 1.5px solid #d6dde6; border-radius: 12px; padding: 11px 13px; font-size: 14px; background: #fff; transition: border-color .15s, box-shadow .15s; }
+        .medan:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(11, 42, 74, .12); }
+        .medan::placeholder { color: #9aa6b5; }
+        select.medan { cursor: pointer; }
+        .btn-utama { background: var(--navy); color: #fff; font-weight: 700; border-radius: 12px; transition: background .15s, transform .1s; }
+        .btn-utama:hover { background: var(--navy-2); }
+        .btn-utama:active { transform: scale(.985); }
+        .btn-utama:disabled { opacity: .6; cursor: wait; }
+        .btn-kedua { background: #fff; color: var(--navy); border: 1.5px solid #cfd8e3; font-weight: 700; border-radius: 12px; transition: background .15s; }
+        .btn-kedua:hover { background: var(--navy-muda); }
+        .btn-kedua:disabled { opacity: .6; cursor: wait; }
+
+        /* Langkah (stepper) */
+        .langkah { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #8a97a8; }
+        .langkah .bulat { width: 26px; height: 26px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; border: 2px solid #cfd8e3; background: #fff; color: #8a97a8; flex-shrink: 0; }
+        .langkah.aktif { color: var(--navy); }
+        .langkah.aktif .bulat { border-color: var(--navy); background: var(--navy); color: #fff; }
+        .langkah.selesai .bulat { border-color: var(--emas); background: var(--emas); color: #fff; }
+        .langkah.selesai { color: #6b5a2c; }
+        .garis-langkah { flex: 1; height: 2px; background: #dfe5ec; min-width: 10px; }
+
+        /* Pilihan jawapan ujian */
+        .pilihan { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 13px 14px; border: 1.5px solid var(--garis); border-radius: 12px; cursor: pointer; transition: border-color .12s, background .12s; background: #fff; }
+        .pilihan:hover { border-color: #b9c6d6; background: #fafcfe; }
+        .pilihan .huruf { width: 28px; height: 28px; border-radius: 8px; border: 1.5px solid #cfd8e3; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #5b6b7f; flex-shrink: 0; }
+        .pilihan.dipilih, .pilihan:has(input:checked) { border-color: var(--navy); background: var(--navy-muda); }
+        .pilihan.dipilih .huruf, .pilihan:has(input:checked) .huruf { background: var(--navy); border-color: var(--navy); color: #fff; }
+        .pilihan input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+        .pilihan:has(input:focus-visible) { box-shadow: 0 0 0 3px rgba(11, 42, 74, .2); }
+        .kad-soalan.belum-jawab { border-color: #f2c26b; }
+
+        /* Navigator soalan */
+        .nav-soalan { height: 34px; border-radius: 9px; border: 1.5px solid #d6dde6; font-size: 12px; font-weight: 700; color: #5b6b7f; background: #fff; }
+        .nav-soalan.dijawab { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+        /* Pemasa */
+        .pil-masa { background: var(--navy-muda); color: var(--navy); }
+        .pil-masa.amaran { background: #fff4dc; color: #92580a; }
+        .pil-masa.kritikal { background: #fde8e8; color: #b42318; animation: denyut 1s ease-in-out infinite; }
+        @keyframes denyut { 50% { opacity: .55; } }
 
         /* Halang highlight teks semasa ujian (kosmetik sahaja — bukan kawalan keselamatan) */
         .no-copy { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
         input, textarea { -webkit-user-select: text; user-select: text; }
 
         /* Butang skala 1–5 dalam borang maklum balas */
-        .skala input:checked + span { background-color: #2563eb; color: #ffffff; border-color: #2563eb; }
+        .skala span { transition: background .12s, border-color .12s; }
+        .skala input:checked + span { background-color: var(--navy); color: #ffffff; border-color: var(--navy); }
+        .skala input:focus-visible + span { box-shadow: 0 0 0 3px rgba(11, 42, 74, .2); }
         .soalan-mb.tiada-jawapan { border-color: #f87171; background-color: #fef2f2; }
+
+        /* Admin */
+        .rank-badge-1 { background-color: #f6d36b; color: #5c3d00; }
+        .rank-badge-2 { background-color: #d5dbe3; color: #1f2937; }
+        .rank-badge-3 { background-color: #e7b07a; color: #4a2508; }
+        .rank-badge-other { background-color: #f1f4f8; color: #4b5563; }
+        .stat { border-left: 4px solid var(--navy); }
+        table thead th { font-weight: 700; letter-spacing: .03em; }
     </style>
 </head>
-<body class="p-2 sm:p-4 bg-gray-50 min-h-screen flex flex-col items-center no-copy" oncontextmenu="return false;" oncopy="return false;" oncut="return false;">
+<body class="p-2 sm:p-4 min-h-screen flex flex-col items-center no-copy" oncontextmenu="return false;" oncopy="return false;" oncut="return false;">
 
-    <div class="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mt-4 mb-4" id="app-container">
+    <div class="w-full max-w-3xl mt-2 sm:mt-4 mb-4" id="app-container">
 
-        <div class="bg-gradient-to-r from-blue-800 to-blue-600 p-6 text-center text-white relative">
-            <h2 class="text-2xl font-bold mb-1">Ujian Minda</h2>
-            <p class="text-blue-100 text-sm font-medium">Kursus Praperkahwinan Islam P.Pinang</p>
-        </div>
+        <!-- KEPALA -->
+        <header class="rounded-2xl overflow-hidden shadow-sm" style="background: linear-gradient(135deg, #0b2a4a 0%, #163e68 100%);">
+            <div class="px-5 sm:px-8 py-5 sm:py-6 flex items-center gap-4">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center shrink-0" style="background: rgba(255,255,255,.08); border: 1.5px solid #b8902f;">
+                    <svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="#e3c47a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5A2.5 2.5 0 0 0 4 21.5"/><path d="M8 7h7M8 11h5"/></svg>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-[10px] sm:text-[11px] font-bold tracking-[.14em] uppercase" style="color:#e3c47a;">Jabatan Hal Ehwal Agama Islam Pulau Pinang</p>
+                    <h1 class="text-xl sm:text-2xl font-extrabold text-white leading-tight">Ujian Minda</h1>
+                    <p class="text-[13px] text-slate-200">Kursus Praperkahwinan Islam Negeri Pulau Pinang</p>
+                </div>
+            </div>
+            <div style="height:3px;background:#b8902f;"></div>
+        </header>
+
+        <!-- LANGKAH -->
+        <nav id="stepper" aria-label="Langkah" class="kad mt-3 px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-3">
+            <div class="langkah" data-langkah="1"><span class="bulat">1</span><span class="hidden sm:inline">Maklumat</span></div>
+            <div class="garis-langkah"></div>
+            <div class="langkah" data-langkah="2"><span class="bulat">2</span><span class="hidden sm:inline">Ujian</span></div>
+            <div class="garis-langkah"></div>
+            <div class="langkah" data-langkah="3"><span class="bulat">3</span><span class="hidden sm:inline">Penilaian</span></div>
+            <div class="garis-langkah"></div>
+            <div class="langkah" data-langkah="4"><span class="bulat">4</span><span class="hidden sm:inline">Selesai</span></div>
+        </nav>
+
+        <main class="mt-3">
 
         <!-- FASA 1: BORANG MAKLUMAT PESERTA -->
-        <div id="step-1" class="p-5 md:p-8 fade-in">
-            <form id="form-maklumat" onsubmit="mulaUjian(event)" class="space-y-4">
-                <div>
-                    <label for="nama" class="block text-[13px] font-bold text-gray-700 mb-1">Nama Penuh <span class="text-[11px] text-red-500 font-normal ml-1">*Ikut ejaan Kad Pengenalan</span></label>
-                    <input type="text" id="nama" required maxlength="100" autocomplete="name" class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none uppercase bg-gray-50 transition text-sm" placeholder="MUHAMMAD BIN ABDULLAH">
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="ic" class="block text-[13px] font-bold text-gray-700 mb-1">No. Kad Pengenalan</label>
-                        <input type="text" inputmode="numeric" id="ic" pattern="\d{12}" maxlength="12" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 transition text-sm" placeholder="Cth: 912345678901 (Tanpa -)">
+        <section id="step-1" class="fade-in">
+            <div class="kad p-5 sm:p-7">
+                <div class="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+                    <div class="rounded-xl px-3 py-2.5 text-center" style="background:var(--navy-muda);">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Format</p>
+                        <p class="text-[13px] sm:text-sm font-extrabold" style="color:var(--navy)">Aneka pilihan</p>
                     </div>
-                    <div>
-                        <label for="email" class="block text-[13px] font-bold text-gray-700 mb-1">Emel Peserta <span class="text-[11px] text-blue-500 font-normal ml-1">*Keputusan dihantar ke sini</span></label>
-                        <input type="email" id="email" required maxlength="100" autocomplete="email" class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 transition text-sm" placeholder="contoh@gmail.com">
+                    <div class="rounded-xl px-3 py-2.5 text-center" style="background:var(--navy-muda);">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Masa</p>
+                        <p class="text-[13px] sm:text-sm font-extrabold" style="color:var(--navy)">30 minit</p>
                     </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="daerah" class="block text-[13px] font-bold text-gray-700 mb-1">Daerah / Pusat Kursus</label>
-                        <select id="daerah" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none bg-gray-50 cursor-pointer text-sm">
-                            <option value="">-- Pilih Daerah --</option>
-                            <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
-                            <option value="Timur Laut">Timur Laut</option>
-                            <option value="Barat Daya">Barat Daya</option>
-                            <option value="Seberang Perai Utara (SPU) - Butterworth">Seberang Perai Utara (SPU) - Butterworth</option>
-                            <option value="Seberang Perai Utara (SPU) - Kepala Batas">Seberang Perai Utara (SPU) - Kepala Batas</option>
-                            <option value="Seberang Perai Tengah (SPT)">Seberang Perai Tengah (SPT)</option>
-                            <option value="Seberang Perai Selatan (SPS)">Seberang Perai Selatan (SPS)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="set_soalan" class="block text-[13px] font-bold text-gray-700 mb-1">Set Soalan</label>
-                        <select id="set_soalan" required class="w-full border-2 border-gray-200 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none bg-gray-50 cursor-pointer text-sm">
-                            <option value="">Memuatkan set soalan...</option>
-                        </select>
+                    <div class="rounded-xl px-3 py-2.5 text-center" style="background:var(--emas-muda);">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Keputusan</p>
+                        <p class="text-[13px] sm:text-sm font-extrabold" style="color:#7a5d17">Melalui emel</p>
                     </div>
                 </div>
 
-                <p class="text-[12px] text-gray-500">Tarikh kursus: <span id="paparan-tarikh-hari-ini" class="font-bold text-gray-700">-</span> <span class="text-[11px]">(direkod secara automatik)</span></p>
+                <form id="form-maklumat" onsubmit="mulaUjian(event)" class="space-y-4">
+                    <p class="tajuk-seksyen">Maklumat Peserta</p>
+                    <div>
+                        <label for="nama" class="label">Nama Penuh <span class="text-[11px] text-red-600 font-semibold ml-1">ikut ejaan Kad Pengenalan</span></label>
+                        <input type="text" id="nama" required maxlength="100" autocomplete="name" class="medan uppercase" placeholder="MUHAMMAD BIN ABDULLAH">
+                    </div>
 
-                <!-- NOTIS PRIVASI -->
-                <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 text-[11px] text-gray-600 leading-relaxed">
-                    <p class="font-bold text-gray-700 mb-1">Notis Privasi</p>
-                    <p>Nama, No. Kad Pengenalan, emel, daerah, markah dan maklum balas kursus anda dikumpul oleh Jabatan Hal Ehwal Agama Islam Pulau Pinang (JHEAIPP) untuk merekod keputusan Ujian Minda Kursus Praperkahwinan, menilai pelaksanaan kursus dan menghantar keputusan kepada anda. Maklumat ini hanya boleh dilihat oleh pegawai JHEAIPP dan urusetia kursus daerah berkenaan, tidak dikongsi dengan pihak luar, dan disimpan selama 3 tahun dari tarikh kursus, kemudian dilupuskan.</p>
-                    <label class="flex items-start mt-2 cursor-pointer">
-                        <input type="checkbox" id="setuju" required class="mt-0.5 mr-2 w-4 h-4">
-                        <span class="font-semibold text-gray-700">Saya faham dan bersetuju maklumat saya digunakan seperti di atas.</span>
-                    </label>
-                </div>
-
-                <div class="mt-6">
-                    <p class="text-[11px] font-semibold text-blue-600 text-center mb-2">
-                        Selepas menjawab, anda perlu melengkapkan Borang Penilaian Kursus. Keputusan akan diemelkan selepas itu.
-                    </p>
-                    <button type="submit" id="btn-mula" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all active:scale-95 text-sm">
-                        Mula Menjawab
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- FASA 2: SOALAN UJIAN -->
-        <div id="step-2" class="hidden-step p-6 md:p-8 bg-gray-50 fade-in relative">
-            <div class="sticky top-0 z-30 bg-gray-50 pt-2 pb-4 border-b-2 border-blue-200 mb-6 shadow-sm">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
-                    <div class="text-sm font-bold text-gray-600 truncate" id="paparan-nama">NAMA PESERTA</div>
-                    <div class="flex gap-2 items-center">
-                        <div class="text-[10px] sm:text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded-full font-bold shadow-sm" id="paparan-daerah-badge">DAERAH</div>
-                        <div class="text-[10px] sm:text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold shadow-sm flex items-center">
-                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
-                            <span id="paparan-masa">30:00</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="ic" class="label">No. Kad Pengenalan</label>
+                            <input type="text" inputmode="numeric" id="ic" pattern="\d{12}" maxlength="12" required class="medan" placeholder="Cth: 912345678901 (tanpa -)">
+                        </div>
+                        <div>
+                            <label for="email" class="label">Emel <span class="text-[11px] font-semibold ml-1" style="color:var(--navy-2)">keputusan dihantar ke sini</span></label>
+                            <input type="email" id="email" required maxlength="100" autocomplete="email" class="medan" placeholder="contoh@gmail.com">
                         </div>
                     </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="daerah" class="label">Daerah / Pusat Kursus</label>
+                            <select id="daerah" required class="medan">
+                                <option value="">-- Pilih Daerah --</option>
+                                <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
+                                <option value="Timur Laut">Timur Laut</option>
+                                <option value="Barat Daya">Barat Daya</option>
+                                <option value="Seberang Perai Utara (SPU) - Butterworth">Seberang Perai Utara (SPU) - Butterworth</option>
+                                <option value="Seberang Perai Utara (SPU) - Kepala Batas">Seberang Perai Utara (SPU) - Kepala Batas</option>
+                                <option value="Seberang Perai Tengah (SPT)">Seberang Perai Tengah (SPT)</option>
+                                <option value="Seberang Perai Selatan (SPS)">Seberang Perai Selatan (SPS)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="set_soalan" class="label">Set Soalan <span class="text-[11px] font-normal text-slate-500 ml-1">seperti diarahkan urusetia</span></label>
+                            <select id="set_soalan" required class="medan">
+                                <option value="">Memuatkan set soalan...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <p class="text-[12px] text-slate-500">Tarikh kursus: <span id="paparan-tarikh-hari-ini" class="font-bold text-slate-700">-</span> <span class="text-[11px]">(direkod secara automatik)</span></p>
+
+                    <!-- NOTIS PRIVASI -->
+                    <div class="rounded-xl p-4 text-[12px] text-slate-600 leading-relaxed border" style="background:#f8fafc;border-color:var(--garis);">
+                        <p class="font-bold text-slate-800 mb-1">Notis Privasi</p>
+                        <p>Nama, No. Kad Pengenalan, emel, daerah, markah dan maklum balas kursus anda dikumpul oleh Jabatan Hal Ehwal Agama Islam Pulau Pinang (JHEAIPP) untuk merekod keputusan Ujian Minda Kursus Praperkahwinan, menilai pelaksanaan kursus dan menghantar keputusan kepada anda. Maklumat ini hanya boleh dilihat oleh pegawai JHEAIPP dan urusetia kursus daerah berkenaan, tidak dikongsi dengan pihak luar, dan disimpan selama 3 tahun dari tarikh kursus, kemudian dilupuskan.</p>
+                        <label class="flex items-start mt-3 cursor-pointer">
+                            <input type="checkbox" id="setuju" required class="mt-0.5 mr-2.5 w-4 h-4 shrink-0" style="accent-color:var(--navy)">
+                            <span class="font-semibold text-slate-800">Saya faham dan bersetuju maklumat saya digunakan seperti di atas.</span>
+                        </label>
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit" id="btn-mula" class="btn-utama w-full py-3.5 px-4 text-[15px] shadow-sm">
+                            Mula Menjawab
+                        </button>
+                        <p class="text-[12px] text-slate-500 text-center mt-3">
+                            Selepas menjawab, lengkapkan <span class="font-semibold text-slate-700">Borang Penilaian Kursus</span>. Keputusan akan diemelkan selepas itu.
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- FASA 2: SOALAN UJIAN -->
+        <section id="step-2" class="hidden-step fade-in">
+            <div class="sticky top-0 z-30 -mx-2 sm:mx-0 px-2 sm:px-0 pt-1 pb-3" style="background:var(--latar);">
+                <div class="kad px-4 py-3 shadow-sm">
+                    <div class="flex justify-between items-center gap-3 mb-2.5">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-slate-800 truncate" id="paparan-nama">NAMA PESERTA</p>
+                            <p class="text-[11px] font-semibold text-slate-500 truncate" id="paparan-daerah-badge">DAERAH</p>
+                        </div>
+                        <div id="kotak-masa" class="pil-masa shrink-0 rounded-xl px-3 py-1.5 flex items-center gap-1.5 font-extrabold tabular-nums" aria-live="off" title="Baki masa">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
+                            <span id="paparan-masa" class="text-base">30:00</span>
+                        </div>
+                    </div>
+                    <div class="w-full rounded-full h-2 overflow-hidden" style="background:#e4e9ef;">
+                        <div class="h-2 rounded-full transition-all duration-300" id="progress-bar" style="width: 0%; background: var(--navy);"></div>
+                    </div>
+                    <div class="flex justify-between mt-1.5 text-[11px] font-bold">
+                        <span class="text-slate-500" id="paparan-progress">0 / 0 Dijawab</span>
+                        <span class="text-amber-700" id="paparan-belum"></span>
+                    </div>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1 overflow-hidden">
-                    <div class="bg-blue-500 h-2.5 rounded-full transition-all duration-300" id="progress-bar" style="width: 0%"></div>
-                </div>
-                <div class="text-[11px] font-bold text-gray-500 text-right" id="paparan-progress">0 / 0 Dijawab</div>
             </div>
 
             <form id="form-ujian" onsubmit="hantarJawapan(event)">
-                <div id="ruangan-soalan" class="space-y-6"></div>
+                <div id="ruangan-soalan" class="space-y-4"></div>
 
-                <button type="submit" id="btn-hantar" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl mt-8 shadow-md transition-all active:scale-95">
+                <!-- Navigator soalan -->
+                <div class="kad p-4 mt-6">
+                    <p class="tajuk-seksyen mb-1">Semakan Pantas</p>
+                    <p class="text-[12px] text-slate-500 mb-3">Kotak berwarna = sudah dijawab. Tekan nombor untuk pergi ke soalan itu.</p>
+                    <div id="navigator-soalan" class="grid grid-cols-6 sm:grid-cols-10 gap-1.5"></div>
+                </div>
+
+                <button type="submit" id="btn-hantar" class="btn-utama w-full py-4 px-4 mt-4 text-[15px] shadow-sm">
                     Hantar Jawapan & Simpan
                 </button>
 
-                <div id="status-hantar" class="text-center mt-6 text-sm font-bold text-blue-600 hidden-step flex flex-col items-center">
-                    <svg class="animate-spin h-8 w-8 text-blue-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <div id="status-hantar" class="text-center mt-6 text-sm font-bold hidden-step flex flex-col items-center" style="color:var(--navy)">
+                    <svg class="animate-spin h-8 w-8 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Sedang menyimpan jawapan...
                 </div>
             </form>
-        </div>
+        </section>
 
         <!-- FASA 3: BORANG PENILAIAN / MAKLUM BALAS KURSUS -->
-        <div id="step-mb" class="hidden-step p-5 md:p-8 bg-gray-50 fade-in">
-            <div class="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4 mb-6 text-sm">
-                <p class="font-extrabold">Jawapan ujian anda telah disimpan.</p>
-                <p class="mt-1">Langkah terakhir: lengkapkan <span class="font-bold">Borang Penilaian Pelaksanaan Kursus</span> di bawah. Keputusan ujian akan dihantar ke emel anda selepas borang ini dihantar.</p>
+        <section id="step-mb" class="hidden-step fade-in">
+            <div class="rounded-2xl p-4 mb-4 text-sm border flex gap-3" style="background:#ecfdf3;border-color:#abefc6;color:#05603a;">
+                <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <div>
+                    <p class="font-extrabold">Jawapan ujian anda telah disimpan.</p>
+                    <p class="mt-0.5">Langkah terakhir: lengkapkan borang penilaian di bawah. Keputusan ujian akan dihantar ke emel anda selepas borang ini dihantar.</p>
+                </div>
             </div>
-            <h3 class="text-lg font-extrabold text-gray-800 mb-1">Borang Penilaian Pelaksanaan Kursus Praperkahwinan Islam</h3>
-            <p class="text-xs text-gray-500 mb-4">Soalan bertanda <span class="text-red-500 font-bold">*</span> wajib dijawab.</p>
-            <div id="legend-skala" class="bg-white border border-gray-200 rounded-xl p-3 mb-6 text-[11px] text-gray-600 grid grid-cols-1 sm:grid-cols-5 gap-1"></div>
+            <div class="kad p-5 sm:p-7">
+                <h2 class="text-lg font-extrabold text-slate-900 leading-snug">Borang Penilaian Pelaksanaan Kursus Praperkahwinan Islam</h2>
+                <p class="text-xs text-slate-500 mt-1 mb-4">Soalan bertanda <span class="text-red-600 font-bold">*</span> wajib dijawab.</p>
+                <div id="legend-skala" class="rounded-xl p-3 mb-5 text-[11px] text-slate-600 grid grid-cols-1 sm:grid-cols-5 gap-1" style="background:#f8fafc;border:1px solid var(--garis);"></div>
 
-            <form id="form-mb" onsubmit="hantarMaklumBalas(event)" novalidate>
-                <div id="ruangan-mb" class="space-y-6"></div>
-                <button type="submit" id="btn-hantar-mb" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-4 px-4 rounded-xl mt-8 shadow-md transition-all active:scale-95">
-                    Hantar Borang Penilaian
-                </button>
-            </form>
-        </div>
+                <form id="form-mb" onsubmit="hantarMaklumBalas(event)" novalidate>
+                    <div id="ruangan-mb" class="space-y-5"></div>
+                    <button type="submit" id="btn-hantar-mb" class="btn-utama w-full py-4 px-4 mt-7 text-[15px] shadow-sm">
+                        Hantar Borang Penilaian
+                    </button>
+                </form>
+            </div>
+        </section>
 
         <!-- FASA 4: SELESAI -->
-        <div id="step-3" class="hidden-step p-6 md:p-10 text-center fade-in">
-            <div class="mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-inner bg-green-100 text-green-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        <section id="step-3" class="hidden-step fade-in">
+            <div class="kad p-7 sm:p-10 text-center">
+                <div class="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-5" style="background:var(--emas-muda);color:var(--emas);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold mb-2" style="color:var(--navy)">Terima Kasih</h2>
+                <p class="text-slate-700 text-sm font-medium mb-1">Jawapan ujian dan borang penilaian anda telah diterima.</p>
+                <p class="text-slate-700 text-sm mb-6">Keputusan Ujian Minda akan dihantar ke emel <span id="paparan-emel-topeng" class="font-bold">-</span> dalam masa beberapa minit.</p>
+                <p class="text-[12px] text-slate-600 rounded-xl p-3 mb-7 border text-left sm:text-center" style="background:#f8fafc;border-color:var(--garis);">Jika emel tidak diterima dalam masa 30 minit, sila semak folder <span class="font-bold">Spam</span> atau <span class="font-bold">Promotions</span>, atau maklumkan kepada urusetia kursus.</p>
+                <p class="text-sm italic mb-6" style="color:#7a5d17;">Semoga Allah memberkati perkahwinan anda dan menghimpunkan anda berdua dalam kebaikan.</p>
+                <button type="button" onclick="kembaliKeLamanUtama()" class="text-xs font-semibold text-slate-400 hover:text-slate-600 transition underline decoration-dotted underline-offset-4">
+                    Kembali ke Laman Utama
+                </button>
             </div>
-            <h2 class="text-3xl font-extrabold text-gray-800 mb-3">Terima Kasih!</h2>
-            <p class="text-gray-700 text-sm font-medium mb-2">Jawapan ujian dan borang penilaian anda telah diterima.</p>
-            <p class="text-gray-700 text-sm mb-6">Keputusan Ujian Minda akan dihantar ke emel <span id="paparan-emel-topeng" class="font-bold">-</span> dalam masa beberapa minit.</p>
-            <p class="text-[12px] text-gray-500 bg-gray-50 border border-gray-200 rounded-xl p-3 mb-8">Jika emel tidak diterima dalam masa 30 minit, sila semak folder <span class="font-bold">Spam</span> atau <span class="font-bold">Promotions</span>, atau maklumkan kepada urusetia kursus.</p>
-            <button type="button" onclick="kembaliKeLamanUtama()" class="text-xs font-semibold text-gray-400 hover:text-gray-600 transition underline decoration-dotted underline-offset-4">
-                Kembali ke Laman Utama
-            </button>
-        </div>
+        </section>
 
         <!-- FASA 5: DASHBOARD ADMIN DAERAH -->
-        <div id="step-admin" class="hidden-step p-6 md:p-8 fade-in bg-gray-50">
-            <div class="flex justify-between items-center mb-6 pb-4 border-b-2 border-gray-200 gap-2">
+        <section id="step-admin" class="hidden-step fade-in">
+            <div class="kad p-4 sm:p-5 mb-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                 <div>
-                    <h3 class="text-xl font-extrabold text-gray-800">Dashboard Admin</h3>
-                    <p class="text-sm font-semibold text-blue-600" id="admin-akses-badge">Akses: -</p>
+                    <h2 class="text-lg font-extrabold" style="color:var(--navy)">Dashboard Admin</h2>
+                    <p class="text-[13px] font-semibold text-slate-500" id="admin-akses-badge">Akses: -</p>
                 </div>
                 <div class="flex gap-2">
-                    <button type="button" id="btn-muat-semula" onclick="muatSemulaData()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-bold py-2 px-4 rounded-lg transition">
-                        Muat Semula Data
-                    </button>
-                    <button type="button" onclick="tutupAdmin()" class="bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-2 px-4 rounded-lg transition">
-                        Log Keluar
-                    </button>
+                    <button type="button" id="btn-muat-semula" onclick="muatSemulaData()" class="btn-kedua text-xs py-2 px-4">Muat Semula Data</button>
+                    <button type="button" onclick="tutupAdmin()" class="text-xs font-bold py-2 px-4 rounded-xl transition bg-red-50 hover:bg-red-100 text-red-700 border border-red-200">Log Keluar</button>
                 </div>
             </div>
 
             <!-- Panel Kawalan Saringan -->
-            <div class="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div class="kad p-4 mb-4 flex flex-col md:flex-row gap-3">
                 <div class="flex-1" id="kawasan-filter-daerah">
-                    <label for="admin-daerah-selector" class="block text-sm font-bold text-gray-700 mb-2">Saringan Daerah:</label>
-                    <select id="admin-daerah-selector" onchange="kemaskiniFilterDaerah()" class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:outline-none bg-gray-50 font-semibold text-sm cursor-pointer">
-                        <option value="SEMUA" class="font-bold text-blue-700">-- Papar Keseluruhan Daerah --</option>
+                    <label for="admin-daerah-selector" class="label">Saringan Daerah</label>
+                    <select id="admin-daerah-selector" onchange="kemaskiniFilterDaerah()" class="medan font-semibold">
+                        <option value="SEMUA">-- Papar Keseluruhan Daerah --</option>
                         <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
                         <option value="Timur Laut">Timur Laut</option>
                         <option value="Barat Daya">Barat Daya</option>
@@ -208,42 +322,39 @@
                     </select>
                 </div>
                 <div class="flex-1">
-                    <label for="admin-tarikh-selector" class="block text-sm font-bold text-gray-700 mb-2">Saringan Tarikh Kursus:</label>
-                    <select id="admin-tarikh-selector" onchange="janaJadualAdmin()" class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 focus:outline-none bg-gray-50 font-semibold text-sm cursor-pointer">
+                    <label for="admin-tarikh-selector" class="label">Saringan Tarikh Kursus</label>
+                    <select id="admin-tarikh-selector" onchange="janaJadualAdmin()" class="medan font-semibold">
                         <option value="">-- Semua Tarikh --</option>
                     </select>
                 </div>
                 <div class="flex items-end">
-                    <button type="button" onclick="resetSaringan()" class="w-full md:w-auto bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-xl transition text-sm">Reset</button>
+                    <button type="button" onclick="resetSaringan()" class="btn-kedua w-full md:w-auto py-3 px-4 text-sm">Reset</button>
                 </div>
             </div>
 
             <!-- Statistik -->
-            <div class="grid grid-cols-3 gap-3 mb-8">
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                    <p class="text-[10px] sm:text-xs text-gray-500 font-bold uppercase mb-1">Jumlah Peserta</p>
-                    <p class="text-2xl sm:text-3xl font-black text-blue-600" id="admin-stat-jumlah">0</p>
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="kad stat p-4">
+                    <p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase mb-1">Jumlah Peserta</p>
+                    <p class="text-2xl sm:text-3xl font-black" style="color:var(--navy)" id="admin-stat-jumlah">0</p>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                    <p class="text-[10px] sm:text-xs text-gray-500 font-bold uppercase mb-1">Purata Markah</p>
-                    <p class="text-2xl sm:text-3xl font-black text-green-600" id="admin-stat-purata">0%</p>
+                <div class="kad stat p-4" style="border-left-color:#12b76a">
+                    <p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase mb-1">Purata Markah</p>
+                    <p class="text-2xl sm:text-3xl font-black text-emerald-700" id="admin-stat-purata">0%</p>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                    <p class="text-[10px] sm:text-xs text-gray-500 font-bold uppercase mb-1">Belum Isi Penilaian</p>
-                    <p class="text-2xl sm:text-3xl font-black text-amber-600" id="admin-stat-belum">0</p>
+                <div class="kad stat p-4" style="border-left-color:#b8902f">
+                    <p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase mb-1">Belum Isi Penilaian</p>
+                    <p class="text-2xl sm:text-3xl font-black" style="color:#8a6a1c" id="admin-stat-belum">0</p>
                 </div>
             </div>
 
             <!-- Panel Jana & Cetak Laporan -->
-            <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 mb-8 shadow-sm">
-                <h4 class="text-sm font-bold text-blue-800 mb-4 uppercase tracking-wider flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                    Jana & Muat Turun Laporan Keputusan
-                </h4>
+            <div class="kad p-5 mb-6">
+                <p class="tajuk-seksyen mb-4">Jana & Muat Turun Laporan Keputusan</p>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div>
-                        <label for="laporan-jenis" class="block text-xs font-bold text-gray-700 mb-1.5">Kategori Tempoh Masa</label>
-                        <select id="laporan-jenis" onchange="tukarInputLaporan()" class="w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer">
+                        <label for="laporan-jenis" class="label">Kategori Tempoh Masa</label>
+                        <select id="laporan-jenis" onchange="tukarInputLaporan()" class="medan font-semibold">
                             <option value="harian">Harian (Pilih Tarikh Spesifik)</option>
                             <option value="bulanan">Bulanan (Pilih Bulan & Tahun)</option>
                             <option value="tahunan">Tahunan (Pilih Tahun Saja)</option>
@@ -251,39 +362,39 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5" id="label-input-masa">Pilih Tarikh Spesifik</label>
-                        <select id="laporan-input-harian" class="w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer"></select>
-                        <select id="laporan-input-bulanan" class="hidden-step w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer"></select>
-                        <select id="laporan-input-tahunan" class="hidden-step w-full border-2 border-white rounded-xl p-3 focus:border-blue-500 outline-none shadow-sm text-sm font-semibold text-gray-700 cursor-pointer"></select>
-                        <div id="laporan-input-semua" class="hidden-step w-full border-2 border-gray-100 bg-gray-100 rounded-xl p-3 text-sm font-bold text-gray-500 text-center">Rekod Sepanjang Masa</div>
+                        <label class="label" id="label-input-masa">Pilih Tarikh Spesifik</label>
+                        <select id="laporan-input-harian" class="medan font-semibold"></select>
+                        <select id="laporan-input-bulanan" class="hidden-step medan font-semibold"></select>
+                        <select id="laporan-input-tahunan" class="hidden-step medan font-semibold"></select>
+                        <div id="laporan-input-semua" class="hidden-step w-full rounded-xl p-3 text-sm font-bold text-slate-500 text-center" style="background:#f1f4f8;">Rekod Sepanjang Masa</div>
                     </div>
                     <div class="flex flex-col gap-2">
-                        <button type="button" id="btn-jana-pdf" onclick="cetakLaporanPDF()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm">Muat Turun PDF</button>
-                        <button type="button" id="btn-jana-excel" onclick="cetakLaporanExcel()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md text-sm">Muat Turun EXCEL (CSV)</button>
+                        <button type="button" id="btn-jana-pdf" onclick="cetakLaporanPDF()" class="btn-utama w-full py-2.5 px-4 text-sm">Muat Turun PDF</button>
+                        <button type="button" id="btn-jana-excel" onclick="cetakLaporanExcel()" class="btn-kedua w-full py-2.5 px-4 text-sm">Muat Turun EXCEL (CSV)</button>
                     </div>
                 </div>
-                <p class="text-[11px] text-blue-600 mt-3 font-medium">* Laporan yang dimuat turun merujuk kepada <span class="font-bold underline">Saringan Daerah</span> di atas dan mengandungi No. KP penuh — simpan dengan selamat dan padam selepas digunakan.</p>
+                <p class="text-[11px] text-slate-500 mt-3">Laporan mengikut <span class="font-bold">Saringan Daerah</span> di atas dan mengandungi No. KP penuh. Simpan dengan selamat dan padam selepas digunakan.</p>
             </div>
 
             <!-- Ringkasan Maklum Balas Kursus -->
-            <div class="bg-white p-5 rounded-xl border border-emerald-200 mb-8 shadow-sm">
+            <div class="kad p-5 mb-6">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-                    <h4 class="text-sm font-bold text-emerald-700 uppercase tracking-wider">Ringkasan Penilaian Kursus</h4>
+                    <p class="tajuk-seksyen">Ringkasan Penilaian Kursus</p>
                     <div class="flex gap-2">
-                        <button type="button" id="btn-muat-mb" onclick="muatMaklumBalas()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold py-2 px-3 rounded-lg transition">Papar Ringkasan</button>
-                        <button type="button" id="btn-csv-mb" onclick="cetakMaklumBalasCSV()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold py-2 px-3 rounded-lg transition">Muat Turun CSV</button>
+                        <button type="button" id="btn-muat-mb" onclick="muatMaklumBalas()" class="btn-kedua text-xs py-2 px-3">Papar Ringkasan</button>
+                        <button type="button" id="btn-csv-mb" onclick="cetakMaklumBalasCSV()" class="btn-kedua text-xs py-2 px-3">Muat Turun CSV</button>
                     </div>
                 </div>
-                <p class="text-[11px] text-gray-500 mb-3">Mengikut Saringan Daerah & Tarikh di atas. Skala 1 (Sangat Tidak Memuaskan) hingga 5 (Sangat Memuaskan).</p>
-                <div id="mb-ringkasan" class="text-sm text-gray-500 italic">Tekan "Papar Ringkasan" untuk memuatkan data penilaian.</div>
+                <p class="text-[11px] text-slate-500 mb-3">Mengikut Saringan Daerah & Tarikh di atas. Skala 1 (Sangat Tidak Memuaskan) hingga 5 (Sangat Memuaskan).</p>
+                <div id="mb-ringkasan" class="text-sm text-slate-500 italic">Tekan "Papar Ringkasan" untuk memuatkan data penilaian.</div>
             </div>
 
             <!-- Jadual Top 10 -->
-            <h4 class="text-sm font-bold text-yellow-600 mb-3 uppercase tracking-wider">10 Peserta Terbaik <span class="text-gray-400 text-xs ml-2 normal-case">(Saringan Semasa)</span></h4>
-            <div class="bg-white rounded-xl shadow-sm border border-yellow-200 overflow-hidden mb-8">
+            <p class="tajuk-seksyen mb-2" style="color:#7a5d17">10 Peserta Terbaik <span class="text-slate-400 normal-case tracking-normal font-semibold ml-1">(saringan semasa)</span></p>
+            <div class="kad overflow-hidden mb-6">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left text-gray-600">
-                        <thead class="text-xs text-gray-700 uppercase bg-yellow-50 border-b border-yellow-200">
+                    <table class="w-full text-sm text-left text-slate-600">
+                        <thead class="text-[11px] text-slate-600 uppercase border-b" style="background:#faf6ec;border-color:#efe3c4;">
                             <tr>
                                 <th scope="col" class="px-5 py-3 text-center w-16">Rank</th>
                                 <th scope="col" class="px-5 py-3">Nama Peserta</th>
@@ -292,18 +403,18 @@
                             </tr>
                         </thead>
                         <tbody id="admin-top10-tbody">
-                            <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>
+                            <tr><td colspan="4" class="px-5 py-6 text-center text-slate-400 italic">Tiada data untuk dipaparkan.</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
             <!-- Jadual Markah Rendah -->
-            <h4 class="text-sm font-bold text-red-600 mb-3 uppercase tracking-wider">Perhatian: Markah Bawah 7 Betul</h4>
-            <div class="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden mb-8">
+            <p class="tajuk-seksyen mb-2 text-red-700" style="color:#b42318">Perhatian: Markah Bawah 7 Betul</p>
+            <div class="kad overflow-hidden mb-6">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left text-gray-600">
-                        <thead class="text-xs text-red-800 uppercase bg-red-50 border-b border-red-200">
+                    <table class="w-full text-sm text-left text-slate-600">
+                        <thead class="text-[11px] text-red-800 uppercase bg-red-50 border-b border-red-100">
                             <tr>
                                 <th scope="col" class="px-5 py-3">Nama Peserta</th>
                                 <th scope="col" class="px-5 py-3">No. KP & Daerah</th>
@@ -312,25 +423,25 @@
                             </tr>
                         </thead>
                         <tbody id="admin-gagal-tbody">
-                            <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 italic">Tiada data untuk dipaparkan.</td></tr>
+                            <tr><td colspan="4" class="px-5 py-6 text-center text-slate-400 italic">Tiada data untuk dipaparkan.</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
             <!-- Jadual Keseluruhan -->
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-3">
-                <h4 class="text-sm font-bold text-gray-800 uppercase tracking-wider">Senarai Keseluruhan Peserta <span id="label-jumlah-carian" class="text-blue-600 normal-case ml-2 text-xs bg-blue-100 px-3 py-1 rounded-full font-bold shadow-sm">0 Rekod</span></h4>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-2 gap-3">
+                <p class="tajuk-seksyen">Senarai Keseluruhan Peserta <span id="label-jumlah-carian" class="normal-case tracking-normal ml-2 text-[11px] px-2.5 py-1 rounded-full font-bold" style="background:var(--navy-muda);color:var(--navy)">0 Rekod</span></p>
                 <div class="relative w-full md:w-72">
-                    <input type="text" id="carian-peserta" oninput="renderJadualKeseluruhan()" placeholder="Cari Nama atau No. KP..." class="w-full border-2 border-gray-200 rounded-xl p-2.5 pl-9 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition">
-                    <svg class="w-4 h-4 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="carian-peserta" oninput="renderJadualKeseluruhan()" placeholder="Cari Nama atau No. KP..." class="medan pl-9">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </div>
             </div>
-            <p class="text-[11px] text-gray-400 mb-2">No. KP dipaparkan 4 digit terakhir sahaja (carian tetap boleh guna No. KP penuh). <span class="font-bold text-amber-600">×2</span> = No. KP sama menghantar lebih sekali. <span class="font-bold text-gray-600">Lepaskan</span> = hantar keputusan kepada peserta yang tidak sempat isi borang penilaian.</p>
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+            <p class="text-[11px] text-slate-400 mb-2">No. KP dipaparkan 4 digit terakhir sahaja (carian tetap boleh guna No. KP penuh). <span class="font-bold text-amber-700">×2</span> = No. KP sama menghantar lebih sekali. <span class="font-bold text-slate-600">Lepaskan</span> = hantar keputusan kepada peserta yang tidak sempat isi borang penilaian.</p>
+            <div class="kad overflow-hidden mb-6">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left text-gray-600">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b border-gray-200">
+                    <table class="w-full text-sm text-left text-slate-600">
+                        <thead class="text-[11px] text-slate-600 uppercase border-b" style="background:#f6f8fb;border-color:var(--garis);">
                             <tr>
                                 <th scope="col" class="px-5 py-3 text-center w-12">Bil.</th>
                                 <th scope="col" class="px-5 py-3">Nama Peserta</th>
@@ -340,89 +451,91 @@
                             </tr>
                         </thead>
                         <tbody id="admin-tbody">
-                            <tr><td colspan="5" class="px-5 py-8 text-center text-gray-400 italic">Sila pilih saringan di atas untuk melihat data.</td></tr>
+                            <tr><td colspan="5" class="px-5 py-8 text-center text-slate-400 italic">Sila pilih saringan di atas untuk melihat data.</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
             <!-- Urus Bank Soalan (admin SEMUA sahaja) -->
-            <div id="panel-bank" class="hidden-step bg-white p-5 rounded-xl border border-indigo-200 shadow-sm">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                    <h4 class="text-sm font-bold text-indigo-700 uppercase tracking-wider">Urus Bank Soalan Ujian</h4>
-                    <button type="button" id="btn-buka-bank" onclick="muatBankSoalan()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 text-xs font-bold py-2 px-3 rounded-lg transition">Buka Bank Soalan</button>
+            <div id="panel-bank" class="hidden-step kad p-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                    <p class="tajuk-seksyen">Urus Bank Soalan Ujian</p>
+                    <button type="button" id="btn-buka-bank" onclick="muatBankSoalan()" class="btn-kedua text-xs py-2 px-3">Buka Bank Soalan</button>
                 </div>
-                <p class="text-[11px] text-gray-500 mb-3">Perubahan berkuat kuasa serta-merta untuk peserta yang mula menjawab selepas disimpan. Soalan tidak dipadam — nyahaktifkan sahaja supaya rekod lama kekal.</p>
+                <p class="text-[11px] text-slate-500 mb-3">Perubahan berkuat kuasa serta-merta untuk peserta yang mula menjawab selepas disimpan. Soalan tidak dipadam — nyahaktifkan sahaja supaya rekod lama kekal.</p>
 
                 <div id="bank-kandungan" class="hidden-step">
                     <div class="flex flex-col sm:flex-row gap-3 mb-4">
-                        <select id="bank-set" onchange="renderBankSoalan()" class="flex-1 border-2 border-gray-200 rounded-xl p-2.5 text-sm font-semibold bg-gray-50"></select>
-                        <button type="button" onclick="bukaEditorSoalan(null)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-2.5 px-4 rounded-xl transition">+ Tambah Soalan</button>
+                        <select id="bank-set" onchange="renderBankSoalan()" class="medan flex-1 font-semibold"></select>
+                        <button type="button" onclick="bukaEditorSoalan(null)" class="btn-utama text-sm py-2.5 px-4">+ Tambah Soalan</button>
                     </div>
 
                     <!-- Editor soalan -->
-                    <div id="bank-editor" class="hidden-step border-2 border-indigo-300 bg-indigo-50 rounded-xl p-4 mb-4 space-y-3">
-                        <p class="text-sm font-extrabold text-indigo-800" id="bank-editor-tajuk">Tambah Soalan</p>
+                    <div id="bank-editor" class="hidden-step rounded-xl p-4 mb-4 space-y-3 border-2" style="border-color:var(--navy);background:var(--navy-muda);">
+                        <p class="text-sm font-extrabold" style="color:var(--navy)" id="bank-editor-tajuk">Tambah Soalan</p>
                         <input type="hidden" id="ed-id">
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label for="ed-set" class="block text-xs font-bold text-gray-700 mb-1">Set (cth: Set 1)</label>
-                                <input type="text" id="ed-set" maxlength="30" oninput="cadangBil()" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm">
+                                <label for="ed-set" class="label text-xs">Set (cth: Set 1)</label>
+                                <input type="text" id="ed-set" maxlength="30" oninput="cadangBil()" class="medan">
                             </div>
                             <div>
-                                <label for="ed-bil" class="block text-xs font-bold text-gray-700 mb-1">Bil. (susunan)</label>
-                                <input type="number" id="ed-bil" min="1" max="999" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm">
+                                <label for="ed-bil" class="label text-xs">Bil. (susunan)</label>
+                                <input type="number" id="ed-bil" min="1" max="999" class="medan">
                             </div>
                         </div>
                         <div>
-                            <label for="ed-soalan" class="block text-xs font-bold text-gray-700 mb-1">Soalan (tekan Enter untuk baris baru, cth. senarai i, ii, iii)</label>
-                            <textarea id="ed-soalan" rows="4" maxlength="2000" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm"></textarea>
+                            <label for="ed-soalan" class="label text-xs">Soalan (tekan Enter untuk baris baru, cth. senarai i, ii, iii)</label>
+                            <textarea id="ed-soalan" rows="4" maxlength="2000" class="medan"></textarea>
                         </div>
                         <div id="ed-pilihan" class="space-y-2"></div>
-                        <label class="flex items-center text-sm font-semibold text-gray-700"><input type="checkbox" id="ed-aktif" class="mr-2 w-4 h-4"> Aktif (dipaparkan kepada peserta)</label>
+                        <label class="flex items-center text-sm font-semibold text-slate-700"><input type="checkbox" id="ed-aktif" class="mr-2 w-4 h-4" style="accent-color:var(--navy)"> Aktif (dipaparkan kepada peserta)</label>
                         <p id="ed-ralat" class="hidden-step text-xs font-bold text-red-600"></p>
                         <div class="flex gap-2">
-                            <button type="button" onclick="tutupEditorSoalan()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-bold py-2.5 rounded-xl">Batal</button>
-                            <button type="button" id="btn-simpan-soalan" onclick="simpanSoalan()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-bold py-2.5 rounded-xl">Simpan Soalan</button>
+                            <button type="button" onclick="tutupEditorSoalan()" class="btn-kedua flex-1 text-sm py-2.5">Batal</button>
+                            <button type="button" id="btn-simpan-soalan" onclick="simpanSoalan()" class="btn-utama flex-1 text-sm py-2.5">Simpan Soalan</button>
                         </div>
                     </div>
 
                     <div id="bank-senarai" class="space-y-2"></div>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+        </main>
 
-    <!-- Pautan Admin -->
-    <div class="mt-2 mb-6 text-center">
-        <button type="button" onclick="bukaModal('modal-password')" class="text-xs font-semibold text-gray-400 hover:text-blue-600 transition underline decoration-dotted underline-offset-4">
-            Akses Platform Admin Daerah
-        </button>
+        <!-- KAKI -->
+        <footer class="mt-6 mb-4 text-center space-y-2">
+            <button type="button" onclick="bukaModal('modal-password')" class="text-xs font-semibold text-slate-400 hover:text-slate-700 transition underline decoration-dotted underline-offset-4">
+                Akses Platform Admin Daerah
+            </button>
+            <p class="text-[11px] text-slate-400">© Jabatan Hal Ehwal Agama Islam Pulau Pinang</p>
+        </footer>
     </div>
 
     <!-- KONTENA MODAL UI -->
-    <div id="modal-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-60 z-50 hidden-step flex items-center justify-center p-4">
+    <div id="modal-overlay" class="fixed inset-0 z-50 hidden-step flex items-center justify-center p-4" style="background:rgba(11,42,74,.55);">
 
         <div id="modal-alert" role="alertdialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
-            <h3 id="modal-alert-title" class="text-lg font-bold text-gray-800 mb-2">Peringatan</h3>
-            <p id="modal-alert-desc" class="text-sm text-gray-600 mb-6 font-medium">Mesej di sini</p>
-            <button type="button" onclick="tutupSemuaModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition">Faham & Tutup</button>
+            <h3 id="modal-alert-title" class="text-lg font-extrabold text-slate-900 mb-2">Peringatan</h3>
+            <p id="modal-alert-desc" class="text-sm text-slate-600 mb-6">Mesej di sini</p>
+            <button type="button" onclick="tutupSemuaModal()" class="btn-utama w-full py-3 px-4">Faham & Tutup</button>
         </div>
 
         <div id="modal-confirm" role="dialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
-            <h3 id="modal-confirm-title" class="text-lg font-bold text-gray-800 mb-2">Adakah Anda Pasti?</h3>
-            <p id="modal-confirm-desc" class="text-sm text-gray-600 mb-6 font-medium">Sila pastikan anda telah menyemak kesemua soalan.</p>
+            <h3 id="modal-confirm-title" class="text-lg font-extrabold text-slate-900 mb-2">Adakah Anda Pasti?</h3>
+            <p id="modal-confirm-desc" class="text-sm text-slate-600 mb-6">Sila pastikan anda telah menyemak kesemua soalan.</p>
             <div class="flex gap-3">
-                <button type="button" onclick="tutupSemuaModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-xl transition">Batal</button>
-                <button type="button" onclick="sahkanTindakan()" id="btn-modal-confirm-sah" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-md">Ya, Teruskan</button>
+                <button type="button" onclick="tutupSemuaModal()" class="btn-kedua flex-1 py-3 px-4">Batal</button>
+                <button type="button" onclick="sahkanTindakan()" id="btn-modal-confirm-sah" class="btn-utama flex-1 py-3 px-4">Ya, Teruskan</button>
             </div>
         </div>
 
         <div id="modal-password" role="dialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
-            <h3 class="text-lg font-bold text-gray-800 mb-2">Akses Admin</h3>
-            <p class="text-sm text-gray-600 mb-4 font-medium">Pilih akses dan masukkan kata laluan untuk meneruskan.</p>
-            <label for="input-akses" class="block text-xs font-bold text-gray-700 mb-1">Akses</label>
-            <select id="input-akses" class="w-full border-2 border-gray-200 rounded-xl p-3 mb-3 focus:border-blue-500 outline-none text-sm font-semibold bg-gray-50 cursor-pointer">
+            <h3 class="text-lg font-extrabold text-slate-900 mb-1">Akses Admin</h3>
+            <p class="text-sm text-slate-600 mb-4">Pilih akses dan masukkan kata laluan untuk meneruskan.</p>
+            <label for="input-akses" class="label text-xs">Akses</label>
+            <select id="input-akses" class="medan mb-3 font-semibold">
                 <option value="">-- Pilih Akses --</option>
                 <option value="SEMUA">SEMUA (Pentadbir JHEAIPP)</option>
                 <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
@@ -433,12 +546,12 @@
                 <option value="Seberang Perai Tengah (SPT)">Seberang Perai Tengah (SPT)</option>
                 <option value="Seberang Perai Selatan (SPS)">Seberang Perai Selatan (SPS)</option>
             </select>
-            <label for="input-password" class="block text-xs font-bold text-gray-700 mb-1">Kata Laluan</label>
-            <input type="password" id="input-password" autocomplete="current-password" class="w-full border-2 border-gray-200 rounded-xl p-3 mb-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition" placeholder="Kata Laluan">
-            <p id="password-error" class="hidden-step text-red-500 text-xs font-bold mb-4">Kata laluan tidak tepat atau tidak wujud.</p>
+            <label for="input-password" class="label text-xs">Kata Laluan</label>
+            <input type="password" id="input-password" autocomplete="current-password" class="medan mb-2" placeholder="Kata Laluan">
+            <p id="password-error" class="hidden-step text-red-600 text-xs font-bold mb-4">Kata laluan tidak tepat atau tidak wujud.</p>
             <div class="flex gap-3 mt-4">
-                <button type="button" onclick="tutupSemuaModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-xl transition">Batal</button>
-                <button type="button" id="btn-akses" onclick="semakPassword()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-md">Akses</button>
+                <button type="button" onclick="tutupSemuaModal()" class="btn-kedua flex-1 py-3 px-4">Batal</button>
+                <button type="button" id="btn-akses" onclick="semakPassword()" class="btn-utama flex-1 py-3 px-4">Akses</button>
             </div>
         </div>
     </div>
@@ -585,10 +698,25 @@
             if (cb) cb();
         }
 
+        const NOMBOR_LANGKAH = { 'step-1': 1, 'step-2': 2, 'step-mb': 3, 'step-3': 4 };
+
         function paparStep(id) {
             ['step-1', 'step-2', 'step-mb', 'step-3', 'step-admin'].forEach(s => $(s).classList.add('hidden-step'));
             $(id).classList.remove('hidden-step');
+            kemaskiniLangkah(id);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Penunjuk langkah: disembunyikan di dashboard admin
+        function kemaskiniLangkah(id) {
+            const semasa = NOMBOR_LANGKAH[id];
+            $('stepper').classList.toggle('hidden-step', !semasa);
+            document.querySelectorAll('#stepper .langkah').forEach(el => {
+                const n = Number(el.dataset.langkah);
+                el.classList.toggle('aktif', n === semasa);
+                el.classList.toggle('selesai', n < semasa || semasa === 4);
+                if (n === semasa) el.setAttribute('aria-current', 'step'); else el.removeAttribute('aria-current');
+            });
         }
 
         // ==========================================
@@ -687,19 +815,29 @@
             container.innerHTML = '';
             ujian.soalan.forEach((item, index) => {
                 const htmlPilihan = item.pilihan.map((pil, idxPil) => `
-                    <label class="flex items-start p-4 border-2 border-gray-100 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-200 mb-3 transition group">
-                        <input type="radio" name="soalan_${index}" value="${idxPil}" onchange="kemaskiniProgress()" required class="mt-1 mr-3 text-blue-600 focus:ring-blue-500 w-4 h-4">
-                        <span class="text-sm font-medium text-gray-700 leading-snug group-hover:text-blue-800">${esc(pil)}</span>
+                    <label class="pilihan">
+                        <input type="radio" name="soalan_${index}" value="${idxPil}" onchange="kemaskiniProgress()" aria-label="${'ABCD'.charAt(idxPil)}. ${esc(pil)}">
+                        <span class="huruf" aria-hidden="true">${'ABCD'.charAt(idxPil)}</span>
+                        <span class="text-[14px] font-medium text-slate-700 leading-snug pt-0.5">${esc(pil)}</span>
                     </label>`).join('');
 
                 const div = document.createElement('div');
-                div.className = "bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-200 fade-in";
+                div.id = 'kad-soalan-' + index;
+                div.className = "kad kad-soalan p-5 md:p-6 scroll-mt-40";
                 div.innerHTML = `
-                    <p class="font-bold text-gray-800 mb-5 whitespace-pre-wrap"><span class="text-blue-600 mr-1">${index + 1}.</span> ${esc(item.soalan)}</p>
-                    <div class="space-y-1">${htmlPilihan}</div>`;
+                    <p class="text-[11px] font-extrabold uppercase tracking-wider mb-2" style="color:var(--emas)">Soalan ${index + 1} / ${ujian.soalan.length}</p>
+                    <p class="font-semibold text-[15px] text-slate-900 mb-4 whitespace-pre-wrap leading-relaxed">${esc(item.soalan)}</p>
+                    <div class="space-y-2">${htmlPilihan}</div>`;
                 container.appendChild(div);
             });
+            $('navigator-soalan').innerHTML = ujian.soalan.map((_, i) =>
+                `<button type="button" class="nav-soalan" data-no="${i}" aria-label="Pergi ke soalan ${i + 1}">${i + 1}</button>`).join('');
         }
+
+        $('navigator-soalan').addEventListener('click', (e) => {
+            const btn = e.target.closest('.nav-soalan');
+            if (btn) $('kad-soalan-' + btn.dataset.no).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
 
         function jawapanSemasa() {
             return ujian.soalan.map((_, index) => {
@@ -709,10 +847,20 @@
         }
 
         function kemaskiniProgress() {
-            const dijawab = jawapanSemasa().filter(j => j !== null).length;
+            const semasa = jawapanSemasa();
+            const dijawab = semasa.filter(j => j !== null).length;
             const jumlah = ujian.soalan.length;
             $('paparan-progress').innerText = `${dijawab} / ${jumlah} Dijawab`;
+            $('paparan-belum').innerText = dijawab < jumlah ? `${jumlah - dijawab} belum dijawab` : 'Semua sudah dijawab';
+            $('paparan-belum').className = dijawab < jumlah ? 'text-amber-700' : 'text-emerald-700';
             $('progress-bar').style.width = `${jumlah ? (dijawab / jumlah) * 100 : 0}%`;
+            // Gaya pilihan dipilih (sandaran untuk pelayar tanpa :has) dan navigator
+            document.querySelectorAll('#ruangan-soalan .pilihan').forEach(l => l.classList.toggle('dipilih', l.querySelector('input').checked));
+            semasa.forEach((j, i) => {
+                const nav = document.querySelector(`.nav-soalan[data-no="${i}"]`);
+                if (nav) nav.classList.toggle('dijawab', j !== null);
+                if (j !== null) { const kad = $('kad-soalan-' + i); if (kad) kad.classList.remove('belum-jawab'); }
+            });
         }
 
         // Pemasa ikut masa tamat sebenar — tetap tepat walaupun skrin telefon terkunci
@@ -731,6 +879,8 @@
         function detikPemasa() {
             const baki = Math.max(0, Math.ceil((ujian.tamatPada - Date.now()) / 1000));
             $('paparan-masa').innerText = `${String(Math.floor(baki / 60)).padStart(2, '0')}:${String(baki % 60).padStart(2, '0')}`;
+            $('kotak-masa').classList.toggle('amaran', baki <= 300 && baki > 60);
+            $('kotak-masa').classList.toggle('kritikal', baki <= 60);
             if (baki <= 0 && ujian.pemasa) {
                 hentikanPemasa();
                 tutupSemuaModal();
@@ -745,6 +895,14 @@
 
         function hantarJawapan(e) {
             e.preventDefault();
+            // Semua soalan wajib dijawab sebelum hantar manual (masa tamat tetap hantar automatik)
+            const belum = jawapanSemasa().map((j, i) => (j === null ? i : -1)).filter(i => i >= 0);
+            if (belum.length) {
+                belum.forEach(i => $('kad-soalan-' + i).classList.add('belum-jawab'));
+                $('kad-soalan-' + belum[0]).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                paparAlert("Soalan Belum Dijawab", `Masih ada ${belum.length} soalan belum dijawab (No. ${belum.slice(0, 10).map(i => i + 1).join(', ')}${belum.length > 10 ? ', ...' : ''}). Sila jawab semua soalan sebelum menghantar.`);
+                return;
+            }
             paparConfirm("Hantar Jawapan?", "Sila pastikan anda telah menyemak kesemua soalan. Jawapan yang dihantar tidak boleh diubah lagi.", "Ya, Hantar", prosesHantar);
         }
 
@@ -829,13 +987,13 @@
         }
 
         function janaUIMaklumBalas() {
-            $('legend-skala').innerHTML = mb.labelSkala.map((l, i) => `<div><span class="font-bold text-gray-800">${i + 1}</span> = ${esc(l)}</div>`).join('');
+            $('legend-skala').innerHTML = mb.labelSkala.map((l, i) => `<div><span class="font-bold" style="color:var(--navy)">${i + 1}</span> = ${esc(l)}</div>`).join('');
             let html = '', bahagianSemasa = null;
             mb.soalan.forEach((q, n) => {
                 if (q.bahagian !== bahagianSemasa) {
                     if (bahagianSemasa !== null) html += '</div>';
                     bahagianSemasa = q.bahagian;
-                    html += `<div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 md:p-5 space-y-4"><p class="text-sm font-extrabold text-blue-800 uppercase">${esc(q.bahagian)}</p>`;
+                    html += `<div class="rounded-2xl border p-4 md:p-5 space-y-4" style="border-color:var(--garis);background:#fbfcfd;"><p class="tajuk-seksyen">${esc(q.bahagian)}</p>`;
                 }
                 const wajib = q.wajib ? ' <span class="text-red-500">*</span>' : '';
                 let input = '';
@@ -843,17 +1001,17 @@
                     input = `<div class="grid grid-cols-5 gap-2 mt-2">` + [1, 2, 3, 4, 5].map(v => `
                         <label class="skala cursor-pointer" title="${esc(mb.labelSkala[v - 1] || '')}">
                             <input type="radio" name="mb_${esc(q.id)}" value="${v}" class="sr-only">
-                            <span class="block text-center border-2 border-gray-200 rounded-lg py-2 text-sm font-bold text-gray-700 hover:border-blue-300">${v}</span>
+                            <span class="block text-center border-2 border-slate-200 bg-white rounded-lg py-2.5 text-sm font-bold text-slate-700 hover:border-slate-400">${v}</span>
                         </label>`).join('') + `</div>`;
                 } else if (q.jenis === 'PILIHAN') {
                     input = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">` + q.pilihan.map(p => `
-                        <label class="flex items-center border-2 border-gray-100 rounded-lg p-2.5 cursor-pointer hover:bg-blue-50 text-sm text-gray-700">
-                            <input type="radio" name="mb_${esc(q.id)}" value="${esc(p)}" class="mr-2 w-4 h-4"> ${esc(p)}
+                        <label class="flex items-center border-2 border-slate-200 bg-white rounded-lg p-2.5 cursor-pointer hover:bg-slate-50 text-sm text-slate-700">
+                            <input type="radio" name="mb_${esc(q.id)}" value="${esc(p)}" class="mr-2 w-4 h-4" style="accent-color:var(--navy)"> ${esc(p)}
                         </label>`).join('') + `</div>`;
                 } else {
-                    input = `<textarea name="mb_${esc(q.id)}" rows="2" maxlength="1000" class="w-full mt-2 border-2 border-gray-200 rounded-lg p-2 text-sm focus:border-blue-500 outline-none"></textarea>`;
+                    input = `<textarea name="mb_${esc(q.id)}" rows="2" maxlength="1000" class="medan mt-2"></textarea>`;
                 }
-                html += `<div class="soalan-mb border-2 border-transparent rounded-xl p-1" data-id="${esc(q.id)}"><p class="text-sm font-semibold text-gray-800">${n + 1}. ${esc(q.soalan)}${wajib}</p>${input}</div>`;
+                html += `<div class="soalan-mb border-2 border-transparent rounded-xl p-1" data-id="${esc(q.id)}"><p class="text-sm font-semibold text-slate-800">${n + 1}. ${esc(q.soalan)}${wajib}</p>${input}</div>`;
             });
             if (bahagianSemasa !== null) html += '</div>';
             $('ruangan-mb').innerHTML = html;
@@ -1131,7 +1289,7 @@
                 return `<br><span class="text-[10px] font-bold text-amber-600">Belum isi penilaian</span>`
                     + `<br><button type="button" class="btn-lepaskan mt-1 text-[10px] font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded" data-id="${esc(d.idHantar)}">Lepaskan</button>`;
             }
-            if (s === 'MENUNGGU EMEL') return `<br><span class="text-[10px] font-bold text-blue-500">Emel dalam barisan</span>`;
+            if (s === 'MENUNGGU EMEL') return `<br><span class="text-[10px] font-bold text-sky-700">Emel dalam barisan</span>`;
             if (/^DIHANTAR/.test(s)) return `<br><span class="text-[10px] font-bold text-green-600">Emel dihantar</span>`;
             if (/^GAGAL/.test(s)) return `<br><span class="text-[10px] font-bold text-red-500" title="${esc(s)}">Emel gagal</span>`;
             return '';
@@ -1158,7 +1316,7 @@
                 return `<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
                     <td class="px-5 py-4 text-center font-bold text-gray-400">${i + 1}</td>
                     <td class="px-5 py-4 font-bold text-gray-800">${esc(d.nama || "Tiada Nama")}<br><span class="text-xs font-normal text-gray-400">${esc(d.timestamp || d.tarikh || '-')}</span></td>
-                    <td class="px-5 py-4 text-gray-600">${esc(topengIC(d.ic))}${ulang}<br><span class="text-xs font-semibold text-blue-600">${esc(d.daerah || '-')}</span></td>
+                    <td class="px-5 py-4 text-gray-600">${esc(topengIC(d.ic))}${ulang}<br><span class="text-xs font-semibold text-sky-800">${esc(d.daerah || '-')}</span></td>
                     <td class="px-5 py-4 text-center"><span class="px-2 py-1 bg-gray-100 rounded text-xs font-bold text-gray-600">${esc(d.set || '-')}</span></td>
                     <td class="px-5 py-4 text-center"><span class="px-3 py-1 rounded-full font-bold text-sm ${warna}">${esc(skor)}%</span>${lencanaStatus(d)}</td>
                 </tr>`;
@@ -1222,7 +1380,7 @@
                 if (!nilai.length && q.jenis !== 'TEKS') return;
                 if (q.bahagian !== bahagian) {
                     bahagian = q.bahagian;
-                    html += `<p class="text-xs font-extrabold text-emerald-800 uppercase mt-4 mb-2 not-italic">${esc(bahagian)}</p>`;
+                    html += `<p class="text-xs font-extrabold text-slate-700 uppercase mt-4 mb-2 not-italic">${esc(bahagian)}</p>`;
                 }
                 if (q.jenis === 'SKALA') {
                     const purata = nilai.reduce((a, v) => a + Number(v), 0) / nilai.length;
@@ -1294,8 +1452,8 @@
                 const jaw = q.jawapan >= 0 && q.pilihan[q.jawapan] ? 'ABCD'.charAt(q.jawapan) + '. ' + q.pilihan[q.jawapan] : 'Tiada jawapan sah';
                 return `<div class="border border-gray-200 rounded-xl p-3 ${q.aktif ? 'bg-white' : 'bg-gray-100 opacity-70'}">
                     <div class="flex justify-between gap-2">
-                        <p class="text-sm text-gray-800 whitespace-pre-wrap"><span class="font-bold text-indigo-700">${esc(q.bil)}.</span> ${esc(q.soalan)}</p>
-                        <button type="button" class="btn-edit-soalan shrink-0 self-start text-xs font-bold bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-3 py-1 rounded-lg" data-id="${esc(q.id)}">Edit</button>
+                        <p class="text-sm text-gray-800 whitespace-pre-wrap"><span class="font-bold text-sky-900">${esc(q.bil)}.</span> ${esc(q.soalan)}</p>
+                        <button type="button" class="btn-edit-soalan shrink-0 self-start text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-1 rounded-lg" data-id="${esc(q.id)}">Edit</button>
                     </div>
                     <p class="text-xs mt-1 ${q.aktif ? 'text-green-700' : 'text-gray-500'}"><span class="font-bold">Jawapan:</span> ${esc(jaw)} ${q.aktif ? '' : '<span class="ml-2 font-bold">(TIDAK AKTIF)</span>'}</p>
                 </div>`;
@@ -1560,6 +1718,7 @@
             if (Array.from($('input-akses').options).some(o => o.value && o.value === aksesTerakhir)) $('input-akses').value = aksesTerakhir;
         })();
         $('paparan-tarikh-hari-ini').innerText = new Date().toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        kemaskiniLangkah('step-1');
         muatSenaraiSet();
         // Peserta yang sudah hantar ujian tetapi belum isi borang penilaian (cth. halaman dimuat semula)
         (function sambungMaklumBalasTertunda() {
