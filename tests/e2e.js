@@ -327,6 +327,43 @@ test('v2: soalan belum dijawab disekat; navigator & langkah dikemas kini', async
   await context.close();
 });
 
+test('v2: waktu ujian ditutup — notis dipapar, butang mula disekat; daerah dibuka khas boleh mula', async () => {
+  const g = binaGas('v2');
+  g.ctx.simpanTetapanWaktu({ mod: 'TUTUP', hari: [0], mula: '14:00', tamat: '23:59', daerah: { 'Barat Daya': 'BUKA' } });
+  const { context, page } = await buka('v2', g);
+  await page.waitForSelector('#notis-waktu:not(.hidden-step)');
+  await page.selectOption('#daerah', 'Timur Laut');
+  await page.waitForFunction(() => document.getElementById('btn-mula').disabled);
+  assert.match(await page.textContent('#notis-waktu-teks'), /ditutup/);
+  await page.selectOption('#daerah', 'Barat Daya');
+  await page.waitForSelector('#notis-waktu.hidden-step', { state: 'attached' });
+  assert.equal(await page.isDisabled('#btn-mula'), false);
+  await context.close();
+});
+
+test('v2: admin SEMUA tetapkan waktu ujian dari dashboard', async () => {
+  const g = binaGas('v2');
+  const { context, page } = await buka('v2', g);
+  await loginAdmin(page, kataLaluan(g, 'SEMUA'), 'SEMUA');
+  await page.waitForSelector('#panel-waktu:not(.hidden-step)');
+  await page.waitForSelector('#waktu-hari input[value="0"]', { state: 'attached' });
+  await page.check('input[name="waktu-mod"][value="JADUAL"]');
+  await page.click('text=Setiap hari');
+  await page.fill('#waktu-mula', '14:00');
+  await page.fill('#waktu-tamat', '22:00');
+  await page.selectOption('.waktu-daerah[data-daerah="Timur Laut"]', 'TUTUP');
+  await page.click('#btn-simpan-waktu');
+  await page.waitForSelector('#modal-alert:not(.hidden-step)');
+  assert.equal((await page.textContent('#modal-alert-title')).trim(), 'Tetapan Disimpan');
+  const t = g.ctx.bacaTetapanWaktu();
+  assert.equal(t.mod, 'JADUAL');
+  assert.deepEqual(Array.from(t.hari), [0, 1, 2, 3, 4, 5, 6]);
+  assert.equal(t.tamat, '22:00');
+  assert.equal(t.daerah['Timur Laut'], 'TUTUP');
+  await page.screenshot({ path: path.join(OUTPUT, 'v2-waktu-ujian.png'), fullPage: true });
+  await context.close();
+});
+
 test('v2: nama berbahaya ditolak; persetujuan privasi wajib', async () => {
   const g = binaGas('v2');
   const { context, page, pelayan } = await buka('v2', g);

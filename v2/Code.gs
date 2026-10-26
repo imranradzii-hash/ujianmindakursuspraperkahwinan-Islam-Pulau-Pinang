@@ -70,6 +70,12 @@ const HAD_HANTAR_SETIAP_IC = 3;        // Maksimum hantaran satu No. KP dalam 6 
 const HAD_EMEL_SETIAP_PUSINGAN = 50;   // Emel dihantar setiap minit oleh trigger
 const TEMPOH_CACHE_SOALAN_SAAT = 600;  // Bank soalan di-cache 10 minit (dikosongkan bila admin simpan)
 
+// Waktu ujian dibuka — diurus oleh admin SEMUA di dashboard (disimpan dalam Script Properties).
+// Selagi admin belum simpan tetapan, ujian kekal BUKA (seperti sebelum ciri ini wujud).
+const TETAPAN_WAKTU_LALAI = { mod: "BUKA", hari: [0], mula: "14:00", tamat: "23:59", daerah: {} };
+const NAMA_HARI = ["Ahad", "Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu"];
+const TEMPOH_HANTAR_LEWAT_MINIT = 15;  // Ujian yang dimulakan semasa dibuka masih boleh dihantar selepas ditutup (masa ujian + 15 minit)
+
 // Tab Keputusan (A–M)
 const KOL = { TIMESTAMP: 1, NAMA: 2, IC: 3, EMEL: 4, DAERAH: 5, TARIKH: 6, SET: 7, SKOR: 8, BETUL: 9, JUMLAH: 10, STATUS: 11, ID: 12, BUTIRAN: 13 };
 const TAJUK_KEPUTUSAN = ["Timestamp", "Nama Penuh", "No. KP", "Emel", "Daerah / Pusat", "Tarikh Kursus", "Set Soalan", "Markah (%)", "Jawapan Betul", "Jumlah Soalan", "Status", "ID Hantar", "Butiran Jawapan (JSON)"];
@@ -121,7 +127,8 @@ function doGet(e) {
     const p = (e && e.parameter) || {};
     switch (p.action) {
       case 'senaraiSet': return jsonOutput({ status: "success", set: senaraiSetAktif() });
-      case 'soalan': return jsonOutput(handleSoalan(p.set));
+      case 'soalan': return jsonOutput(handleSoalan(p.set, p.daerah));
+      case 'statusUjian': return jsonOutput(Object.assign({ status: "success" }, statusUjian(p.daerah)));
       case 'soalanMaklumBalas': return jsonOutput({ status: "success", labelSkala: LABEL_SKALA, soalan: soalanMaklumBalasAktif() });
       default: return jsonOutput({ status: "error", message: "Akses tidak dibenarkan." });
     }
@@ -143,6 +150,8 @@ function doPost(e) {
       case 'dataMaklumBalas': return jsonOutput(denganSesi(data.token, null, (akses) => handleDataMaklumBalas(akses)));
       case 'bankSoalan': return jsonOutput(denganSesi(data.token, "SEMUA", () => ({ status: "success", bank: bankUntukAdmin() })));
       case 'simpanSoalan': return jsonOutput(denganSesi(data.token, "SEMUA", () => handleSimpanSoalan(data.soalan)));
+      case 'tetapanWaktu': return jsonOutput(denganSesi(data.token, "SEMUA", () => paparTetapanWaktu()));
+      case 'simpanTetapanWaktu': return jsonOutput(denganSesi(data.token, "SEMUA", () => simpanTetapanWaktu(data.tetapan)));
       default: return jsonOutput({ status: "error", message: "Tindakan tidak sah.", bolehCubaLagi: false });
     }
   } catch (error) {
@@ -280,18 +289,98 @@ function tandatangan(teks) {
   return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(teks, rahsia));
 }
 
-function handleSoalan(set) {
+function handleSoalan(set, daerah) {
   set = String(set || '');
+  const waktu = statusUjian(daerah);
+  if (!waktu.buka) return { status: "error", tutup: true, message: waktu.mesej, bolehCubaLagi: false };
   const qs = soalanAktifSet(set);
   if (qs.length === 0) throw ralatPengguna("Set soalan tidak sah.");
   const ids = qs.map(q => q.id);
+  // Kunci = masa soalan dikeluarkan + tandatangan; masa itu digunakan semasa hantar jika ujian sudah ditutup
+  const dikeluarkan = Date.now();
   return {
     status: "success",
     set: set,
     masaMinit: MASA_UJIAN_MINIT,
-    kunci: tandatangan(set + '|' + ids.join(',')),
+    kunci: dikeluarkan + '.' + tandatangan(set + '|' + ids.join(',') + '|' + dikeluarkan),
     soalan: qs.map(q => ({ id: q.id, soalan: q.soalan, pilihan: q.pilihan }))
   };
+}
+
+// ==========================================
+// WAKTU UJIAN DIBUKA (diurus admin SEMUA)
+// ==========================================
+function bacaTetapanWaktu() {
+  const simpan = PropertiesService.getScriptProperties().getProperty('TETAPAN_WAKTU');
+  let t = {};
+  try { t = simpan ? JSON.parse(simpan) : {}; } catch (e) { t = {}; }
+  return Object.assign({}, TETAPAN_WAKTU_LALAI, t, { daerah: Object.assign({}, t.daerah || {}) });
+}
+
+function minitDariJam(jam) {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(jam || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
+}
+
+// Hari (0 = Ahad) dan minit sejak tengah malam, ikut waktu Malaysia
+function masaTempatan(tarikh) {
+  const d = tarikh || new Date();
+  const [y, mo, dd] = Utilities.formatDate(d, ZON_MASA, 'yyyy-MM-dd').split('-').map(Number);
+  const [hh, mm] = Utilities.formatDate(d, ZON_MASA, 'HH:mm').split(':').map(Number);
+  return { hari: new Date(Date.UTC(y, mo - 1, dd)).getUTCDay(), minit: hh * 60 + mm };
+}
+
+function format12Jam(jam) {
+  const m = minitDariJam(jam);
+  const h = Math.floor(m / 60), min = String(m % 60).padStart(2, '0');
+  const waktu = h < 12 ? 'pagi' : h < 14 ? 'tengah hari' : h < 19 ? 'petang' : 'malam';
+  return ((h % 12) || 12) + '.' + min + ' ' + waktu;
+}
+
+function keteranganJadual(t) {
+  const hari = t.hari.length === 7 ? 'setiap hari' : 'hari ' + t.hari.map(h => NAMA_HARI[h]).join(', ');
+  return hari + ', jam ' + format12Jam(t.mula) + ' hingga ' + format12Jam(t.tamat);
+}
+
+// { buka, mesej } untuk satu daerah. Daerah kosong/tidak sah = tetapan umum sahaja.
+function statusUjian(daerah, tarikh) {
+  const t = bacaTetapanWaktu();
+  const khas = SENARAI_DAERAH.indexOf(String(daerah || '')) !== -1 ? t.daerah[daerah] : '';
+  if (khas === 'BUKA') return { buka: true, mesej: "" };
+  if (khas === 'TUTUP') return { buka: false, mesej: "Ujian Minda bagi daerah ini ditutup buat masa ini. Sila rujuk urusetia kursus." };
+  if (t.mod === 'BUKA') return { buka: true, mesej: "" };
+  if (t.mod === 'TUTUP') return { buka: false, mesej: "Ujian Minda ditutup buat masa ini. Sila rujuk urusetia kursus." };
+  const kini = masaTempatan(tarikh);
+  const buka = t.hari.indexOf(kini.hari) !== -1 && kini.minit >= minitDariJam(t.mula) && kini.minit <= minitDariJam(t.tamat);
+  return { buka: buka, mesej: buka ? "" : "Ujian Minda hanya dibuka pada " + keteranganJadual(t) + ". Sila cuba semula pada waktu tersebut." };
+}
+
+function paparTetapanWaktu() {
+  return {
+    status: "success",
+    tetapan: bacaTetapanWaktu(),
+    semasa: SENARAI_DAERAH.map(d => ({ daerah: d, buka: statusUjian(d).buka }))
+  };
+}
+
+function simpanTetapanWaktu(input) {
+  input = input || {};
+  const mod = String(input.mod || '');
+  if (['JADUAL', 'BUKA', 'TUTUP'].indexOf(mod) === -1) throw ralatPengguna("Mod tidak sah.");
+  const hari = Array.isArray(input.hari) ? input.hari.map(Number).filter(h => Number.isInteger(h) && h >= 0 && h <= 6) : [];
+  const unik = hari.filter((h, i) => hari.indexOf(h) === i).sort();
+  const mula = String(input.mula || ''), tamat = String(input.tamat || '');
+  if (minitDariJam(mula) < 0 || minitDariJam(tamat) < 0) throw ralatPengguna("Format jam tidak sah (HH:MM).");
+  if (minitDariJam(tamat) <= minitDariJam(mula)) throw ralatPengguna("Jam tamat mesti selepas jam mula.");
+  if (mod === 'JADUAL' && unik.length === 0) throw ralatPengguna("Pilih sekurang-kurangnya satu hari.");
+  const daerah = {};
+  SENARAI_DAERAH.forEach(d => {
+    const v = input.daerah && input.daerah[d];
+    if (v === 'BUKA' || v === 'TUTUP') daerah[d] = v;
+  });
+  const tetapan = { mod: mod, hari: unik, mula: mula, tamat: tamat, daerah: daerah };
+  PropertiesService.getScriptProperties().setProperty('TETAPAN_WAKTU', JSON.stringify(tetapan));
+  return paparTetapanWaktu();
 }
 
 // ==========================================
@@ -307,6 +396,10 @@ function handleHantar(data) {
 
   const p = sahkanPenyertaan(data);
   const markah = kiraMarkah(p.set, data.idSoalan, data.kunci, data.jawapan);
+  // Jika ujian sudah ditutup, terima hanya ujian yang dimulakan dalam tempoh masa menjawab
+  if (Date.now() - markah.dikeluarkan > (MASA_UJIAN_MINIT + TEMPOH_HANTAR_LEWAT_MINIT) * 60000 && !statusUjian(p.daerah).buka) {
+    throw ralatPengguna("Ujian telah ditutup dan tempoh menjawab telah tamat. Sila maklumkan kepada urusetia.");
+  }
 
   const kunciIc = 'ic_' + p.ic;
   const bilIc = Number(cache.get(kunciIc) || 0);
@@ -375,9 +468,11 @@ function kiraMarkah(set, idSoalan, kunci, jawapan) {
   if (!Array.isArray(idSoalan) || idSoalan.length === 0 || idSoalan.length > 200 || idSoalan.some(id => typeof id !== 'string')) {
     throw ralatPengguna("Soalan tidak sah. Sila mula semula.");
   }
-  if (String(kunci || '') !== tandatangan(set + '|' + idSoalan.join(','))) {
+  const m = /^(\d{10,15})\.(.+)$/.exec(String(kunci || ''));
+  if (!m || m[2] !== tandatangan(set + '|' + idSoalan.join(',') + '|' + m[1])) {
     throw ralatPengguna("Soalan tidak sah. Sila mula semula.");
   }
+  const dikeluarkan = Number(m[1]);
   if (!Array.isArray(jawapan) || jawapan.length !== idSoalan.length) throw ralatPengguna("Jawapan tidak lengkap atau tidak sah.");
   const peta = {};
   bacaBank().forEach(q => { if (q.set === set) peta[q.id] = q; });
@@ -390,7 +485,7 @@ function kiraMarkah(set, idSoalan, kunci, jawapan) {
     if (j === q.jawapan) betul++;
     return [id, j, q.jawapan];
   });
-  return { betul, jumlah: idSoalan.length, skor: Math.round((betul / idSoalan.length) * 100), butiran };
+  return { betul, jumlah: idSoalan.length, skor: Math.round((betul / idSoalan.length) * 100), butiran, dikeluarkan };
 }
 
 // ==========================================

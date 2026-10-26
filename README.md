@@ -30,6 +30,8 @@ Ujian minda dalam talian untuk peserta Kursus Praperkahwinan Islam (JHEAIPP), de
 4. Isi **Borang Penilaian Pelaksanaan Kursus**. Soalan disalin daripada Google Form TERKINI: profil, B (6), C (10), D (10), E dan F. Status: `MENUNGGU EMEL`.
 5. Trigger setiap minit menghantar **emel keputusan** gaya surat rasmi jabatan, dengan markah dan semakan soalan yang dijawab salah. Status: `DIHANTAR ...`.
 
+**Waktu ujian dibuka.** Admin SEMUA tetapkan di dashboard (panel *Waktu Ujian Dibuka*): Ikut jadual (hari + jam, cth. Ahad 2.00 petang–11.59 malam, atau setiap hari), Buka sentiasa, atau Tutup, serta pengecualian Buka/Tutup bagi setiap daerah. Server menolak permintaan soalan di luar waktu dibuka. Peserta yang mula sebelum ditutup masih boleh hantar dalam tempoh masa menjawab + 15 minit. Selagi tetapan belum disimpan, ujian kekal dibuka.
+
 Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka borang penilaian. Kalau peserta pulang tanpa isi borang, admin boleh tekan **Lepaskan** di dashboard untuk hantar keputusan juga.
 
 ## v2: peranan admin

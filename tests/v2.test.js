@@ -389,3 +389,74 @@ test('arkib: rekod tahun dipilih dipindah, yang lain kekal', () => {
   assert.equal(g.sheet.rows[1][3], '=x@contoh.my');
   assert.equal(g.sheet.formula.length, 0);
 });
+
+// ---------- Waktu ujian dibuka ----------
+function sesiSemua(g) {
+  return g.post({ action: 'login', akses: 'SEMUA', pwd: kataLaluan(g, 'SEMUA') }).token;
+}
+
+test('waktu ujian: lalai BUKA; admin SEMUA sahaja boleh ubah; input disemak', () => {
+  const g = binaGas('v2');
+  assert.equal(g.get({ action: 'statusUjian', daerah: 'Timur Laut' }).buka, true);
+  assert.equal(g.get({ action: 'soalan', set: 'Set 1', daerah: 'Timur Laut' }).status, 'success');
+
+  const tl = g.post({ action: 'login', akses: 'Timur Laut', pwd: kataLaluan(g, 'Timur Laut') }).token;
+  assert.equal(g.post({ action: 'simpanTetapanWaktu', token: tl, tetapan: { mod: 'TUTUP', hari: [0], mula: '14:00', tamat: '23:59' } }).status, 'error');
+
+  const t = sesiSemua(g);
+  assert.equal(g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'JADUAL', hari: [], mula: '14:00', tamat: '23:59' } }).status, 'error');
+  assert.equal(g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'JADUAL', hari: [0], mula: '18:00', tamat: '14:00' } }).status, 'error');
+  assert.equal(g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'JADUAL', hari: [0], mula: '25:00', tamat: '23:59' } }).status, 'error');
+  assert.equal(g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'LAIN', hari: [0], mula: '14:00', tamat: '23:59' } }).status, 'error');
+  const r = g.post({ action: 'tetapanWaktu', token: t });
+  assert.equal(r.tetapan.mod, 'BUKA');
+  assert.equal(r.semasa.length, 7);
+});
+
+test('waktu ujian: TUTUP menyekat soalan; pengecualian daerah; jadual Ahad 2 petang', () => {
+  const g = binaGas('v2');
+  const t = sesiSemua(g);
+  let r = g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'TUTUP', hari: [0], mula: '14:00', tamat: '23:59', daerah: { 'Barat Daya': 'BUKA', 'Bukan Daerah': 'BUKA' } } });
+  assert.equal(r.status, 'success');
+  assert.deepEqual(Object.keys(r.tetapan.daerah), ['Barat Daya']);
+  const tutup = g.get({ action: 'soalan', set: 'Set 1', daerah: 'Timur Laut' });
+  assert.equal(tutup.status, 'error');
+  assert.equal(tutup.tutup, true);
+  assert.equal(tutup.soalan, undefined);
+  assert.equal(g.get({ action: 'soalan', set: 'Set 1' }).status, 'error'); // tanpa daerah = tetapan umum
+  assert.equal(g.get({ action: 'soalan', set: 'Set 1', daerah: 'Barat Daya' }).status, 'success');
+
+  // Jadual: Ahad 14:00–23:59 (masa Malaysia, UTC+8)
+  g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'JADUAL', hari: [0], mula: '14:00', tamat: '23:59', daerah: { 'Seberang Perai Tengah (SPT)': 'TUTUP' } } });
+  const pada = (iso, d) => g.ctx.statusUjian(d || 'Timur Laut', new Date(iso));
+  assert.equal(pada('2026-11-01T05:59:00Z').buka, false);          // Ahad 1.59 petang
+  assert.equal(pada('2026-11-01T06:00:00Z').buka, true);           // Ahad 2.00 petang
+  assert.equal(pada('2026-11-01T15:59:00Z').buka, true);           // Ahad 11.59 malam
+  assert.equal(pada('2026-11-01T16:00:00Z').buka, false);          // Isnin 12.00 pagi
+  assert.equal(pada('2026-10-31T08:00:00Z').buka, false);          // Sabtu 4 petang
+  assert.equal(pada('2026-11-01T08:00:00Z', 'Seberang Perai Tengah (SPT)').buka, false);
+  assert.match(pada('2026-10-31T08:00:00Z').mesej, /hari Ahad, jam 2\.00 petang hingga 11\.59 malam/);
+
+  g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'JADUAL', hari: [0, 1, 2, 3, 4, 5, 6], mula: '08:00', tamat: '17:00' } });
+  assert.match(pada('2026-10-31T12:00:00Z').mesej, /setiap hari, jam 8\.00 pagi hingga 5\.00 petang/);
+});
+
+test('waktu ujian: ujian yang dimulakan semasa buka masih boleh dihantar selepas ditutup, tetapi tidak selepas tempoh tamat', () => {
+  const g = binaGas('v2');
+  const t = sesiSemua(g);
+  const p = ujian(g); // soalan diambil semasa BUKA
+  g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'TUTUP', hari: [0], mula: '14:00', tamat: '23:59' } });
+  assert.equal(g.post(p).status, 'success');
+
+  // Kunci lama (dikeluarkan 2 jam lalu) — ditolak kerana ujian sudah ditutup
+  const lama = Date.now() - 2 * 3600 * 1000;
+  const kunciLama = lama + '.' + g.ctx.tandatangan(p.set + '|' + p.idSoalan.join(',') + '|' + lama);
+  const lewat = Object.assign({}, p, { idHantar: 'lewat-' + Date.now(), ic: '900101075556', kunci: kunciLama });
+  const r = g.post(lewat);
+  assert.equal(r.status, 'error');
+  assert.match(r.message, /ditutup/);
+
+  // Masa kunci diubah (tanpa tandatangan baharu) — ditolak
+  const ubah = Object.assign({}, p, { idHantar: 'ubah-' + Date.now(), ic: '900101075557', kunci: Date.now() + '.' + p.kunci.split('.')[1] });
+  assert.equal(g.post(ubah).status, 'error');
+});

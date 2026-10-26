@@ -141,6 +141,11 @@
                     </div>
                 </div>
 
+                <div id="notis-waktu" class="hidden-step rounded-xl p-4 mb-5 border flex gap-3 text-sm" style="background:#fff8e6;border-color:#f3d48a;color:#7a4d00;" role="status">
+                    <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
+                    <div><p class="font-extrabold">Ujian belum dibuka</p><p id="notis-waktu-teks" class="mt-0.5"></p></div>
+                </div>
+
                 <form id="form-maklumat" onsubmit="mulaUjian(event)" class="space-y-4">
                     <p class="tajuk-seksyen">Maklumat Peserta</p>
                     <div>
@@ -162,7 +167,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="daerah" class="label">Daerah / Pusat Kursus</label>
-                            <select id="daerah" required class="medan">
+                            <select id="daerah" required class="medan" onchange="semakWaktuUjian()">
                                 <option value="">-- Pilih Daerah --</option>
                                 <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
                                 <option value="Timur Laut">Timur Laut</option>
@@ -346,6 +351,47 @@
                     <p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase mb-1">Belum Isi Penilaian</p>
                     <p class="text-2xl sm:text-3xl font-black" style="color:#8a6a1c" id="admin-stat-belum">0</p>
                 </div>
+            </div>
+
+            <!-- Waktu Ujian Dibuka (admin SEMUA sahaja) -->
+            <div id="panel-waktu" class="hidden-step kad p-5 mb-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
+                    <p class="tajuk-seksyen">Waktu Ujian Dibuka</p>
+                    <p id="waktu-ringkasan" class="text-[12px] font-semibold text-slate-500"></p>
+                </div>
+                <p class="text-[11px] text-slate-500 mb-4">Peserta hanya boleh mula menjawab dalam waktu dibuka. Peserta yang sudah mula sebelum ditutup masih boleh menghantar jawapan dalam tempoh masa menjawab.</p>
+
+                <p class="label">Tetapan umum (semua daerah)</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4" id="waktu-mod">
+                    <label class="pilihan items-center"><input type="radio" name="waktu-mod" value="JADUAL" onchange="kemaskiniPaparanWaktu()"><span class="huruf" aria-hidden="true">J</span><span class="text-sm font-semibold text-slate-700">Ikut jadual</span></label>
+                    <label class="pilihan items-center"><input type="radio" name="waktu-mod" value="BUKA" onchange="kemaskiniPaparanWaktu()"><span class="huruf" aria-hidden="true">B</span><span class="text-sm font-semibold text-slate-700">Buka sentiasa</span></label>
+                    <label class="pilihan items-center"><input type="radio" name="waktu-mod" value="TUTUP" onchange="kemaskiniPaparanWaktu()"><span class="huruf" aria-hidden="true">T</span><span class="text-sm font-semibold text-slate-700">Tutup</span></label>
+                </div>
+
+                <div id="waktu-jadual" class="rounded-xl p-4 mb-4 border" style="background:#f8fafc;border-color:var(--garis);">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <p class="text-xs font-bold text-slate-700">Hari dibuka</p>
+                        <div class="flex gap-1.5">
+                            <button type="button" onclick="pilihHariWaktu([0])" class="btn-kedua text-[11px] py-1 px-2.5">Ahad sahaja</button>
+                            <button type="button" onclick="pilihHariWaktu([0,1,2,3,4,5,6])" class="btn-kedua text-[11px] py-1 px-2.5">Setiap hari</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-4" id="waktu-hari"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label for="waktu-mula" class="label text-xs">Jam mula</label><input type="time" id="waktu-mula" class="medan"></div>
+                        <div><label for="waktu-tamat" class="label text-xs">Jam tamat</label><input type="time" id="waktu-tamat" class="medan"></div>
+                    </div>
+                </div>
+
+                <p class="label">Pengecualian ikut daerah</p>
+                <div class="rounded-xl border overflow-hidden mb-4" style="border-color:var(--garis);">
+                    <table class="w-full text-sm">
+                        <tbody id="waktu-daerah"></tbody>
+                    </table>
+                </div>
+
+                <p id="waktu-ralat" class="hidden-step text-xs font-bold text-red-600 mb-2"></p>
+                <button type="button" id="btn-simpan-waktu" onclick="simpanTetapanWaktu()" class="btn-utama w-full sm:w-auto py-2.5 px-6 text-sm">Simpan Tetapan Waktu</button>
             </div>
 
             <!-- Panel Jana & Cetak Laporan -->
@@ -735,6 +781,27 @@
         }
 
         // ==========================================
+        // WAKTU UJIAN DIBUKA (peserta)
+        // ==========================================
+        // Hanya paparan — server tetap menolak soalan di luar waktu dibuka.
+        let ujianDibuka = true;
+        async function semakWaktuUjian() {
+            const daerah = $('daerah').value;
+            let data;
+            try {
+                data = await bacaServer({ action: 'statusUjian', daerah: daerah }, 1);
+            } catch (err) {
+                return; // gagal semak: jangan halang, server akan tolak jika perlu
+            }
+            if (data.status !== 'success' || daerah !== $('daerah').value) return;
+            ujianDibuka = !!data.buka;
+            $('notis-waktu').classList.toggle('hidden-step', ujianDibuka);
+            $('notis-waktu-teks').innerText = data.mesej || '';
+            // Sebelum daerah dipilih, notis sahaja (daerah tertentu mungkin dibuka khas)
+            $('btn-mula').disabled = !ujianDibuka && !!daerah;
+        }
+
+        // ==========================================
         // UJIAN PESERTA
         // ==========================================
         const ujian = {
@@ -778,7 +845,7 @@
             btnMula.innerText = "Memuatkan soalan...";
             let data;
             try {
-                data = await bacaServer({ action: 'soalan', set: set });
+                data = await bacaServer({ action: 'soalan', set: set, daerah: daerah });
             } catch (err) {
                 console.error(err);
                 data = { status: 'error', message: "Tiada sambungan internet atau server sesak. Sila cuba lagi." };
@@ -786,7 +853,12 @@
             btnMula.disabled = false;
             btnMula.innerText = "Mula Menjawab";
             if (data.status !== 'success') {
-                paparAlert("Soalan Tidak Dapat Dimuatkan", data.message || "Sila cuba lagi.");
+                if (data.tutup) {
+                    paparAlert("Ujian Belum Dibuka", data.message);
+                    semakWaktuUjian();
+                } else {
+                    paparAlert("Soalan Tidak Dapat Dimuatkan", data.message || "Sila cuba lagi.");
+                }
                 return;
             }
 
@@ -1179,6 +1251,8 @@
             const semua = admin.akses === "SEMUA";
             $('kawasan-filter-daerah').classList.toggle('hidden-step', !semua);
             $('panel-bank').classList.toggle('hidden-step', !semua);
+            $('panel-waktu').classList.toggle('hidden-step', !semua);
+            if (semua) muatTetapanWaktu();
             selector.value = semua ? "SEMUA" : admin.akses;
             kemaskiniFilterDaerah();
             kemaskiniDropdownLaporan();
@@ -1193,7 +1267,9 @@
             $('mb-ringkasan').innerHTML = 'Tekan "Papar Ringkasan" untuk memuatkan data penilaian.';
             $('bank-kandungan').classList.add('hidden-step');
             $('panel-bank').classList.add('hidden-step');
+            $('panel-waktu').classList.add('hidden-step');
             kembaliKeLamanUtama();
+            semakWaktuUjian();
         }
 
         function daerahAktif() {
@@ -1413,6 +1489,87 @@
                 baris.push([i + 1, selCsv(r.daerah), selCsv(r.tarikh), selCsv(r.set)].concat(soalan.map(q => selCsv(r.jawapan[q.id]))).join(","));
             });
             muatTurunCsv(baris, namaFail('Penilaian_Kursus', daerahAktif(), $('admin-tarikh-selector').value, 'csv'));
+        }
+
+        // ==========================================
+        // WAKTU UJIAN DIBUKA (admin SEMUA)
+        // ==========================================
+        const NAMA_HARI = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
+
+        async function muatTetapanWaktu() {
+            const data = await panggilAdmin({ action: 'tetapanWaktu' });
+            if (data.status === 'success') renderTetapanWaktu(data);
+        }
+
+        function renderTetapanWaktu(data) {
+            const t = data.tetapan;
+            document.querySelectorAll('input[name="waktu-mod"]').forEach(r => { r.checked = r.value === t.mod; });
+            $('waktu-hari').innerHTML = NAMA_HARI.map((h, i) => `
+                <label class="pilihan justify-center py-2 px-1 text-xs font-bold text-slate-700">
+                    <input type="checkbox" name="waktu-hari" value="${i}" ${t.hari.indexOf(i) !== -1 ? 'checked' : ''} onchange="kemaskiniPaparanWaktu()">${h}
+                </label>`).join('');
+            $('waktu-mula').value = t.mula;
+            $('waktu-tamat').value = t.tamat;
+            const semasa = {};
+            data.semasa.forEach(x => { semasa[x.daerah] = x.buka; });
+            $('waktu-daerah').innerHTML = data.semasa.map(x => {
+                const v = t.daerah[x.daerah] || 'IKUT';
+                const lencana = x.buka
+                    ? '<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Dibuka</span>'
+                    : '<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Ditutup</span>';
+                return `<tr class="border-b last:border-0" style="border-color:var(--garis)">
+                    <td class="px-3 py-2.5 font-semibold text-slate-700">${esc(x.daerah)}</td>
+                    <td class="px-2 py-2.5 text-right whitespace-nowrap">${lencana}</td>
+                    <td class="px-3 py-2 w-40"><select class="medan py-1.5 text-xs font-semibold waktu-daerah" data-daerah="${esc(x.daerah)}">
+                        <option value="IKUT" ${v === 'IKUT' ? 'selected' : ''}>Ikut umum</option>
+                        <option value="BUKA" ${v === 'BUKA' ? 'selected' : ''}>Buka</option>
+                        <option value="TUTUP" ${v === 'TUTUP' ? 'selected' : ''}>Tutup</option>
+                    </select></td></tr>`;
+            }).join('');
+            const bilBuka = data.semasa.filter(x => x.buka).length;
+            $('waktu-ringkasan').innerText = `Sekarang: ${bilBuka} daripada ${data.semasa.length} daerah dibuka`;
+            kemaskiniPaparanWaktu();
+        }
+
+        function kemaskiniPaparanWaktu() {
+            const mod = (document.querySelector('input[name="waktu-mod"]:checked') || {}).value;
+            const jadual = $('waktu-jadual');
+            jadual.style.opacity = mod === 'JADUAL' ? '1' : '.45';
+            jadual.querySelectorAll('input, button').forEach(el => { el.disabled = mod !== 'JADUAL'; });
+            document.querySelectorAll('#waktu-hari .pilihan, #waktu-mod .pilihan').forEach(l => l.classList.toggle('dipilih', l.querySelector('input').checked));
+        }
+
+        function pilihHariWaktu(senarai) {
+            document.querySelectorAll('input[name="waktu-hari"]').forEach(c => { c.checked = senarai.indexOf(Number(c.value)) !== -1; });
+            kemaskiniPaparanWaktu();
+        }
+
+        async function simpanTetapanWaktu() {
+            const mod = (document.querySelector('input[name="waktu-mod"]:checked') || {}).value || '';
+            const daerah = {};
+            document.querySelectorAll('.waktu-daerah').forEach(sel => { if (sel.value !== 'IKUT') daerah[sel.dataset.daerah] = sel.value; });
+            const tetapan = {
+                mod: mod,
+                hari: Array.from(document.querySelectorAll('input[name="waktu-hari"]:checked')).map(c => Number(c.value)),
+                mula: $('waktu-mula').value,
+                tamat: $('waktu-tamat').value,
+                daerah: daerah
+            };
+            const btn = $('btn-simpan-waktu');
+            btn.disabled = true;
+            btn.innerText = "Menyimpan...";
+            const data = await panggilAdmin({ action: 'simpanTetapanWaktu', tetapan: tetapan });
+            btn.disabled = false;
+            btn.innerText = "Simpan Tetapan Waktu";
+            if (data.status === 'unauthorized') return;
+            if (data.status !== 'success') {
+                $('waktu-ralat').innerText = data.message || "Tidak dapat disimpan.";
+                $('waktu-ralat').classList.remove('hidden-step');
+                return;
+            }
+            $('waktu-ralat').classList.add('hidden-step');
+            renderTetapanWaktu(data);
+            paparAlert("Tetapan Disimpan", "Waktu ujian dikemas kini dan berkuat kuasa serta-merta.");
         }
 
         // ==========================================
@@ -1720,6 +1877,7 @@
         $('paparan-tarikh-hari-ini').innerText = new Date().toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
         kemaskiniLangkah('step-1');
         muatSenaraiSet();
+        semakWaktuUjian();
         // Peserta yang sudah hantar ujian tetapi belum isi borang penilaian (cth. halaman dimuat semula)
         (function sambungMaklumBalasTertunda() {
             const tertunda = simpanan.baca(KUNCI_TERTUNDA);
