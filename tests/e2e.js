@@ -263,7 +263,7 @@ test('v2: ujian → borang penilaian → terima kasih; markah TIDAK dipaparkan, 
 
   await page.waitForSelector('#step-mb:not(.hidden-step)');
   await page.waitForSelector('#ruangan-mb .soalan-mb');
-  const respons = pelayan.permintaan.filter((p) => p.method === 'POST');
+  const respons = pelayan.permintaan.filter((p) => p.method === 'POST' && JSON.parse(p.body).action === 'hantar');
   assert.equal(respons.length, 1);
   assert.equal(JSON.parse(respons[0].body).susunan.length, 30);
   assert.equal(g.sheet.rows[1][6], 'Rawak');
@@ -626,7 +626,7 @@ test('v2: sesi petugas kekal selepas muat semula (tanpa kata laluan lagi); tamat
   await context.close();
 });
 
-test('v2: peserta tertutup halaman / tertekan back → jawapan tersimpan, sambung soalan & masa yang sama', async () => {
+test('v2: peserta tertutup halaman → terus sambung automatik; butang back tidak mengeluarkan peserta', async () => {
   const g = binaGas('v2');
   const { context, page, ralat } = await buka('v2', g);
   await mula(page, 'v2');
@@ -635,28 +635,26 @@ test('v2: peserta tertutup halaman / tertekan back → jawapan tersimpan, sambun
   await jawab(page, k.map((j, i) => (i < 5 ? j : null)));
   const tamat = await page.evaluate(() => ujian.tamatPada);
 
-  // Muat semula (cth. tertutup tab / telefon restart browser)
+  // Muat semula (cth. tertutup tab / telefon restart browser) → terus ke soalan, tiada butang perlu ditekan
   await page.reload();
-  await page.waitForSelector('#kotak-sambung:not(.hidden-step)');
-  assert.match(await page.textContent('#sambung-teks'), /5 \/ 30 soalan sudah dijawab/);
-  await page.waitForFunction(() => window.scrollY === 0);
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: path.join(OUTPUT, 'v2-8-sambung.png') });
-  await page.click('#btn-sambung');
   await page.waitForSelector('#step-2:not(.hidden-step)');
+  await page.waitForSelector('#notis-sambung:not(.hidden-step)');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(OUTPUT, 'v2-8-sambung.png') });
   assert.deepEqual(await page.evaluate(() => ujian.soalan.map((q) => q.id)), ids, 'kertas soalan sama');
   assert.equal(await page.evaluate(() => ujian.tamatPada), tamat, 'masa tamat asal kekal');
   assert.equal(await page.locator('#navigator-soalan .nav-soalan.dijawab').count(), 5);
 
-  // Tertekan back → keluar, jawapan kekal, sambung semula
+  // Tertekan back → kekal di soalan, mesej ringkas dipapar
   await jawab(page, k.map((j, i) => (i === 5 ? j : null)));
   await page.goBack();
-  await page.waitForSelector('#modal-confirm:not(.hidden-step)');
-  await page.click('#btn-modal-confirm-sah');
-  await page.waitForSelector('#kotak-sambung:not(.hidden-step)');
-  assert.match(await page.textContent('#sambung-teks'), /6 \/ 30/);
-  await page.click('#btn-sambung');
-  await page.waitForSelector('#step-2:not(.hidden-step)');
+  await page.waitForSelector('#toast.papar');
+  assert.match(await page.textContent('#toast'), /back tidak digunakan/);
+  assert.equal(await page.isVisible('#step-2'), true);
+  assert.equal(await page.locator('#navigator-soalan .nav-soalan.dijawab').count(), 6);
+  await page.goBack();
+  assert.equal(await page.isVisible('#step-2'), true, 'tekan back dua kali pun kekal');
+
   await jawab(page, k);
   await hantar(page);
   await page.waitForSelector('#step-mb:not(.hidden-step)');
@@ -667,7 +665,35 @@ test('v2: peserta tertutup halaman / tertekan back → jawapan tersimpan, sambun
   await context.close();
 });
 
-test('v2: kembali selepas masa tamat → jawapan tersimpan dihantar automatik; Buang & Mula Baru', async () => {
+test('v2: buka di pelayar / telefon lain → isi No. KP + emel sama → sambung kertas dan jawapan dari server', async () => {
+  const g = binaGas('v2');
+  const a = await buka('v2', g);
+  await mula(a.page, 'v2', { ic: '900101075591', email: 'aminah@contoh.my' });
+  const ids = await a.page.evaluate(() => ujian.soalan.map((q) => q.id));
+  const k = await skemaDipapar(a.page, g);
+  await jawab(a.page, k.map((j, i) => (i < 6 ? j : null)));
+  // Peserta tinggalkan halaman → sandaran dihantar serta-merta
+  await a.page.evaluate(() => { simpanKeServer(true); });
+  await a.page.waitForFunction(() => sandaran.tanda !== '');
+  await a.page.waitForTimeout(200);
+  await a.context.close();
+
+  // Pelayar lain (tiada simpanan tempatan): isi borang seperti biasa
+  const b = await buka('v2', g);
+  await mula(b.page, 'v2', { ic: '900101075591', email: 'AMINAH@contoh.my' });
+  await b.page.waitForSelector('#notis-sambung:not(.hidden-step)');
+  assert.match(await b.page.textContent('#notis-sambung-teks'), /disambung semula/);
+  assert.deepEqual(await b.page.evaluate(() => ujian.soalan.map((q) => q.id)), ids);
+  assert.equal(await b.page.locator('#navigator-soalan .nav-soalan.dijawab').count(), 6);
+  await jawab(b.page, await skemaDipapar(b.page, g));
+  await hantar(b.page);
+  await b.page.waitForSelector('#step-mb:not(.hidden-step)');
+  assert.equal(g.sheet.getLastRow(), 2);
+  assert.equal(g.sheet.rows[1][8], 30);
+  await b.context.close();
+});
+
+test('v2: kembali selepas masa tamat → jawapan tersimpan dihantar automatik; "Bukan anda?" untuk telefon dikongsi', async () => {
   const g = binaGas('v2');
   const { context, page } = await buka('v2', g);
   await mula(page, 'v2');
@@ -678,21 +704,17 @@ test('v2: kembali selepas masa tamat → jawapan tersimpan dihantar automatik; B
     localStorage.setItem('ujianMindaUjianBerjalan', JSON.stringify(u));
   });
   await page.reload();
-  await page.waitForSelector('#kotak-sambung:not(.hidden-step)');
-  assert.match(await page.textContent('#sambung-teks'), /Masa menjawab telah tamat/);
-  await page.click('#btn-sambung');
   await page.waitForSelector('#step-mb:not(.hidden-step)', { timeout: 10000 });
   assert.equal(g.sheet.rows[1][8], 4);
   await context.close();
 
-  // Pilihan buang
   const b = await buka('v2', g);
   await mula(b.page, 'v2', { ic: '900101075556' });
   await b.page.reload();
-  await b.page.waitForSelector('#kotak-sambung:not(.hidden-step)');
-  await b.page.click('#kotak-sambung >> text=Buang & Mula Baru');
+  await b.page.waitForSelector('#notis-sambung:not(.hidden-step)');
+  await b.page.click('#notis-sambung >> text=Bukan anda?');
   await b.page.click('#btn-modal-confirm-sah');
-  await b.page.waitForSelector('#kotak-sambung.hidden-step', { state: 'attached' });
+  await b.page.waitForSelector('#step-1:not(.hidden-step)');
   assert.equal(await b.page.evaluate(() => localStorage.getItem('ujianMindaUjianBerjalan')), null);
   await b.context.close();
 });

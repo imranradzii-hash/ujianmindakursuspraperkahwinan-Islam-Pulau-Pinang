@@ -170,6 +170,8 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     switch (data.action) {
       case 'hantar': return jsonOutput(handleHantar(data));
+      case 'mulaUjian': return jsonOutput(handleMulaUjian(data));
+      case 'simpanKemajuan': return jsonOutput(handleSimpanKemajuan(data));
       case 'maklumBalas': return jsonOutput(handleMaklumBalas(data));
       case 'login': return jsonOutput(handleLogin(data.emel, data.kataLaluan));
       case 'lupaKataLaluan': return jsonOutput(handleLupaKataLaluan(data.emel));
@@ -374,6 +376,79 @@ function handleSoalan(daerah) {
 }
 
 // ==========================================
+// SANDARAN KEMAJUAN UJIAN (sambung di peranti / pelayar lain)
+// ==========================================
+// Jawapan peserta disimpan di server (cache) ikut No. KP semasa menjawab. Jika peserta terkeluar dan membuka
+// semula di pelayar atau telefon lain, isi No. KP DAN emel yang sama → kertas, jawapan dan baki masa yang sama.
+// Sandaran tamat bersama tempoh menjawab (+ tempoh hantar lewat) dan dipadam selepas jawapan dihantar.
+function kunciKemajuan(ic) { return 'kemajuan_' + ic; }
+
+function tamatKertas(kertas) {
+  return kertas.dikeluarkan + kertas.masaMinit * 60000;
+}
+
+function handleSimpanKemajuan(data) {
+  const ic = String(data.ic || '').trim();
+  const email = String(data.email || '').trim().toLowerCase();
+  if (!/^\d{12}$/.test(ic) || !email || email.length > 100) return { status: "error", message: "Tidak sah.", bolehCubaLagi: false };
+  const idHantar = sahkanIdHantar(data.idHantar);
+  const kertas = sahkanKertas(data.idSoalan, data.susunan, data.kunci);
+  const jawapan = data.jawapan;
+  if (!Array.isArray(jawapan) || jawapan.length !== data.idSoalan.length || jawapan.some(j => j !== null && !(Number.isInteger(j) && j >= 0 && j <= 3))) {
+    return { status: "error", message: "Jawapan tidak sah.", bolehCubaLagi: false };
+  }
+  const bakiSaat = Math.round((tamatKertas(kertas) - Date.now()) / 1000) + TEMPOH_HANTAR_LEWAT_MINIT * 60;
+  if (bakiSaat <= 0) return { status: "success", simpan: false };
+  const cache = CacheService.getScriptCache();
+  const sedia = cache.get(kunciKemajuan(ic));
+  if (sedia) {
+    // Jangan tindih sandaran milik emel lain bagi No. KP yang sama
+    try { if (JSON.parse(sedia).e !== email) return { status: "success", simpan: false }; } catch (e) { /* tindih */ }
+  }
+  cache.put(kunciKemajuan(ic), JSON.stringify({
+    e: email, id: idHantar, k: data.kunci, s: data.susunan, q: data.idSoalan, j: jawapan
+  }), Math.min(21600, bakiSaat));
+  return { status: "success", simpan: true };
+}
+
+// Mula ujian (POST): sambung kertas sedia ada bagi No. KP + emel yang sama, jika tidak keluarkan kertas baharu
+function handleMulaUjian(data) {
+  const ic = String(data.ic || '').trim();
+  const email = String(data.email || '').trim().toLowerCase();
+  if (/^\d{12}$/.test(ic) && email) {
+    const sambung = cubaSambungKertas(ic, email);
+    if (sambung) return sambung;
+  }
+  return handleSoalan(data.daerah);
+}
+
+function cubaSambungKertas(ic, email) {
+  const simpan = CacheService.getScriptCache().get(kunciKemajuan(ic));
+  if (!simpan) return null;
+  let r;
+  try { r = JSON.parse(simpan); } catch (e) { return null; }
+  if (r.e !== email) return null;
+  let kertas;
+  try { kertas = sahkanKertas(r.q, r.s, r.k); } catch (e) { return null; }
+  const bakiMs = tamatKertas(kertas) - Date.now();
+  if (bakiMs <= -TEMPOH_HANTAR_LEWAT_MINIT * 60000) return null;
+  const peta = {};
+  bacaBank().forEach(q => { peta[q.id] = q; });
+  if (r.q.some(id => !peta[id] || peta[id].pilihan.length !== String(r.s[r.q.indexOf(id)]).length)) return null; // soalan telah diubah
+  return {
+    status: "success",
+    sambung: true,
+    idHantar: r.id,
+    masaMinit: kertas.masaMinit,
+    bakiMs: Math.max(0, bakiMs),
+    kunci: r.k,
+    susunan: r.s,
+    jawapan: r.j,
+    soalan: r.q.map((id, i) => ({ id: id, soalan: peta[id].soalan, pilihan: String(r.s[i]).split('').map(Number).map(k => peta[id].pilihan[k]) }))
+  };
+}
+
+// ==========================================
 // WAKTU UJIAN DIBUKA (diurus admin SEMUA)
 // ==========================================
 function bacaTetapanWaktu() {
@@ -506,6 +581,7 @@ function handleHantar(data) {
     const hasil = { status: "success", idHantar: idHantar, emel: topengEmel(p.email) };
     cache.put(kunciCache, JSON.stringify(hasil), 21600);
     cache.put(kunciIc, String(bilIc + 1), 21600);
+    cache.remove(kunciKemajuan(p.ic)); // ujian selesai — sandaran tidak diperlukan lagi
     return hasil;
   } finally {
     lock.releaseLock();
@@ -535,7 +611,8 @@ function sahkanPenyertaan(data) {
   return { nama, ic, email, daerah, set: SET_RAWAK };
 }
 
-function kiraMarkah(idSoalan, susunan, kunci, jawapan) {
+// Sahkan kertas soalan (ID soalan, susunan pilihan, masa) ditandatangani server → { dikeluarkan, masaMinit }
+function sahkanKertas(idSoalan, susunan, kunci) {
   if (!Array.isArray(idSoalan) || idSoalan.length === 0 || idSoalan.length > 200 || idSoalan.some(id => typeof id !== 'string')) {
     throw ralatPengguna("Soalan tidak sah. Sila mula semula.");
   }
@@ -546,8 +623,11 @@ function kiraMarkah(idSoalan, susunan, kunci, jawapan) {
   if (!m || m[3] !== tandatangan(idSoalan.join(',') + '|' + susunan.join(',') + '|' + m[1] + '|' + m[2])) {
     throw ralatPengguna("Soalan tidak sah. Sila mula semula.");
   }
-  const dikeluarkan = Number(m[1]);
-  const masaMinit = Number(m[2]);
+  return { dikeluarkan: Number(m[1]), masaMinit: Number(m[2]) };
+}
+
+function kiraMarkah(idSoalan, susunan, kunci, jawapan) {
+  const { dikeluarkan, masaMinit } = sahkanKertas(idSoalan, susunan, kunci);
   if (!Array.isArray(jawapan) || jawapan.length !== idSoalan.length) throw ralatPengguna("Jawapan tidak lengkap atau tidak sah.");
   const peta = {};
   bacaBank().forEach(q => { peta[q.id] = q; });

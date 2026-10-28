@@ -32,7 +32,7 @@ Ujian minda dalam talian untuk peserta Kursus Praperkahwinan Islam (JHEAIPP), de
 
 **Waktu ujian dibuka.** Admin SEMUA tetapkan di dashboard (panel *Waktu Ujian Dibuka*): Ikut jadual (hari + jam, cth. Ahad 2.00 petang–11.59 malam, atau setiap hari), Buka sentiasa, atau Tutup, serta pengecualian Buka/Tutup bagi setiap daerah. Server menolak permintaan soalan di luar waktu dibuka. Peserta yang mula sebelum ditutup masih boleh hantar dalam tempoh masa menjawab + 15 minit. Selagi tetapan belum disimpan, ujian kekal dibuka. Dalam panel yang sama, admin SEMUA pilih **masa menjawab: 15, 20 atau 30 minit** (lalai 30) untuk 30 soalan. Tempoh ini ditandatangani pada kertas soalan, jadi peserta yang sedang menjawab kekal dengan masa asal walaupun tetapan ditukar.
 
-**Tertutup / tertekan back semasa menjawab.** Kertas soalan, jawapan dan masa tamat disimpan dalam peranti peserta (localStorage) setiap kali jawapan dipilih — serta-merta, tiada panggilan ke server. Bila halaman dibuka semula, kotak *Ujian anda belum dihantar* dipaparkan dengan butang **Sambung Menjawab** (soalan, susunan dan jawapan sama; masa tetap berjalan dari masa mula asal) atau **Buang & Mula Baru**. Kalau masa sudah tamat, jawapan yang disimpan terus dihantar. Simpanan dibuang selepas jawapan berjaya dihantar, atau selepas 6 jam. Hanya boleh disambung pada peranti dan browser yang sama.
+**Tertutup / tertekan back semasa menjawab.** Butang back tidak mengeluarkan peserta dari soalan (mesej ringkas dipapar). Kertas soalan, jawapan dan masa tamat disimpan dalam telefon setiap kali jawapan dipilih; bila halaman dibuka semula, ujian **terus disambung secara automatik** (masa tetap berjalan dari masa mula asal; jika masa sudah tamat, jawapan terus dihantar). Pautan kecil "Bukan anda?" untuk telefon yang dikongsi. Jawapan juga disandarkan ke server (cache, ikut No. KP) paling kerap setiap 30 saat dan serta-merta bila peserta meninggalkan halaman — jika peserta membuka semula di **pelayar atau telefon lain** (cth. dari WhatsApp ke Chrome) dan mengisi **No. KP dan emel yang sama**, kertas, jawapan dan baki masa yang sama dipulihkan. Sandaran tamat bersama tempoh menjawab dan dipadam selepas jawapan dihantar.
 
 Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka borang penilaian. Kalau peserta pulang tanpa isi borang, admin boleh tekan **Lepaskan** di dashboard untuk hantar keputusan juga.
 
@@ -91,6 +91,12 @@ Tukar `TAB.KEPUTUSAN` kepada `"Sheet1"` di atas `Code.gs`, kemudian jalankan `se
 | `hantarEmelContohKepadaSaya` | Contoh emel keputusan ke emel anda |
 | `hantarSemulaEmelGagal` | Cuba semula emel berstatus GAGAL |
 | `arkibkanRekodTahun` | Pindah rekod satu tahun ke tab "Arkib <tahun>" (backup Sheet dahulu) |
+
+## Kelajuan halaman
+
+- CSS Tailwind dibina siap dan dimasukkan terus dalam `v2/index.html` (tiada Tailwind Play CDN yang membina CSS dalam telefon). Selepas menukar kelas Tailwind, jalankan `npm install` sekali, kemudian `npm run css`.
+- jsPDF hanya dimuat apabila admin menekan Muat Turun PDF.
+- Halaman membuat sambungan awal (`preconnect`) ke Apps Script, dan semakan waktu ujian semasa halaman dibuka turut "memanaskan" web app sebelum peserta menekan Mula.
 
 ## Ujian
 

@@ -4,6 +4,10 @@
   "description": "Sistem Ujian Minda Kursus Praperkahwinan Islam Pulau Pinang (HTML + Google Apps Script + Google Sheets)",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "e2e": "node --test --test-concurrency=1 tests/e2e.js"
+    "e2e": "node --test --test-concurrency=1 tests/e2e.js",
+    "css": "node tools/bina-css.js"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
   }
 }

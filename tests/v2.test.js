@@ -672,3 +672,60 @@ test('v2: masa hantar disimpan format 24 jam (dd/MM/yyyy HH:mm:ss) sebagai teks'
   const r = g.post({ action: 'rekodHariIni', token: g.login('SEMUA').token });
   assert.match(r.data[0].timestamp, /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
 });
+
+test('sandaran kemajuan: sambung kertas sama di peranti lain dengan No. KP + emel sama; selepas hantar mula baharu', () => {
+  const g = binaGas('v2');
+  const peserta = { ic: '900101075588', email: 'Ali@Contoh.my', daerah: 'Timur Laut' };
+  const a = g.post(Object.assign({ action: 'mulaUjian' }, peserta));
+  assert.equal(a.status, 'success');
+  assert.ok(!a.sambung);
+  const idSoalan = a.soalan.map((q) => q.id);
+  const jawapan = idSoalan.map((_, i) => (i < 7 ? 1 : null));
+  const simpan = { action: 'simpanKemajuan', ic: peserta.ic, email: peserta.email, idHantar: 'sambung-0001', idSoalan, susunan: a.susunan, kunci: a.kunci, jawapan };
+  assert.equal(g.post(simpan).simpan, true);
+
+  // Kunci dipalsukan → ditolak
+  assert.equal(g.post(Object.assign({}, simpan, { kunci: a.kunci.replace(/\.(\d+)\./, '.15.') })).status, 'error');
+
+  // Peranti lain, emel berbeza → kertas baharu (sandaran orang lain tidak didedahkan)
+  const lain = g.post(Object.assign({ action: 'mulaUjian' }, peserta, { email: 'orang@lain.my' }));
+  assert.ok(!lain.sambung);
+  // Sandaran tidak ditindih oleh emel lain bagi KP yang sama
+  assert.equal(g.post(Object.assign({}, simpan, { email: 'orang@lain.my', kunci: lain.kunci, susunan: lain.susunan, idSoalan: lain.soalan.map((q) => q.id) })).simpan, false);
+
+  // Peranti lain, emel sama (huruf besar/kecil berbeza) → kertas, susunan, jawapan dan ID hantar yang sama
+  const b = g.post(Object.assign({ action: 'mulaUjian' }, peserta, { email: 'ali@contoh.my' }));
+  assert.equal(b.sambung, true);
+  assert.equal(b.kunci, a.kunci);
+  assert.deepEqual(b.soalan.map((q) => q.id), idSoalan);
+  assert.deepEqual(b.soalan.map((q) => q.pilihan), a.soalan.map((q) => q.pilihan));
+  assert.deepEqual(b.jawapan, jawapan);
+  assert.equal(b.idHantar, 'sambung-0001');
+  assert.ok(b.bakiMs > 29 * 60000 && b.bakiMs <= 30 * 60000);
+  assert.ok(!('jawapan' in b.soalan[0]), 'tiada skema jawapan');
+
+  // Hantar → sandaran dipadam; mula semula dapat kertas baharu
+  const h = g.post({ action: 'hantar', idHantar: b.idHantar, nama: 'ALI BIN ABU', ic: peserta.ic, email: peserta.email, daerah: peserta.daerah, idSoalan, susunan: b.susunan, kunci: b.kunci, jawapan: b.jawapan });
+  assert.equal(h.status, 'success');
+  const c = g.post(Object.assign({ action: 'mulaUjian' }, peserta));
+  assert.ok(!c.sambung);
+});
+
+test('sandaran kemajuan: kertas yang sudah tamat tempoh tidak disambung; waktu ditutup tidak menghalang sambung', () => {
+  const g = binaGas('v2');
+  const peserta = { ic: '900101075589', email: 'siti@contoh.my', daerah: 'Barat Daya' };
+  const a = g.post(Object.assign({ action: 'mulaUjian' }, peserta));
+  const idSoalan = a.soalan.map((q) => q.id);
+  g.post({ action: 'simpanKemajuan', ic: peserta.ic, email: peserta.email, idHantar: 'sambung-0002', idSoalan, susunan: a.susunan, kunci: a.kunci, jawapan: idSoalan.map(() => null) });
+  // Ujian ditutup selepas peserta mula → masih boleh sambung dalam tempoh masa menjawab
+  g.post({ action: 'simpanTetapanWaktu', token: g.login('SEMUA').token, tetapan: { mod: 'TUTUP', hari: [0], mula: '14:00', tamat: '23:59' } });
+  assert.equal(g.post(Object.assign({ action: 'mulaUjian' }, peserta)).sambung, true);
+  // Kertas lama (dikeluarkan 2 jam lalu) → tidak disambung, dan ujian ditutup → ditolak
+  const lama = Date.now() - 2 * 3600 * 1000;
+  const kunciLama = lama + '.30.' + g.ctx.tandatangan(idSoalan.join(',') + '|' + a.susunan.join(',') + '|' + lama + '|30');
+  assert.equal(g.post({ action: 'simpanKemajuan', ic: peserta.ic, email: peserta.email, idHantar: 'sambung-0002', idSoalan, susunan: a.susunan, kunci: kunciLama, jawapan: idSoalan.map(() => null) }).simpan, false);
+  g.state.cache.set('kemajuan_' + peserta.ic, JSON.stringify({ e: peserta.email, id: 'sambung-0002', k: kunciLama, s: a.susunan, q: idSoalan, j: idSoalan.map(() => null) }));
+  const r = g.post(Object.assign({ action: 'mulaUjian' }, peserta));
+  assert.equal(r.status, 'error');
+  assert.equal(r.tutup, true);
+});
