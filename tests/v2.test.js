@@ -586,3 +586,19 @@ test('login kod emel: had permintaan kod; petugas dinyahaktif terus hilang akses
   g.ctx.logKeluarSemuaPetugas();
   assert.equal(g.post({ action: 'data', token: lagi.token }).status, 'unauthorized');
 });
+
+test('v2: rekodHariIni — hanya tarikh hari ini dan daerah sendiri', () => {
+  const g = binaGas('v2');
+  const hari = hariIniMYT();
+  g.sheet.appendRow(['t1', 'ALI BIN ABU', "'900101075551", 'a@contoh.my', 'Barat Daya', hari, 'Rawak', 90, 27, 30, 'DIHANTAR', 'id-a', '[]']);
+  g.sheet.appendRow(['t2', 'SITI BINTI ALI', "'900101075552", 's@contoh.my', 'Barat Daya', '2026-01-04', 'Rawak', 50, 15, 30, 'DIHANTAR', 'id-b', '[]']);
+  g.sheet.appendRow(['t3', 'ABU BIN ALI', "'900101075553", 'b@contoh.my', 'Timur Laut', hari, 'Rawak', 70, 21, 30, 'DIHANTAR', 'id-c', '[]']);
+  const bd = g.login('Barat Daya');
+  const r = g.post({ action: 'rekodHariIni', token: bd.token });
+  assert.equal(r.status, 'success');
+  assert.equal(r.hari, hari);
+  assert.deepEqual(r.data.map((d) => d.idHantar), ['id-a']);
+  const semua = g.post({ action: 'rekodHariIni', token: g.login('SEMUA').token });
+  assert.deepEqual(semua.data.map((d) => d.idHantar).sort(), ['id-a', 'id-c']);
+  assert.equal(g.post({ action: 'rekodHariIni', token: 'x'.repeat(40) }).status, 'unauthorized');
+});

@@ -141,6 +141,15 @@
                     </div>
                 </div>
 
+                <div id="kotak-sambung" class="hidden-step rounded-xl p-4 mb-5 border-2" style="background:var(--navy-muda);border-color:var(--navy);" role="status">
+                    <p class="font-extrabold" style="color:var(--navy)">Ujian anda belum dihantar</p>
+                    <p class="text-sm text-slate-700 mt-1" id="sambung-teks"></p>
+                    <div class="flex flex-col sm:flex-row gap-2 mt-3">
+                        <button type="button" id="btn-sambung" onclick="sambungUjian()" class="btn-utama py-2.5 px-5 text-sm">Sambung Menjawab</button>
+                        <button type="button" onclick="buangUjianTersimpan()" class="btn-kedua py-2.5 px-5 text-sm">Buang & Mula Baru</button>
+                    </div>
+                </div>
+
                 <div id="notis-waktu" class="hidden-step rounded-xl p-4 mb-5 border flex gap-3 text-sm" style="background:#fff8e6;border-color:#f3d48a;color:#7a4d00;" role="status">
                     <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
                     <div><p class="font-extrabold">Ujian belum dibuka</p><p id="notis-waktu-teks" class="mt-0.5"></p></div>
@@ -304,6 +313,34 @@
                     <button type="button" id="btn-muat-semula" onclick="muatSemulaData()" class="btn-kedua text-xs py-2 px-4">Muat Semula Data</button>
                     <button type="button" onclick="tutupAdmin()" class="text-xs font-bold py-2 px-4 rounded-xl transition bg-red-50 hover:bg-red-100 text-red-700 border border-red-200">Log Keluar</button>
                 </div>
+            </div>
+
+            <!-- HARI INI: ringkasan langsung untuk petugas semasa kursus -->
+            <div id="panel-hari-ini" class="kad p-4 sm:p-5 mb-4">
+                <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <div>
+                        <p class="tajuk-seksyen">Hari Ini</p>
+                        <p class="text-[15px] font-extrabold" style="color:var(--navy)" id="hari-ini-tarikh">-</p>
+                        <p class="text-[11px] text-slate-500" id="hari-ini-daerah"></p>
+                    </div>
+                    <div class="flex flex-col items-end gap-1.5">
+                        <button type="button" id="btn-refresh-hari-ini" onclick="refreshHariIni()" class="btn-utama text-xs py-2 px-4 inline-flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0 0 12.4 2M18.5 9A7 7 0 0 0 6.1 7"/></svg>
+                            <span>Refresh</span>
+                        </button>
+                        <label class="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" id="auto-refresh" class="w-3.5 h-3.5" style="accent-color:var(--navy)" onchange="tukarAutoRefresh()"> Auto setiap 1 minit
+                        </label>
+                        <p class="text-[10px] text-slate-400" id="hari-ini-dikemaskini"></p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                    <div class="rounded-xl px-3 py-2.5" style="background:var(--navy-muda);"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Sudah hantar</p><p class="text-2xl font-black" style="color:var(--navy)" id="hi-jumlah">0</p></div>
+                    <div class="rounded-xl px-3 py-2.5" style="background:#ecfdf3;"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Lulus (≥50%)</p><p class="text-2xl font-black text-emerald-700" id="hi-lulus">0</p></div>
+                    <div class="rounded-xl px-3 py-2.5" style="background:#fff8e6;"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Belum isi penilaian</p><p class="text-2xl font-black" style="color:#8a6a1c" id="hi-belum">0</p></div>
+                    <div class="rounded-xl px-3 py-2.5" style="background:#f1f4f8;"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Emel keputusan</p><p class="text-2xl font-black text-slate-700" id="hi-emel">0</p></div>
+                </div>
+                <div id="hi-senarai" class="divide-y rounded-xl border max-h-[420px] overflow-y-auto" style="border-color:var(--garis);"></div>
             </div>
 
             <!-- Panel Kawalan Saringan -->
@@ -614,6 +651,8 @@
         const PERATUS_LULUS = 50;
         const HAD_MARKAH_RENDAH = 7; // jadual "Perhatian" — bilangan betul bawah nilai ini
         const KUNCI_TERTUNDA = 'ujianMindaMaklumBalasTertunda'; // ID ujian yang belum isi borang penilaian
+        const KUNCI_UJIAN_SIMPAN = 'ujianMindaUjianBerjalan'; // kertas soalan + jawapan semasa (sambung jika tertutup/back)
+        const HAD_SAMBUNG_JAM = 6; // ujian tersimpan lebih lama daripada ini dibuang
         const KUNCI_SESI_ADMIN = 'ujianMindaSesiAdmin'; // token sesi petugas (30 hari, server semak setiap permintaan)
         const KUNCI_EMEL_ADMIN = 'ujianMindaEmelPetugas'; // ingat emel petugas untuk log masuk seterusnya
 
@@ -863,6 +902,8 @@
             janaUISoalan();
             kemaskiniProgress();
             mulakanPemasa(data.masaMinit || 30);
+            simpanKemajuan();
+            $('kotak-sambung').classList.add('hidden-step');
 
             sedangUjian = true;
             history.pushState(null, document.title, location.href);
@@ -905,8 +946,18 @@
             });
         }
 
+        // Simpan dalam peranti ini sahaja (localStorage) — serta-merta, tiada panggilan ke server
+        function simpanKemajuan() {
+            if (!ujian.kunci || !ujian.tamatPada) return;
+            simpanan.tulis(KUNCI_UJIAN_SIMPAN, {
+                maklumat: ujian.maklumat, soalan: ujian.soalan, kunci: ujian.kunci, susunan: ujian.susunan,
+                tamatPada: ujian.tamatPada, jawapan: ujian.dikunci ? ujian.jawapan : jawapanSemasa(), dikunci: ujian.dikunci
+            });
+        }
+
         function kemaskiniProgress() {
             const semasa = jawapanSemasa();
+            if (sedangUjian) simpanKemajuan();
             const dijawab = semasa.filter(j => j !== null).length;
             const jumlah = ujian.soalan.length;
             $('paparan-progress').innerText = `${dijawab} / ${jumlah} Dijawab`;
@@ -923,9 +974,9 @@
         }
 
         // Pemasa ikut masa tamat sebenar — tetap tepat walaupun skrin telefon terkunci
-        function mulakanPemasa(minit) {
+        function mulakanPemasa(minit, tamatPada) {
             hentikanPemasa();
-            ujian.tamatPada = Date.now() + minit * 60 * 1000;
+            ujian.tamatPada = tamatPada || Date.now() + minit * 60 * 1000;
             detikPemasa();
             ujian.pemasa = setInterval(detikPemasa, 1000);
         }
@@ -978,6 +1029,7 @@
                 ujian.jawapan = jawapanSemasa();
                 ujian.dikunci = true;
                 document.querySelectorAll('#ruangan-soalan input[type="radio"]').forEach(r => { r.disabled = true; });
+                simpanKemajuan(); // jika halaman tertutup semasa menghantar, jawapan sama dihantar semula
             }
 
             let data, ralatRangkaian = false;
@@ -998,6 +1050,7 @@
             if (data && data.status === 'success') {
                 // Ingat ujian ini supaya borang penilaian boleh disambung jika halaman dimuat semula
                 simpanan.tulis(KUNCI_TERTUNDA, { idHantar: data.idHantar, emel: data.emel });
+                simpanan.buang(KUNCI_UJIAN_SIMPAN);
                 bukaBorangMaklumBalas(data.idHantar, data.emel);
                 return;
             }
@@ -1138,7 +1191,7 @@
         function kembaliKeLamanUtama() {
             sedangUjian = false;
             hentikanPemasa();
-            Object.assign(ujian, { maklumat: null, soalan: [], kunci: '', susunan: [], jawapan: [], dikunci: false, sedangHantar: false });
+            Object.assign(ujian, { maklumat: null, soalan: [], kunci: '', susunan: [], jawapan: [], tamatPada: 0, dikunci: false, sedangHantar: false });
             $('form-maklumat').reset();
             $('ruangan-soalan').innerHTML = '';
             $('ruangan-mb').innerHTML = '';
@@ -1332,11 +1385,16 @@
             selector.value = semua ? "SEMUA" : admin.akses;
             kemaskiniFilterDaerah();
             kemaskiniDropdownLaporan();
+            $('hari-ini-dikemaskini').innerText = 'Dikemas kini ' + new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            $('auto-refresh').checked = simpanan.baca(KUNCI_AUTO_REFRESH) !== false; // lalai: hidup
+            tukarAutoRefresh();
         }
 
         function tutupAdmin() {
             if (admin.token) panggilServer({ action: 'logout', token: admin.token }).catch(() => {});
             simpanan.buang(KUNCI_SESI_ADMIN);
+            if (pemasaAutoRefresh) clearInterval(pemasaAutoRefresh);
+            pemasaAutoRefresh = null;
             Object.assign(admin, { akses: "", nama: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' });
             $('input-kod').value = '';
             $('carian-peserta').value = '';
@@ -1384,6 +1442,7 @@
             if (daerah !== 'SEMUA') data = data.filter(d => d.daerah === daerah);
             if (tarikh) data = data.filter(d => d.tarikh === tarikh);
             admin.ditapis = data;
+            renderHariIni();
             if (admin.mb) renderRingkasanMaklumBalas();
 
             const tbodyTop10 = $('admin-top10-tbody');
@@ -1476,13 +1535,87 @@
             }).join('');
         }
 
+        // ==========================================
+        // PANEL HARI INI (refresh ringan + auto setiap 1 minit)
+        // ==========================================
+        const KUNCI_AUTO_REFRESH = 'ujianMindaAutoRefresh';
+        let pemasaAutoRefresh = null, sedangRefresh = false;
+
+        function renderHariIni() {
+            const hari = tarikhTempatan(new Date());
+            const daerah = daerahAktif();
+            const data = admin.rekod.filter(d => d.tarikh === hari && (daerah === 'SEMUA' || d.daerah === daerah));
+            $('hari-ini-tarikh').innerText = new Date().toLocaleDateString('ms-MY', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+            $('hari-ini-daerah').innerText = daerah === 'SEMUA' ? 'Semua daerah' : daerah;
+            $('hi-jumlah').innerText = data.length;
+            $('hi-lulus').innerText = data.filter(d => (d.skor || 0) >= PERATUS_LULUS).length;
+            $('hi-belum').innerText = data.filter(d => d.status === 'MENUNGGU MAKLUM BALAS').length;
+            $('hi-emel').innerText = data.filter(d => /^DIHANTAR/.test(d.status || '')).length + ' / ' + data.length;
+            const masa = (d) => (String(d.timestamp || '').match(/(\d{1,2}:\d{2})/) || [])[1] || '';
+            $('hi-senarai').innerHTML = data.length ? [...data].reverse().map((d, i) => {
+                const lulus = (d.skor || 0) >= PERATUS_LULUS;
+                return `<div class="flex items-center gap-3 px-3 py-2.5 bg-white">
+                    <span class="text-[11px] font-bold text-slate-400 w-6 text-right shrink-0">${data.length - i}</span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[13px] font-bold text-slate-800 truncate">${esc(d.nama)}</p>
+                        <p class="text-[11px] text-slate-500">${esc(masa(d))} · KP ${esc(topengIC(d.ic))}${daerah === 'SEMUA' ? ' · ' + esc(namaDaerahPendek(d.daerah)) : ''}${lencanaStatus(d).replace(/<br>/g, ' · ')}</p>
+                    </div>
+                    <span class="shrink-0 px-2.5 py-1 rounded-full text-xs font-black ${lulus ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100'}">${esc(d.skor || 0)}%</span>
+                </div>`;
+            }).join('') : '<p class="px-3 py-6 text-center text-sm text-slate-400 italic bg-white">Belum ada peserta menghantar jawapan hari ini.</p>';
+        }
+
+        // Ambil rekod hari ini sahaja dari server, gantikan rekod hari ini dalam memori
+        async function refreshHariIni(senyap) {
+            if (sedangRefresh || !admin.token) return;
+            sedangRefresh = true;
+            const btn = $('btn-refresh-hari-ini');
+            btn.disabled = true;
+            btn.querySelector('span').innerText = 'Memuatkan...';
+            const data = await panggilAdmin({ action: 'rekodHariIni' });
+            sedangRefresh = false;
+            btn.disabled = false;
+            btn.querySelector('span').innerText = 'Refresh';
+            if (data.status === 'unauthorized') return;
+            if (data.status !== 'success') {
+                if (!senyap) paparAlert("Ralat", data.message || "Data tidak dapat dimuatkan.");
+                return;
+            }
+            const baru = (data.data || []).map(d => Object.assign({}, d, { tarikh: standardkanTarikh(d.tarikh) }));
+            setRekod(admin.rekod.filter(d => d.tarikh !== data.hari).concat(baru));
+            const tarikhDipilih = $('admin-tarikh-selector').value;
+            kemaskiniFilterDaerah(tarikhDipilih);
+            kemaskiniDropdownLaporan();
+            $('hari-ini-dikemaskini').innerText = 'Dikemas kini ' + new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function tukarAutoRefresh() {
+            const aktif = $('auto-refresh').checked;
+            simpanan.tulis(KUNCI_AUTO_REFRESH, aktif);
+            if (pemasaAutoRefresh) clearInterval(pemasaAutoRefresh);
+            pemasaAutoRefresh = null;
+            if (aktif && admin.token) {
+                pemasaAutoRefresh = setInterval(() => {
+                    // Hanya bila dashboard sedang dilihat (jimat kuota Apps Script)
+                    if (!document.hidden && admin.token && !$('step-admin').classList.contains('hidden-step')) refreshHariIni(true);
+                }, 60000);
+            }
+        }
+
         // Butang "Lepaskan" (delegasi acara — butang dijana semula setiap kali jadual dikemas kini)
+        $('hi-senarai').addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-lepaskan');
+            if (btn) lepaskanKeputusan(btn.dataset.id);
+        });
         $('admin-tbody').addEventListener('click', (e) => {
             const btn = e.target.closest('.btn-lepaskan');
-            if (!btn) return;
-            const rekod = admin.rekod.find(d => d.idHantar === btn.dataset.id);
+            if (btn) lepaskanKeputusan(btn.dataset.id);
+        });
+
+        function lepaskanKeputusan(idHantar) {
+            const rekod = admin.rekod.find(d => d.idHantar === idHantar);
             paparConfirm("Lepaskan Keputusan?", `Keputusan ${rekod ? rekod.nama : 'peserta ini'} akan diemelkan walaupun borang penilaian belum diisi.`, "Ya, Lepaskan", async () => {
-                const data = await panggilAdmin({ action: 'lepaskan', idHantar: btn.dataset.id });
+                const data = await panggilAdmin({ action: 'lepaskan', idHantar: idHantar });
                 if (data.status === 'success') {
                     if (rekod) rekod.status = 'MENUNGGU EMEL';
                     renderJadualKeseluruhan();
@@ -1491,7 +1624,7 @@
                     paparAlert("Tidak Berjaya", data.message || "Sila cuba lagi.");
                 }
             });
-        });
+        }
 
         // ==========================================
         // RINGKASAN BORANG PENILAIAN
@@ -1954,16 +2087,79 @@
         }
 
         // ==========================================
+        // SAMBUNG UJIAN (tertutup / tertekan back / refresh)
+        // ==========================================
+        function ujianTersimpan() {
+            const u = simpanan.baca(KUNCI_UJIAN_SIMPAN);
+            if (!u || !u.kunci || !Array.isArray(u.soalan) || !u.soalan.length || !u.maklumat) return null;
+            if (Date.now() - u.tamatPada > HAD_SAMBUNG_JAM * 3600000) { simpanan.buang(KUNCI_UJIAN_SIMPAN); return null; }
+            return u;
+        }
+
+        function paparSambungUjian() {
+            const u = ujianTersimpan();
+            $('kotak-sambung').classList.toggle('hidden-step', !u);
+            if (!u) return;
+            setTimeout(() => window.scrollTo(0, 0), 50); // pelayar pulihkan kedudukan skrol lama selepas reload
+            const dijawab = (u.jawapan || []).filter(j => j !== null && j !== undefined).length;
+            const baki = Math.max(0, Math.ceil((u.tamatPada - Date.now()) / 60000));
+            $('sambung-teks').innerText = `${u.maklumat.nama} — ${dijawab} / ${u.soalan.length} soalan sudah dijawab. ` +
+                (baki > 0 ? `Baki masa lebih kurang ${baki} minit.` : 'Masa menjawab telah tamat; jawapan yang disimpan akan dihantar.');
+        }
+
+        function buangUjianTersimpan() {
+            paparConfirm("Buang Jawapan Tersimpan?", "Jawapan yang disimpan akan dipadam dan anda perlu menjawab set soalan baharu dari awal.", "Ya, Buang", () => {
+                simpanan.buang(KUNCI_UJIAN_SIMPAN);
+                paparSambungUjian();
+            });
+        }
+
+        function sambungUjian() {
+            const u = ujianTersimpan();
+            if (!u) { paparSambungUjian(); return; }
+            Object.assign(ujian, {
+                maklumat: u.maklumat, soalan: u.soalan, kunci: u.kunci, susunan: u.susunan, tamatPada: u.tamatPada,
+                jawapan: u.dikunci ? u.jawapan : [], dikunci: false, sedangHantar: false
+            });
+            muatSoalanMaklumBalas();
+            $('paparan-nama').innerText = u.maklumat.nama;
+            $('paparan-daerah-badge').innerText = namaDaerahPendek(u.maklumat.daerah);
+            $('btn-hantar').innerText = "Hantar Jawapan & Simpan";
+            $('btn-hantar').classList.remove('hidden-step');
+            $('status-hantar').classList.add('hidden-step');
+            janaUISoalan();
+            (u.jawapan || []).forEach((j, i) => {
+                const r = j === null || j === undefined ? null : document.querySelector(`input[name="soalan_${i}"][value="${Number(j)}"]`);
+                if (r) r.checked = true;
+            });
+            $('kotak-sambung').classList.add('hidden-step');
+            sedangUjian = true;
+            kemaskiniProgress();
+            history.pushState(null, document.title, location.href);
+            paparStep('step-2');
+            if (u.dikunci) {
+                // Sudah ditekan hantar sebelum ini — hantar jawapan yang sama
+                ujian.jawapan = u.jawapan;
+                ujian.dikunci = true;
+                ujian.tamatPada = u.tamatPada;
+                document.querySelectorAll('#ruangan-soalan input[type="radio"]').forEach(r => { r.disabled = true; });
+                prosesHantar();
+                return;
+            }
+            mulakanPemasa(0, u.tamatPada); // masa tamat asal — jika sudah lepas, terus hantar automatik
+        }
+
+        // ==========================================
         // HALANG BACK/REFRESH SEMASA UJIAN
         // ==========================================
         window.addEventListener('popstate', function () {
             if (!sedangUjian) return;
             history.pushState(null, document.title, location.href);
             paparConfirm(
-                "Amaran!",
-                "Anda sedang di pertengahan ujian. Jika anda kembali, jawapan anda TIDAK akan disimpan. Adakah anda pasti?",
-                "Ya, Batalkan Ujian",
-                kembaliKeLamanUtama
+                "Keluar dari Ujian?",
+                "Jawapan anda telah disimpan dalam peranti ini. Anda boleh sambung semula di halaman utama, tetapi masa menjawab tetap berjalan.",
+                "Ya, Keluar",
+                () => { kembaliKeLamanUtama(); paparSambungUjian(); }
             );
         });
 
@@ -1984,6 +2180,7 @@
         (function sambungMaklumBalasTertunda() {
             const tertunda = simpanan.baca(KUNCI_TERTUNDA);
             if (tertunda && tertunda.idHantar) bukaBorangMaklumBalas(tertunda.idHantar, tertunda.emel);
+            else paparSambungUjian();
         })();
     </script>
 </body>

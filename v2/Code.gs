@@ -99,7 +99,7 @@ const TAJUK_BANK = ["ID", "Set", "Bil", "Soalan", "Pilihan A", "Pilihan B", "Pil
 
 // Tab Petugas — senarai pegawai yang boleh log masuk ke dashboard admin
 const PT = { NAMA: 1, EMEL: 2, AKSES: 3, AKTIF: 4, TERAKHIR: 5 };
-const TAJUK_PETUGAS = ["Nama", "Emel (@penang.gov.my)", "Akses (SEMUA atau nama daerah)", "Aktif (YA/TIDAK)", "Log Masuk Terakhir"];
+const TAJUK_PETUGAS = ["Nama", "Emel (@penang.gov.my)", "Akses (SEMUA atau nama daerah)", "Aktif (YA/TIDAK)", "Log Masuk Terakhir", "Jawatan / Catatan"];
 const HURUF = "ABCD";
 
 // Tab SoalanMaklumBalas (A–H) — boleh diedit terus dalam Sheet
@@ -161,6 +161,7 @@ function doPost(e) {
       case 'mintaKod': return jsonOutput(handleMintaKod(data.emel));
       case 'sahkanKod': return jsonOutput(handleSahkanKod(data.emel, data.kod));
       case 'data': return jsonOutput(denganSesi(data.token, null, (akses, sesi) => ({ status: "success", akses: akses, nama: sesi.nama, emel: sesi.emel, data: bacaRekod(akses) })));
+      case 'rekodHariIni': return jsonOutput(denganSesi(data.token, null, (akses) => handleRekodHariIni(akses)));
       case 'logout': return jsonOutput(handleLogout(data.token));
       case 'lepaskan': return jsonOutput(denganSesi(data.token, null, (akses) => handleLepaskan(akses, data.idHantar)));
       case 'dataMaklumBalas': return jsonOutput(denganSesi(data.token, null, (akses) => handleDataMaklumBalas(akses)));
@@ -977,6 +978,12 @@ function bacaRekod(akses) {
     });
   }
   return hasil;
+}
+
+// Panel "Hari Ini" di dashboard: rekod tarikh kursus hari ini sahaja (muatan kecil untuk refresh kerap)
+function handleRekodHariIni(akses) {
+  const hari = Utilities.formatDate(new Date(), ZON_MASA, 'yyyy-MM-dd');
+  return { status: "success", hari: hari, masa: masaKini(), data: bacaRekod(akses).filter(r => r.tarikh === hari) };
 }
 
 // Admin lepaskan keputusan peserta yang tidak sempat isi maklum balas

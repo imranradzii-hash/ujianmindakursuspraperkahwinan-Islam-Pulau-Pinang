@@ -610,3 +610,108 @@ test('v2: sesi petugas kekal selepas muat semula (tanpa kod lagi); tamat → log
   await page.screenshot({ path: path.join(OUTPUT, 'v2-7-login-kod.png') });
   await context.close();
 });
+
+test('v2: peserta tertutup halaman / tertekan back → jawapan tersimpan, sambung soalan & masa yang sama', async () => {
+  const g = binaGas('v2');
+  const { context, page, ralat } = await buka('v2', g);
+  await mula(page, 'v2');
+  const ids = await page.evaluate(() => ujian.soalan.map((q) => q.id));
+  const k = await skemaDipapar(page, g);
+  await jawab(page, k.map((j, i) => (i < 5 ? j : null)));
+  const tamat = await page.evaluate(() => ujian.tamatPada);
+
+  // Muat semula (cth. tertutup tab / telefon restart browser)
+  await page.reload();
+  await page.waitForSelector('#kotak-sambung:not(.hidden-step)');
+  assert.match(await page.textContent('#sambung-teks'), /5 \/ 30 soalan sudah dijawab/);
+  await page.waitForFunction(() => window.scrollY === 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(OUTPUT, 'v2-8-sambung.png') });
+  await page.click('#btn-sambung');
+  await page.waitForSelector('#step-2:not(.hidden-step)');
+  assert.deepEqual(await page.evaluate(() => ujian.soalan.map((q) => q.id)), ids, 'kertas soalan sama');
+  assert.equal(await page.evaluate(() => ujian.tamatPada), tamat, 'masa tamat asal kekal');
+  assert.equal(await page.locator('#navigator-soalan .nav-soalan.dijawab').count(), 5);
+
+  // Tertekan back → keluar, jawapan kekal, sambung semula
+  await jawab(page, k.map((j, i) => (i === 5 ? j : null)));
+  await page.goBack();
+  await page.waitForSelector('#modal-confirm:not(.hidden-step)');
+  await page.click('#btn-modal-confirm-sah');
+  await page.waitForSelector('#kotak-sambung:not(.hidden-step)');
+  assert.match(await page.textContent('#sambung-teks'), /6 \/ 30/);
+  await page.click('#btn-sambung');
+  await page.waitForSelector('#step-2:not(.hidden-step)');
+  await jawab(page, k);
+  await hantar(page);
+  await page.waitForSelector('#step-mb:not(.hidden-step)');
+  assert.equal(g.sheet.getLastRow(), 2, 'satu rekod sahaja');
+  assert.equal(g.sheet.rows[1][8], 30);
+  assert.equal(await page.evaluate(() => localStorage.getItem('ujianMindaUjianBerjalan')), null, 'simpanan dibuang selepas berjaya');
+  assert.deepEqual(ralat, []);
+  await context.close();
+});
+
+test('v2: kembali selepas masa tamat → jawapan tersimpan dihantar automatik; Buang & Mula Baru', async () => {
+  const g = binaGas('v2');
+  const { context, page } = await buka('v2', g);
+  await mula(page, 'v2');
+  await jawab(page, (await skemaDipapar(page, g)).map((j, i) => (i < 4 ? j : null)));
+  await page.evaluate(() => {
+    const u = JSON.parse(localStorage.getItem('ujianMindaUjianBerjalan'));
+    u.tamatPada = Date.now() - 60000;
+    localStorage.setItem('ujianMindaUjianBerjalan', JSON.stringify(u));
+  });
+  await page.reload();
+  await page.waitForSelector('#kotak-sambung:not(.hidden-step)');
+  assert.match(await page.textContent('#sambung-teks'), /Masa menjawab telah tamat/);
+  await page.click('#btn-sambung');
+  await page.waitForSelector('#step-mb:not(.hidden-step)', { timeout: 10000 });
+  assert.equal(g.sheet.rows[1][8], 4);
+  await context.close();
+
+  // Pilihan buang
+  const b = await buka('v2', g);
+  await mula(b.page, 'v2', { ic: '900101075556' });
+  await b.page.reload();
+  await b.page.waitForSelector('#kotak-sambung:not(.hidden-step)');
+  await b.page.click('#kotak-sambung >> text=Buang & Mula Baru');
+  await b.page.click('#btn-modal-confirm-sah');
+  await b.page.waitForSelector('#kotak-sambung.hidden-step', { state: 'attached' });
+  assert.equal(await b.page.evaluate(() => localStorage.getItem('ujianMindaUjianBerjalan')), null);
+  await b.context.close();
+});
+
+test('v2: panel Hari Ini — ringkasan daerah sendiri, butang Refresh ambil rekod baharu', async () => {
+  const g = binaGas('v2');
+  const hari = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date());
+  g.sheet.appendRow(['28/10/2026 14:05:00', 'ALI BIN ABU', "'900101075551", 'a@contoh.my', 'Barat Daya', hari, 'Rawak', 90, 27, 30, 'DIHANTAR 01/01/2026', 'id-ali-00001', '[]']);
+  g.sheet.appendRow(['28/10/2026 14:06:00', 'ABU BIN ALI', "'900101075553", 'b@contoh.my', 'Timur Laut', hari, 'Rawak', 70, 21, 30, 'DIHANTAR', 'id-abu-00003', '[]']);
+  const { context, page, pelayan, ralat } = await buka('v2', g);
+  await loginPetugas(page, g, 'Barat Daya');
+  assert.equal((await page.textContent('#hi-jumlah')).trim(), '1');
+  assert.match(await page.textContent('#hi-senarai'), /ALI BIN ABU/);
+  assert.doesNotMatch(await page.textContent('#hi-senarai'), /ABU BIN ALI/);
+  assert.match(await page.textContent('#hi-senarai'), /14:05/);
+  assert.equal(await page.isChecked('#auto-refresh'), true);
+
+  g.sheet.appendRow(['28/10/2026 14:20:00', 'SITI BINTI ALI', "'900101075552", 's@contoh.my', 'Barat Daya', hari, 'Rawak', 30, 9, 30, 'MENUNGGU MAKLUM BALAS', 'id-siti-0002', '[]']);
+  const sebelum = pelayan.permintaan.length;
+  await page.click('#btn-refresh-hari-ini');
+  await page.waitForFunction(() => document.getElementById('hi-jumlah').textContent === '2');
+  assert.match(JSON.parse(pelayan.permintaan[sebelum].body).action, /rekodHariIni/);
+  assert.equal((await page.textContent('#hi-lulus')).trim(), '1');
+  assert.equal((await page.textContent('#hi-belum')).trim(), '1');
+  assert.match(await page.textContent('#hari-ini-dikemaskini'), /Dikemas kini/);
+  // Lepaskan dari panel Hari Ini
+  await page.click('#hi-senarai .btn-lepaskan');
+  await page.click('#btn-modal-confirm-sah');
+  await page.waitForFunction(() => document.getElementById('hi-belum').textContent === '0');
+  assert.equal(g.sheet.rows[3][10], 'MENUNGGU EMEL');
+  await page.screenshot({ path: path.join(OUTPUT, 'v2-9-hari-ini.png'), fullPage: false });
+  // Auto refresh boleh dimatikan dan diingat
+  await page.uncheck('#auto-refresh');
+  assert.equal(await page.evaluate(() => localStorage.getItem('ujianMindaAutoRefresh')), 'false');
+  assert.deepEqual(ralat, []);
+  await context.close();
+});

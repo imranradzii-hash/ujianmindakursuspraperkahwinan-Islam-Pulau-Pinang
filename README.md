@@ -32,6 +32,8 @@ Ujian minda dalam talian untuk peserta Kursus Praperkahwinan Islam (JHEAIPP), de
 
 **Waktu ujian dibuka.** Admin SEMUA tetapkan di dashboard (panel *Waktu Ujian Dibuka*): Ikut jadual (hari + jam, cth. Ahad 2.00 petang–11.59 malam, atau setiap hari), Buka sentiasa, atau Tutup, serta pengecualian Buka/Tutup bagi setiap daerah. Server menolak permintaan soalan di luar waktu dibuka. Peserta yang mula sebelum ditutup masih boleh hantar dalam tempoh masa menjawab + 15 minit. Selagi tetapan belum disimpan, ujian kekal dibuka.
 
+**Tertutup / tertekan back semasa menjawab.** Kertas soalan, jawapan dan masa tamat disimpan dalam peranti peserta (localStorage) setiap kali jawapan dipilih — serta-merta, tiada panggilan ke server. Bila halaman dibuka semula, kotak *Ujian anda belum dihantar* dipaparkan dengan butang **Sambung Menjawab** (soalan, susunan dan jawapan sama; masa tetap berjalan dari masa mula asal) atau **Buang & Mula Baru**. Kalau masa sudah tamat, jawapan yang disimpan terus dihantar. Simpanan dibuang selepas jawapan berjaya dihantar, atau selepas 6 jam. Hanya boleh disambung pada peranti dan browser yang sama.
+
 Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka borang penilaian. Kalau peserta pulang tanpa isi borang, admin boleh tekan **Lepaskan** di dashboard untuk hantar keputusan juga.
 
 ## v2: peranan admin
@@ -42,12 +44,12 @@ Log masuk tanpa kata laluan:
 2. Jika emel itu berdaftar dan aktif dalam tab **Petugas**, kod 6 digit diemelkan (sah 10 minit, maksimum 5 cubaan salah). Mesej yang sama dipaparkan sama ada emel berdaftar atau tidak.
 3. Selepas kod disahkan, petugas kekal log masuk di peranti itu selama **30 hari** atau sehingga tekan **Log Keluar**.
 
-Tab **Petugas**: Nama | Emel (@penang.gov.my) | Akses (`SEMUA` atau nama daerah tepat seperti dalam borang) | Aktif (`YA`/`TIDAK`) | Log Masuk Terakhir (diisi sistem). Akses dibaca semula setiap permintaan, jadi menukar Akses atau Aktif = `TIDAK` terus berkesan. Had permintaan kod: 5 setiap emel dan 60 keseluruhan dalam 15 minit.
+Tab **Petugas**: Nama | Emel (@penang.gov.my) | Akses (`SEMUA` atau nama daerah tepat seperti dalam borang) | Aktif (`YA`/`TIDAK`) | Log Masuk Terakhir (diisi sistem) | Jawatan / Catatan. Baris tanpa emel diabaikan. Akses dibaca semula setiap permintaan, jadi menukar Akses atau Aktif = `TIDAK` terus berkesan. Had permintaan kod: 5 setiap emel dan 60 keseluruhan dalam 15 minit.
 
 | Akses | Boleh |
 |---|---|
 | **SEMUA** (JHEAIPP) | Semua data, semua daerah. **Urus Bank Soalan**: tambah, edit, nyahaktif soalan, tetapkan tajuk (T1–T8); ringkasan bilangan soalan aktif setiap tajuk. **Waktu Ujian Dibuka**. Ringkasan penilaian, laporan PDF/CSV. |
-| Daerah | Data daerah sendiri sahaja (ditapis di server). Ringkasan penilaian, laporan, Lepaskan keputusan. |
+| Daerah | Panel **Hari Ini** (peserta hari ini, lulus, belum isi penilaian, emel; butang Refresh dan auto setiap 1 minit). Data daerah sendiri sahaja (ditapis di server). Ringkasan penilaian, laporan, Lepaskan keputusan. |
 
 - Soalan tidak dipadam, cuma dinyahaktifkan, supaya rekod lama kekal.
 - Perubahan soalan berkuat kuasa serta-merta untuk peserta seterusnya.
