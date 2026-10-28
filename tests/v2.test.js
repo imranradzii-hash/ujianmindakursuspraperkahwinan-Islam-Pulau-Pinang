@@ -433,15 +433,47 @@ test('waktu ujian: ujian yang dimulakan semasa buka masih boleh dihantar selepas
 
   // Kunci lama (dikeluarkan 2 jam lalu) — ditolak kerana ujian sudah ditutup
   const lama = Date.now() - 2 * 3600 * 1000;
-  const kunciLama = lama + '.' + g.ctx.tandatangan(p.idSoalan.join(',') + '|' + p.susunan.join(',') + '|' + lama);
+  const kunciLama = lama + '.30.' + g.ctx.tandatangan(p.idSoalan.join(',') + '|' + p.susunan.join(',') + '|' + lama + '|30');
   const lewat = Object.assign({}, p, { idHantar: 'lewat-' + Date.now(), ic: '900101075556', kunci: kunciLama });
   const r = g.post(lewat);
   assert.equal(r.status, 'error');
   assert.match(r.message, /ditutup/);
 
   // Masa kunci diubah (tanpa tandatangan baharu) — ditolak
-  const ubah = Object.assign({}, p, { idHantar: 'ubah-' + Date.now(), ic: '900101075557', kunci: Date.now() + '.' + p.kunci.split('.')[1] });
+  const ubah = Object.assign({}, p, { idHantar: 'ubah-' + Date.now(), ic: '900101075557', kunci: Date.now() + '.' + p.kunci.split('.').slice(1).join('.') });
   assert.equal(g.post(ubah).status, 'error');
+});
+
+test('masa menjawab: admin SEMUA pilih 15/20/30 minit; tempoh dikunci pada kertas soalan', () => {
+  const g = binaGas('v2');
+  const t = sesiSemua(g);
+  assert.equal(g.get({ action: 'statusUjian', daerah: 'Timur Laut' }).masaMinit, 30);
+  const asas = { mod: 'BUKA', hari: [0], mula: '14:00', tamat: '23:59' };
+  assert.equal(g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: Object.assign({ masaMinit: 25 }, asas) }).status, 'error');
+  assert.equal(g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: Object.assign({ masaMinit: 15 }, asas) }).status, 'success');
+  assert.equal(g.get({ action: 'statusUjian', daerah: 'Timur Laut' }).masaMinit, 15);
+  const s = g.get({ action: 'soalan', daerah: 'Timur Laut' });
+  assert.equal(s.masaMinit, 15);
+  assert.equal(s.soalan.length > 0, true);
+  assert.equal(s.kunci.split('.')[1], '15');
+  // Simpan tetapan waktu tanpa masaMinit (cth. pelayar lama) mengekalkan 15
+  g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: asas });
+  assert.equal(g.ctx.bacaTetapanWaktu().masaMinit, 15);
+
+  const p = ujian(g);
+  assert.equal(p.kunci.split('.')[1], '15');
+  // Peserta cuba tukar 15 kepada 30 dalam kunci — tandatangan tidak sepadan
+  const tukar = Object.assign({}, p, { kunci: p.kunci.replace(/^(\d+)\.15\./, '$1.30.') });
+  assert.equal(g.post(tukar).status, 'error');
+
+  // Selepas ditutup: kertas 15 minit yang dikeluarkan 40 minit lalu ditolak (15 + 15 lewat < 40),
+  // kertas 30 minit yang sama umur masih diterima (30 + 15 > 40)
+  g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: Object.assign({}, asas, { mod: 'TUTUP' }) });
+  const lama = Date.now() - 40 * 60000;
+  const kertas = (minit, ic) => Object.assign({}, p, { idHantar: 'm' + minit + '-' + Date.now(), ic,
+    kunci: lama + '.' + minit + '.' + g.ctx.tandatangan(p.idSoalan.join(',') + '|' + p.susunan.join(',') + '|' + lama + '|' + minit) });
+  assert.equal(g.post(kertas(15, '900101075561')).status, 'error');
+  assert.equal(g.post(kertas(30, '900101075562')).status, 'success');
 });
 
 // ---------- Soalan rawak ikut tajuk ----------

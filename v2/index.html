@@ -133,7 +133,7 @@
                     </div>
                     <div class="rounded-xl px-3 py-2.5 text-center" style="background:var(--navy-muda);">
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Masa</p>
-                        <p class="text-[13px] sm:text-sm font-extrabold" style="color:var(--navy)">30 minit</p>
+                        <p class="text-[13px] sm:text-sm font-extrabold" style="color:var(--navy)" id="paparan-masa-ujian">30 minit</p>
                     </div>
                     <div class="rounded-xl px-3 py-2.5 text-center" style="background:var(--emas-muda);">
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Keputusan</p>
@@ -414,6 +414,14 @@
                         <div><label for="waktu-tamat" class="label text-xs">Jam tamat</label><input type="time" id="waktu-tamat" class="medan"></div>
                     </div>
                 </div>
+
+                <p class="label">Masa menjawab (30 soalan)</p>
+                <div class="grid grid-cols-3 gap-2 mb-1" id="waktu-masa">
+                    <label class="pilihan items-center justify-center"><input type="radio" name="waktu-masa" value="15" onchange="kemaskiniPaparanWaktu()"><span class="text-sm font-bold text-slate-700">15 minit</span></label>
+                    <label class="pilihan items-center justify-center"><input type="radio" name="waktu-masa" value="20" onchange="kemaskiniPaparanWaktu()"><span class="text-sm font-bold text-slate-700">20 minit</span></label>
+                    <label class="pilihan items-center justify-center"><input type="radio" name="waktu-masa" value="30" onchange="kemaskiniPaparanWaktu()"><span class="text-sm font-bold text-slate-700">30 minit</span></label>
+                </div>
+                <p class="text-[11px] text-slate-500 mb-4">Berkuat kuasa untuk peserta yang mula menjawab selepas disimpan. Peserta yang sedang menjawab kekal dengan masa asal mereka.</p>
 
                 <p class="label">Pengecualian ikut daerah</p>
                 <div class="rounded-xl border overflow-hidden mb-4" style="border-color:var(--garis);">
@@ -822,6 +830,7 @@
             }
             if (data.status !== 'success' || daerah !== $('daerah').value) return;
             ujianDibuka = !!data.buka;
+            if (data.masaMinit) $('paparan-masa-ujian').innerText = data.masaMinit + ' minit';
             $('notis-waktu').classList.toggle('hidden-step', ujianDibuka);
             $('notis-waktu-teks').innerText = data.mesej || '';
             // Sebelum daerah dipilih, notis sahaja (daerah tertentu mungkin dibuka khas)
@@ -1720,6 +1729,7 @@
                 </label>`).join('');
             $('waktu-mula').value = t.mula;
             $('waktu-tamat').value = t.tamat;
+            document.querySelectorAll('input[name="waktu-masa"]').forEach(r => { r.checked = Number(r.value) === Number(t.masaMinit || 30); });
             const semasa = {};
             data.semasa.forEach(x => { semasa[x.daerah] = x.buka; });
             $('waktu-daerah').innerHTML = data.semasa.map(x => {
@@ -1746,7 +1756,7 @@
             const jadual = $('waktu-jadual');
             jadual.style.opacity = mod === 'JADUAL' ? '1' : '.45';
             jadual.querySelectorAll('input, button').forEach(el => { el.disabled = mod !== 'JADUAL'; });
-            document.querySelectorAll('#waktu-hari .pilihan, #waktu-mod .pilihan').forEach(l => l.classList.toggle('dipilih', l.querySelector('input').checked));
+            document.querySelectorAll('#waktu-hari .pilihan, #waktu-mod .pilihan, #waktu-masa .pilihan').forEach(l => l.classList.toggle('dipilih', l.querySelector('input').checked));
         }
 
         function pilihHariWaktu(senarai) {
@@ -1763,7 +1773,8 @@
                 hari: Array.from(document.querySelectorAll('input[name="waktu-hari"]:checked')).map(c => Number(c.value)),
                 mula: $('waktu-mula').value,
                 tamat: $('waktu-tamat').value,
-                daerah: daerah
+                daerah: daerah,
+                masaMinit: Number((document.querySelector('input[name="waktu-masa"]:checked') || {}).value || 30)
             };
             const btn = $('btn-simpan-waktu');
             btn.disabled = true;
@@ -1779,7 +1790,7 @@
             }
             $('waktu-ralat').classList.add('hidden-step');
             renderTetapanWaktu(data);
-            paparAlert("Tetapan Disimpan", "Waktu ujian dikemas kini dan berkuat kuasa serta-merta.");
+            paparAlert("Tetapan Disimpan", `Waktu ujian dan masa menjawab (${data.tetapan.masaMinit || 30} minit) dikemas kini dan berkuat kuasa serta-merta.`);
         }
 
         // ==========================================

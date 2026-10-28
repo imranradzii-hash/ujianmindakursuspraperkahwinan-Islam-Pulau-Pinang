@@ -382,6 +382,8 @@ test('v2: admin SEMUA tetapkan waktu ujian dari dashboard', async () => {
   await page.fill('#waktu-mula', '14:00');
   await page.fill('#waktu-tamat', '22:00');
   await page.selectOption('.waktu-daerah[data-daerah="Timur Laut"]', 'TUTUP');
+  assert.equal(await page.isChecked('input[name="waktu-masa"][value="30"]'), true, 'lalai 30 minit');
+  await page.check('input[name="waktu-masa"][value="15"]');
   await page.click('#btn-simpan-waktu');
   await page.waitForSelector('#modal-alert:not(.hidden-step)');
   assert.equal((await page.textContent('#modal-alert-title')).trim(), 'Tetapan Disimpan');
@@ -390,8 +392,18 @@ test('v2: admin SEMUA tetapkan waktu ujian dari dashboard', async () => {
   assert.deepEqual(Array.from(t.hari), [0, 1, 2, 3, 4, 5, 6]);
   assert.equal(t.tamat, '22:00');
   assert.equal(t.daerah['Timur Laut'], 'TUTUP');
+  assert.equal(t.masaMinit, 15);
+  assert.match(await page.textContent('#modal-alert-desc'), /15 minit/);
   await page.screenshot({ path: path.join(OUTPUT, 'v2-waktu-ujian.png'), fullPage: true });
   await context.close();
+
+  // Peserta: petak Masa dan pemasa ikut 15 minit
+  g.ctx.simpanTetapanWaktu({ mod: 'BUKA', hari: [0], mula: '14:00', tamat: '23:59', masaMinit: 15 });
+  const p = await buka('v2', g);
+  await p.page.waitForFunction(() => document.getElementById('paparan-masa-ujian').textContent === '15 minit');
+  await mula(p.page, 'v2');
+  assert.match(await p.page.textContent('#paparan-masa'), /^1[45]:/);
+  await p.context.close();
 });
 
 test('v2: nama berbahaya ditolak; persetujuan privasi wajib', async () => {

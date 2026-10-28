@@ -31,7 +31,8 @@ const TAB = {
   PETUGAS: "Petugas"
 };
 const ZON_MASA = "Asia/Kuala_Lumpur";
-const MASA_UJIAN_MINIT = 30;
+const MASA_UJIAN_MINIT = 30;           // lalai; admin SEMUA boleh tukar di dashboard (PILIHAN_MASA_MINIT)
+const PILIHAN_MASA_MINIT = [15, 20, 30];
 const PERATUS_LULUS = 50;
 
 // Maklumat dalam emel keputusan — kemas kini bila bertukar pegawai
@@ -84,7 +85,7 @@ const SET_RAWAK = "Rawak";             // dicatat dalam kolum Set Soalan rekod k
 
 // Waktu ujian dibuka — diurus oleh admin SEMUA di dashboard (disimpan dalam Script Properties).
 // Selagi admin belum simpan tetapan, ujian kekal BUKA (seperti sebelum ciri ini wujud).
-const TETAPAN_WAKTU_LALAI = { mod: "BUKA", hari: [0], mula: "14:00", tamat: "23:59", daerah: {} };
+const TETAPAN_WAKTU_LALAI = { mod: "BUKA", hari: [0], mula: "14:00", tamat: "23:59", daerah: {}, masaMinit: MASA_UJIAN_MINIT };
 const NAMA_HARI = ["Ahad", "Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu"];
 const TEMPOH_HANTAR_LEWAT_MINIT = 15;  // Ujian yang dimulakan semasa dibuka masih boleh dihantar selepas ditutup (masa ujian + 15 minit)
 
@@ -146,7 +147,7 @@ function doGet(e) {
     const p = (e && e.parameter) || {};
     switch (p.action) {
       case 'soalan': return jsonOutput(handleSoalan(p.daerah));
-      case 'statusUjian': return jsonOutput(Object.assign({ status: "success" }, statusUjian(p.daerah)));
+      case 'statusUjian': return jsonOutput(Object.assign({ status: "success", masaMinit: masaUjianMinit() }, statusUjian(p.daerah)));
       case 'soalanMaklumBalas': return jsonOutput({ status: "success", labelSkala: LABEL_SKALA, soalan: soalanMaklumBalasAktif() });
       default: return jsonOutput({ status: "error", message: "Akses tidak dibenarkan." });
     }
@@ -350,12 +351,14 @@ function handleSoalan(daerah) {
   if (qs.length === 0) throw ralatPengguna("Tiada soalan aktif. Sila maklumkan kepada urusetia.");
   const ids = qs.map(q => q.id);
   const susunan = qs.map(q => susunanPilihan(q).join(''));
-  // Kunci = masa soalan dikeluarkan + tandatangan (soalan, susunan pilihan, masa) — tidak boleh diubah peserta
+  // Kunci = masa dikeluarkan + tempoh menjawab + tandatangan (soalan, susunan pilihan, masa) — tidak boleh diubah peserta.
+  // Tempoh dikunci pada kertas: tukar tetapan masa tidak menjejaskan peserta yang sedang menjawab.
   const dikeluarkan = Date.now();
+  const masaMinit = masaUjianMinit();
   return {
     status: "success",
-    masaMinit: MASA_UJIAN_MINIT,
-    kunci: dikeluarkan + '.' + tandatangan(ids.join(',') + '|' + susunan.join(',') + '|' + dikeluarkan),
+    masaMinit: masaMinit,
+    kunci: dikeluarkan + '.' + masaMinit + '.' + tandatangan(ids.join(',') + '|' + susunan.join(',') + '|' + dikeluarkan + '|' + masaMinit),
     susunan: susunan,
     soalan: qs.map((q, i) => ({ id: q.id, soalan: q.soalan, pilihan: susunan[i].split('').map(Number).map(k => q.pilihan[k]) }))
   };
@@ -369,6 +372,12 @@ function bacaTetapanWaktu() {
   let t = {};
   try { t = simpan ? JSON.parse(simpan) : {}; } catch (e) { t = {}; }
   return Object.assign({}, TETAPAN_WAKTU_LALAI, t, { daerah: Object.assign({}, t.daerah || {}) });
+}
+
+// Tempoh menjawab semasa (minit), ditetapkan admin SEMUA
+function masaUjianMinit() {
+  const m = Number(bacaTetapanWaktu().masaMinit);
+  return PILIHAN_MASA_MINIT.indexOf(m) !== -1 ? m : MASA_UJIAN_MINIT;
 }
 
 function minitDariJam(jam) {
@@ -432,7 +441,9 @@ function simpanTetapanWaktu(input) {
     const v = input.daerah && input.daerah[d];
     if (v === 'BUKA' || v === 'TUTUP') daerah[d] = v;
   });
-  const tetapan = { mod: mod, hari: unik, mula: mula, tamat: tamat, daerah: daerah };
+  const masaMinit = input.masaMinit === undefined ? masaUjianMinit() : Number(input.masaMinit);
+  if (PILIHAN_MASA_MINIT.indexOf(masaMinit) === -1) throw ralatPengguna("Masa menjawab mesti " + PILIHAN_MASA_MINIT.join(", ") + " minit.");
+  const tetapan = { mod: mod, hari: unik, mula: mula, tamat: tamat, daerah: daerah, masaMinit: masaMinit };
   PropertiesService.getScriptProperties().setProperty('TETAPAN_WAKTU', JSON.stringify(tetapan));
   return paparTetapanWaktu();
 }
@@ -451,7 +462,7 @@ function handleHantar(data) {
   const p = sahkanPenyertaan(data);
   const markah = kiraMarkah(data.idSoalan, data.susunan, data.kunci, data.jawapan);
   // Jika ujian sudah ditutup, terima hanya ujian yang dimulakan dalam tempoh masa menjawab
-  if (Date.now() - markah.dikeluarkan > (MASA_UJIAN_MINIT + TEMPOH_HANTAR_LEWAT_MINIT) * 60000 && !statusUjian(p.daerah).buka) {
+  if (Date.now() - markah.dikeluarkan > (markah.masaMinit + TEMPOH_HANTAR_LEWAT_MINIT) * 60000 && !statusUjian(p.daerah).buka) {
     throw ralatPengguna("Ujian telah ditutup dan tempoh menjawab telah tamat. Sila maklumkan kepada urusetia.");
   }
 
@@ -522,11 +533,12 @@ function kiraMarkah(idSoalan, susunan, kunci, jawapan) {
   if (!Array.isArray(susunan) || susunan.length !== idSoalan.length || susunan.some(x => !/^[0-3]{2,4}$/.test(String(x)))) {
     throw ralatPengguna("Soalan tidak sah. Sila mula semula.");
   }
-  const m = /^(\d{10,15})\.(.+)$/.exec(String(kunci || ''));
-  if (!m || m[2] !== tandatangan(idSoalan.join(',') + '|' + susunan.join(',') + '|' + m[1])) {
+  const m = /^(\d{10,15})\.(\d{1,3})\.(.+)$/.exec(String(kunci || ''));
+  if (!m || m[3] !== tandatangan(idSoalan.join(',') + '|' + susunan.join(',') + '|' + m[1] + '|' + m[2])) {
     throw ralatPengguna("Soalan tidak sah. Sila mula semula.");
   }
   const dikeluarkan = Number(m[1]);
+  const masaMinit = Number(m[2]);
   if (!Array.isArray(jawapan) || jawapan.length !== idSoalan.length) throw ralatPengguna("Jawapan tidak lengkap atau tidak sah.");
   const peta = {};
   bacaBank().forEach(q => { peta[q.id] = q; });
@@ -544,7 +556,7 @@ function kiraMarkah(idSoalan, susunan, kunci, jawapan) {
     if (asal === q.jawapan) betul++;
     return [id, asal, q.jawapan];
   });
-  return { betul, jumlah: idSoalan.length, skor: Math.round((betul / idSoalan.length) * 100), butiran, dikeluarkan };
+  return { betul, jumlah: idSoalan.length, skor: Math.round((betul / idSoalan.length) * 100), butiran, dikeluarkan, masaMinit };
 }
 
 // ==========================================
