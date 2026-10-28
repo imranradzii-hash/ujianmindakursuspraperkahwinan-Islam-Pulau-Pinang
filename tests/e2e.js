@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { binaGas } = require('./mock-gas');
+const { binaGas, emelPetugas, bacaKodEmel } = require('./mock-gas');
 
 const AKAR = path.join(__dirname, '..');
 const OUTPUT = path.join(__dirname, 'output');
@@ -67,7 +67,7 @@ async function buka(versi, g, opsi) {
   });
   if (opsi.jam) await page.clock.install();
   await page.goto('file://' + failHalaman(versi));
-  if (versi === 'v2') await page.waitForSelector('#set_soalan option[value="Set 1"]', { state: 'attached' });
+  if (versi === 'minimal') await page.waitForSelector('#set_soalan option[value="Set 1"]', { state: 'attached' });
   return { context, page, pelayan, ralat };
 }
 
@@ -76,7 +76,7 @@ async function isiBorang(page, versi, data) {
   await page.fill('#ic', data.ic || '900101075555');
   await page.fill('#email', data.email || 'ali@contoh.my');
   await page.selectOption('#daerah', data.daerah || 'Timur Laut');
-  await page.selectOption('#set_soalan', data.set || 'Set 1');
+  if (versi === 'minimal') await page.selectOption('#set_soalan', data.set || 'Set 1');
   if (versi === 'v2') await page.check('#setuju');
 }
 
@@ -103,12 +103,29 @@ async function tutupAlert(page) {
   await page.waitForSelector('#modal-overlay.hidden-step', { state: 'attached' });
 }
 
-// v2: pilih akses dalam dropdown; minimal: kata laluan sahaja
-async function loginAdmin(page, pwd, akses) {
+// minimal: kata laluan sahaja
+async function loginAdmin(page, pwd) {
   await page.click('text=Akses Platform Admin Daerah');
-  if (akses) await page.selectOption('#input-akses', akses);
   await page.fill('#input-password', pwd);
   await page.click('#btn-akses');
+}
+
+// v2: emel petugas → kod 6 digit dibaca dari peti emel simulasi → sahkan
+async function loginPetugas(page, g, akses, kodSalah) {
+  const emel = emelPetugas(akses);
+  await page.click('text=Akses Platform Admin Daerah');
+  await page.waitForSelector('#modal-login:not(.hidden-step)');
+  await page.fill('#input-emel', emel);
+  await page.click('#btn-login');
+  await page.waitForSelector('#login-langkah-kod:not(.hidden-step)');
+  if (kodSalah) {
+    await page.fill('#input-kod', kodSalah);
+    await page.click('#btn-login');
+    await page.waitForSelector('#login-ralat:not(.hidden-step)');
+  }
+  await page.fill('#input-kod', bacaKodEmel(g.state.peti, emel));
+  await page.click('#btn-login');
+  await page.waitForSelector('#step-admin:not(.hidden-step)');
 }
 
 function kataLaluan(g, akses) {
@@ -116,13 +133,21 @@ function kataLaluan(g, akses) {
   return g.state.log.join('\n').match(new RegExp(akses.replace(/[()]/g, '\\$&') + '  =>  (\\S+)'))[1];
 }
 
-// Skema ikut susunan soalan yang dipaparkan (v2: ikut ID; minimal: ikut indeks)
-async function skemaDipapar(page, g, set) {
-  const ids = await page.evaluate(() => (typeof ujian !== 'undefined' && ujian.soalan[0] && ujian.soalan[0].id) ? ujian.soalan.map((q) => q.id) : null);
-  const bank = g.bank[set || 'Set 1'];
-  if (!ids) return bank.map((q) => q.jawapan);
-  const peta = Object.fromEntries(bank.map((q) => [q.id, q.jawapan]));
-  return ids.map((id) => peta[id]);
+// Skema ikut paparan. v2: kertas rawak — ID soalan → jawapan asal → kedudukan selepas pilihan diacak (susunan).
+// minimal: ikut indeks Set 1.
+async function skemaDipapar(page, g) {
+  const kertas = await page.evaluate(() => (typeof ujian !== 'undefined' && ujian.soalan[0] && ujian.soalan[0].id)
+    ? { ids: ujian.soalan.map((q) => q.id), susunan: ujian.susunan } : null);
+  if (!kertas) return g.bank['Set 1'].map((q) => q.jawapan);
+  const peta = {};
+  Object.values(g.bank).forEach((set) => set.forEach((q) => { peta[q.id] = q.jawapan; }));
+  return kertas.ids.map((id, i) => kertas.susunan[i].split('').map(Number).indexOf(peta[id]));
+}
+
+// Jawapan salah yang pasti wujud pada paparan (soalan mungkin ada 2-4 pilihan)
+async function salahPada(page, k, i) {
+  const n = await page.locator(`input[name="soalan_${i}"]`).count();
+  return (k[i] + 1) % n;
 }
 
 // Isi borang penilaian v2: skala = 5, pilihan = pertama, teks = "Baik"
@@ -226,7 +251,10 @@ test('v2: ujian → borang penilaian → terima kasih; markah TIDAK dipaparkan, 
   await mula(page, 'v2');
   assert.equal(await page.evaluate(() => ujian.soalan.some((q) => 'jawapan' in q)), false, 'tiada skema di browser');
   const k = await skemaDipapar(page, g);
-  await jawab(page, k.map((j, i) => (i === 0 ? (j + 1) % 4 : j)));
+  assert.equal(k.length, 30, '30 soalan rawak');
+  assert.ok(k.every((j) => j >= 0));
+  const salah0 = await salahPada(page, k, 0);
+  await jawab(page, k.map((j, i) => (i === 0 ? salah0 : j)));
   await page.screenshot({ path: path.join(OUTPUT, 'v2-2-soalan.png') });
   await hantar(page);
 
@@ -234,6 +262,8 @@ test('v2: ujian → borang penilaian → terima kasih; markah TIDAK dipaparkan, 
   await page.waitForSelector('#ruangan-mb .soalan-mb');
   const respons = pelayan.permintaan.filter((p) => p.method === 'POST');
   assert.equal(respons.length, 1);
+  assert.equal(JSON.parse(respons[0].body).susunan.length, 30);
+  assert.equal(g.sheet.rows[1][6], 'Rawak');
   assert.equal(g.sheet.rows[1][10], 'MENUNGGU MAKLUM BALAS');
   assert.doesNotMatch(await page.textContent('#step-mb'), /\d+%/, 'markah tidak dipaparkan');
 
@@ -344,7 +374,7 @@ test('v2: waktu ujian ditutup — notis dipapar, butang mula disekat; daerah dib
 test('v2: admin SEMUA tetapkan waktu ujian dari dashboard', async () => {
   const g = binaGas('v2');
   const { context, page } = await buka('v2', g);
-  await loginAdmin(page, kataLaluan(g, 'SEMUA'), 'SEMUA');
+  await loginPetugas(page, g, 'SEMUA');
   await page.waitForSelector('#panel-waktu:not(.hidden-step)');
   await page.waitForSelector('#waktu-hari input[value="0"]', { state: 'attached' });
   await page.check('input[name="waktu-mod"][value="JADUAL"]');
@@ -390,12 +420,9 @@ test('v2: dashboard — XSS tidak jalan, IC bertopeng, status & Lepaskan, CSV & 
   g.sheet.appendRow(['t3', 'SITI BINTI ALI', "'900101075552", 'siti@contoh.my', 'Barat Daya', hari, 'Set 2', 40, 12, 30, 'GAGAL: Invalid email', 'id-tiga-0003', '[]']);
   const { context, page, ralat } = await buka('v2', g);
 
-  await loginAdmin(page, 'salah', 'SEMUA');
-  await page.waitForSelector('#password-error:not(.hidden-step)');
-  await page.fill('#input-password', kataLaluan(g, 'SEMUA'));
-  await page.click('#btn-akses');
-  await page.waitForSelector('#step-admin:not(.hidden-step)');
+  await loginPetugas(page, g, 'SEMUA', '000000');
   await page.waitForTimeout(300);
+  assert.match(await page.textContent('#admin-akses-badge'), /PETUGAS SEMUA · Akses: SEMUA/);
   assert.equal(await page.evaluate(() => window.__xss), undefined, 'skrip dalam nama tidak dijalankan');
   const teks = await page.textContent('#admin-tbody');
   assert.match(teks, /<img src=x onerror=/);
@@ -433,8 +460,7 @@ test('v2: admin daerah — data daerah sendiri, tiada panel bank soalan, tidak b
   g.sheet.appendRow(['t1', 'ALI BIN ABU', "'900101075551", 'a@contoh.my', 'Timur Laut', '2026-04-19', 'Set 1', 90, 27, 30, 'MENUNGGU MAKLUM BALAS', 'id-ali-00001', '[]']);
   g.sheet.appendRow(['t2', 'SITI BINTI ALI', "'900101075552", 's@contoh.my', 'Barat Daya', '2026-04-19', 'Set 1', 50, 15, 30, 'MENUNGGU MAKLUM BALAS', 'id-siti-0002', '[]']);
   const { context, page } = await buka('v2', g);
-  await loginAdmin(page, kataLaluan(g, 'Barat Daya'), 'Barat Daya');
-  await page.waitForSelector('#step-admin:not(.hidden-step)');
+  await loginPetugas(page, g, 'Barat Daya');
   assert.equal(await page.isVisible('#kawasan-filter-daerah'), false);
   assert.equal(await page.isVisible('#panel-bank'), false);
   const teks = await page.textContent('#admin-tbody');
@@ -447,47 +473,64 @@ test('v2: admin daerah — data daerah sendiri, tiada panel bank soalan, tidak b
   await context.close();
 });
 
-test('v2: admin SEMUA tambah & edit soalan → peserta terus nampak', async () => {
+test('v2: admin SEMUA tambah & edit soalan (dengan tajuk) → peserta terus dapat', async () => {
   const g = binaGas('v2');
   const { context, page } = await buka('v2', g);
-  await loginAdmin(page, kataLaluan(g, 'SEMUA'), 'SEMUA');
-  await page.waitForSelector('#step-admin:not(.hidden-step)');
+  await loginPetugas(page, g, 'SEMUA');
   await page.click('#btn-buka-bank');
   await page.waitForSelector('#bank-kandungan:not(.hidden-step)');
   assert.equal(await page.locator('#bank-senarai .btn-edit-soalan').count(), g.bank['Set 1'].length);
+  assert.equal(await page.locator('#bank-ringkasan-tajuk > div').count(), 8);
 
-  // Edit soalan pertama Set 1
+  // Edit soalan pertama Set 1 dan tetapkan tajuk
   await page.click('#bank-senarai .btn-edit-soalan >> nth=0');
   await page.waitForSelector('#bank-editor:not(.hidden-step)');
   await page.fill('#ed-soalan', 'Soalan pertama telah DIKEMAS KINI?');
+  await page.selectOption('#ed-tajuk', 'T3');
   await page.click('#btn-simpan-soalan');
   await page.waitForSelector('#modal-alert:not(.hidden-step)');
   assert.equal((await page.textContent('#modal-alert-title')).trim(), 'Disimpan');
   await tutupAlert(page);
   assert.match(await page.textContent('#bank-senarai'), /DIKEMAS KINI/);
+  assert.match(await page.textContent('#bank-senarai'), /T3 · Prosedur Perkahwinan/);
 
   // Tambah soalan dalam set baru
   await page.click('text=+ Tambah Soalan');
-  await page.fill('#ed-set', 'Set 4');
-  await page.fill('#ed-soalan', 'Soalan baru untuk Set 4?');
+  await page.fill('#ed-set', 'Set 9');
+  await page.fill('#ed-soalan', 'Soalan baru untuk Set 9?');
   await page.fill('#ed-pilihan-0', 'Betul');
   await page.fill('#ed-pilihan-1', 'Salah');
-  // Tanpa pilih jawapan → ralat dari server dipaparkan
+  await page.check('input[name="ed-jawapan"][value="1"]');
+  // Tanpa tajuk → ditahan di browser
   await page.click('#btn-simpan-soalan');
   await page.waitForSelector('#ed-ralat:not(.hidden-step)');
+  assert.match(await page.textContent('#ed-ralat'), /tajuk/);
+  await page.selectOption('#ed-tajuk', 'T5');
+  // Tanpa jawapan → ralat dari server
+  await page.uncheck('input[name="ed-jawapan"][value="1"]').catch(() => {});
+  await page.evaluate(() => document.querySelectorAll('input[name="ed-jawapan"]').forEach((r) => { r.checked = false; }));
+  await page.click('#btn-simpan-soalan');
+  await page.waitForFunction(() => /jawapan/i.test(document.getElementById('ed-ralat').textContent));
   await page.check('input[name="ed-jawapan"][value="1"]');
   await page.click('#btn-simpan-soalan');
   await page.waitForSelector('#modal-alert:not(.hidden-step)');
   await tutupAlert(page);
-  assert.equal(await page.inputValue('#bank-set'), 'Set 4');
+  assert.equal(await page.inputValue('#bank-set'), 'Set 9');
   await page.screenshot({ path: path.join(OUTPUT, 'v2-6-bank-soalan.png'), fullPage: true });
   await context.close();
 
-  // Peserta baru nampak Set 4 dan soalan yang dikemas kini
+  const bank = g.ctx.bacaBank();
+  assert.equal(bank.find((q) => q.soalan === 'Soalan pertama telah DIKEMAS KINI?').tajuk, 'T3');
+  assert.equal(bank.find((q) => q.set === 'Set 9').tajuk, 'T5');
+
+  // Peserta: tiada pilihan set; soalan yang dikemas kini masuk kertas rawak (cache bank dikosongkan selepas simpan)
   const p = await buka('v2', g);
-  assert.ok(await p.page.locator('#set_soalan option[value="Set 4"]').count());
+  assert.equal(await p.page.locator('#set_soalan').count(), 0);
+  let jumpa = false;
+  for (let i = 0; i < 40 && !jumpa; i++) jumpa = g.get({ action: 'soalan', daerah: 'Timur Laut' }).soalan.some((q) => /DIKEMAS KINI/.test(q.soalan));
+  assert.ok(jumpa, 'soalan dikemas kini muncul dalam kertas rawak');
   await mula(p.page, 'v2');
-  assert.match(await p.page.textContent('#ruangan-soalan'), /DIKEMAS KINI/);
+  assert.equal(await p.page.locator('#ruangan-soalan .kad-soalan').count(), 30);
   await p.context.close();
 });
 
@@ -502,8 +545,7 @@ test('v2: ringkasan penilaian kursus & CSV di dashboard', async () => {
   await page.waitForSelector('#step-3:not(.hidden-step)');
   await page.click('text=Kembali ke Laman Utama');
 
-  await loginAdmin(page, kataLaluan(g, 'SEMUA'), 'SEMUA');
-  await page.waitForSelector('#step-admin:not(.hidden-step)');
+  await loginPetugas(page, g, 'SEMUA');
   await page.click('#btn-muat-mb');
   await page.waitForFunction(() => /1 responden/.test(document.getElementById('mb-ringkasan').textContent));
   assert.match(await page.textContent('#mb-ringkasan'), /Pencapaian objektif kursus\s*5\.00/);
@@ -514,29 +556,57 @@ test('v2: ringkasan penilaian kursus & CSV di dashboard', async () => {
   await context.close();
 });
 
-test('v2: sesi tamat → Muat Semula Data minta log masuk semula; Log Keluar batalkan token', async () => {
+test('v2: sesi petugas kekal selepas muat semula (tanpa kod lagi); tamat → log masuk semula; Log Keluar batalkan token', async () => {
   const g = binaGas('v2');
   g.sheet.appendRow(['t1', 'ALI BIN ABU', "'900101075551", 'a@contoh.my', 'Timur Laut', '2026-04-19', 'Set 1', 90, 27, 30, 'DIHANTAR', 'id-ali-00001', '[]']);
   const { context, page, pelayan } = await buka('v2', g);
-  await loginAdmin(page, kataLaluan(g, 'SEMUA'), 'SEMUA');
-  await page.waitForSelector('#step-admin:not(.hidden-step)');
+  // Emel bukan @penang.gov.my ditolak di browser, tiada permintaan ke server
+  await page.click('text=Akses Platform Admin Daerah');
+  await page.fill('#input-emel', 'orang@gmail.com');
+  const sebelum = pelayan.permintaan.length;
+  await page.click('#btn-login');
+  await page.waitForSelector('#login-ralat:not(.hidden-step)');
+  assert.equal(pelayan.permintaan.length, sebelum);
+  await page.click('#modal-login >> text=Batal');
+  await page.waitForSelector('#modal-overlay.hidden-step', { state: 'attached' });
+
+  await loginPetugas(page, g, 'SEMUA');
+  const token = await page.evaluate(() => admin.token);
+  assert.equal(JSON.parse(await page.evaluate(() => localStorage.getItem('ujianMindaSesiAdmin'))).token, token);
 
   g.sheet.appendRow(['t2', 'BARU BIN BARU', "'900101075552", 'b@contoh.my', 'Timur Laut', '2026-04-19', 'Set 1', 60, 18, 30, 'DIHANTAR', 'id-baru-0002', '[]']);
   await page.selectOption('#admin-tarikh-selector', '');
   await page.click('#btn-muat-semula');
   await page.waitForFunction(() => document.getElementById('label-jumlah-carian').textContent === '2 Rekod');
 
-  const token = JSON.parse(pelayan.permintaan.find((p) => p.body && p.body.includes('"data"')).body).token;
-  [...g.state.cache.keys()].filter((k) => k.startsWith('sesi_')).forEach((k) => g.state.cache.delete(k));
+  // Muat semula halaman → terus masuk dashboard tanpa kod baharu
+  const emelSebelum = g.state.peti.length;
+  await page.reload();
+  await page.click('text=Akses Platform Admin Daerah');
+  await page.waitForSelector('#step-admin:not(.hidden-step)');
+  assert.equal(g.state.peti.length, emelSebelum, 'tiada kod baharu diemelkan');
+
+  // Sesi dibatalkan di server (cth. logKeluarSemuaPetugas) → Sesi Tamat, storan dibersihkan
+  g.ctx.logKeluarSemuaPetugas();
   await page.click('#btn-muat-semula');
   await page.waitForSelector('#modal-alert:not(.hidden-step)');
   assert.equal((await page.textContent('#modal-alert-title')).trim(), 'Sesi Tamat');
   assert.equal(await page.isVisible('#step-1'), true);
+  assert.equal(await page.evaluate(() => localStorage.getItem('ujianMindaSesiAdmin')), null);
   assert.equal(g.post({ action: 'data', token }).status, 'unauthorized');
-  // Pilihan akses diingat (kata laluan tidak)
-  await page.reload();
+  await tutupAlert(page);
+
+  // Log masuk semula, kemudian Log Keluar → token tidak sah lagi; emel diingat untuk kali seterusnya
+  await loginPetugas(page, g, 'SEMUA');
+  const token2 = await page.evaluate(() => admin.token);
+  await page.click('text=Log Keluar');
+  await page.waitForSelector('#step-1:not(.hidden-step)');
+  await page.waitForFunction(() => localStorage.getItem('ujianMindaSesiAdmin') === null);
+  await page.waitForTimeout(200);
+  assert.equal(g.post({ action: 'data', token: token2 }).status, 'unauthorized');
   await page.click('text=Akses Platform Admin Daerah');
-  assert.equal(await page.inputValue('#input-akses'), 'SEMUA');
-  assert.equal(await page.inputValue('#input-password'), '');
+  await page.waitForSelector('#modal-login:not(.hidden-step)');
+  assert.equal(await page.inputValue('#input-emel'), emelPetugas('SEMUA'));
+  await page.screenshot({ path: path.join(OUTPUT, 'v2-7-login-kod.png') });
   await context.close();
 });

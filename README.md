@@ -19,13 +19,13 @@ Ujian minda dalam talian untuk peserta Kursus Praperkahwinan Islam (JHEAIPP), de
 
 1. **Skema jawapan & markah di browser.** Sebelum ini sesiapa boleh nampak jawapan (View Source) dan POST markah palsu. Kini markah dikira di server.
 2. **Stored XSS & formula injection.** Kini semua data di-escape di dashboard dan emel. Teks `= + - @` dineutralkan dalam Sheet dan CSV.
-3. **Kata laluan admin.** Kini kata laluan rawak, disimpan sebagai hash SHA-256 + salt dalam Script Properties, dihantar melalui POST, dan login dikunci 15 minit selepas 10 cubaan salah.
+3. **Kata laluan admin.** Versi minimal: kata laluan rawak, hash SHA-256 + salt, dikunci 15 minit selepas 10 cubaan salah. v2: tiada kata laluan — petugas log masuk dengan kod 6 digit yang diemelkan ke emel @penang.gov.my mereka.
 4. **Tiada semakan input di server.** Kini semua input disemak di server.
 
 ## v2: aliran peserta
 
-1. Isi maklumat dan tandakan **notis privasi**. Set soalan dimuatkan dari server.
-2. Jawab soalan (30 minit). Pemasa ikut masa tamat sebenar, dan jawapan dihantar automatik bila masa tamat.
+1. Isi maklumat dan tandakan **notis privasi**. Tiada pilihan set.
+2. Jawab **30 soalan rawak** (30 minit). Pemilihan ikut tajuk kursus dalam kolum M tab BankSoalan: 4 soalan setiap tajuk T1–T6 dan 3 soalan setiap tajuk T7–T8, diambil daripada semua soalan aktif (semua set). Soalan dengan teks sama hanya diambil sekali. Susunan soalan dan pilihan A–D diacak bagi setiap peserta, kecuali soalan yang ada pilihan "semua di atas" / "di bawah". Server menandatangani kertas soalan (HMAC) dan menanda ikut pilihan asal. Pemasa ikut masa tamat sebenar, dan jawapan dihantar automatik bila masa tamat.
 3. Hantar. Markah dikira di server tetapi **tidak dipaparkan**. Status: `MENUNGGU MAKLUM BALAS`.
 4. Isi **Borang Penilaian Pelaksanaan Kursus**. Soalan disalin daripada Google Form TERKINI: profil, B (6), C (10), D (10), E dan F. Status: `MENUNGGU EMEL`.
 5. Trigger setiap minit menghantar **emel keputusan** gaya surat rasmi jabatan, dengan markah dan semakan soalan yang dijawab salah. Status: `DIHANTAR ...`.
@@ -36,13 +36,17 @@ Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka boran
 
 ## v2: peranan admin
 
-Untuk log masuk, admin **pilih akses dalam dropdown** dan masukkan kata laluan akses itu. Akses yang dipilih diingat oleh browser, tetapi kata laluan tidak. Kalau berlaku 10 cubaan salah pada satu akses, akses itu sahaja dikunci 15 minit; akses lain tidak terjejas. Ada juga had keseluruhan sebanyak 40 cubaan salah dalam 15 minit.
+Log masuk tanpa kata laluan:
 
-Kata laluan yang dijana (`sediakanSistem`, `janaKataLaluanBaru`, `tukarKataLaluanSatuAkaun`) **diemelkan sebagai emel SULIT** kepada pentadbir, iaitu `EMEL_PENTADBIR` atau pemilik skrip jika kosong. Kata laluan tidak ditulis dalam Execution log, kecuali jika emel gagal dihantar.
+1. Petugas tekan **Akses Platform Admin Daerah** dan masukkan emel rasmi **@penang.gov.my**.
+2. Jika emel itu berdaftar dan aktif dalam tab **Petugas**, kod 6 digit diemelkan (sah 10 minit, maksimum 5 cubaan salah). Mesej yang sama dipaparkan sama ada emel berdaftar atau tidak.
+3. Selepas kod disahkan, petugas kekal log masuk di peranti itu selama **30 hari** atau sehingga tekan **Log Keluar**.
+
+Tab **Petugas**: Nama | Emel (@penang.gov.my) | Akses (`SEMUA` atau nama daerah tepat seperti dalam borang) | Aktif (`YA`/`TIDAK`) | Log Masuk Terakhir (diisi sistem). Akses dibaca semula setiap permintaan, jadi menukar Akses atau Aktif = `TIDAK` terus berkesan. Had permintaan kod: 5 setiap emel dan 60 keseluruhan dalam 15 minit.
 
 | Akses | Boleh |
 |---|---|
-| **SEMUA** (JHEAIPP) | Semua data, semua daerah. **Urus Bank Soalan**: tambah, edit, nyahaktif soalan, dan buat set baru. Ringkasan penilaian, laporan PDF/CSV. |
+| **SEMUA** (JHEAIPP) | Semua data, semua daerah. **Urus Bank Soalan**: tambah, edit, nyahaktif soalan, tetapkan tajuk (T1–T8); ringkasan bilangan soalan aktif setiap tajuk. **Waktu Ujian Dibuka**. Ringkasan penilaian, laporan PDF/CSV. |
 | Daerah | Data daerah sendiri sahaja (ditapis di server). Ringkasan penilaian, laporan, Lepaskan keputusan. |
 
 - Soalan tidak dipadam, cuma dinyahaktifkan, supaya rekod lama kekal.
@@ -56,9 +60,9 @@ Kata laluan yang dijana (`sediakanSistem`, `janaKataLaluanBaru`, `tukarKataLalua
 2. Ganti kandungan `Code.gs` dengan [`v2/Code.gs`](v2/Code.gs).
 3. Klik **+ → Script**, namakan `BankSoalan`, dan tampal `BankSoalan.gs` (fail rahsia, tiada dalam GitHub). Langkah ini sekali sahaja, untuk import soalan sedia ada.
 4. Pilih fungsi **`sediakanSistem`** → **Run** → benarkan akses. Fungsi ini:
-   - cipta tab Keputusan / BankSoalan / SoalanMaklumBalas / MaklumBalas
+   - cipta tab Keputusan / BankSoalan / SoalanMaklumBalas / MaklumBalas / Petugas
    - import soalan dari `BankSoalan.gs`
-   - jana 8 kata laluan admin (**diemelkan kepada anda**)
+   - isi tab Petugas dengan seorang pentadbir SEMUA jika kosong (kemudian tambah petugas lain sendiri)
    - pasang trigger emel
 5. Fail `BankSoalan.gs` kini boleh dipadam dari projek. Simpan salinannya di tempat selamat.
 6. *(Pilihan)* Jalankan `hantarEmelContohKepadaSaya` untuk lihat rupa emel keputusan dalam inbox anda.
@@ -67,7 +71,7 @@ Kata laluan yang dijana (`sediakanSistem`, `janaKataLaluanBaru`, `tukarKataLalua
    - **Uji:** buka fail HTML terus dalam Chrome, atau embed dalam halaman Google Sites draf.
    - **Production:** ganti embed di ujianminda.my.
 
-`sediakanSistem()` selamat dijalankan berulang kali. Ia tidak memadam data, tidak mengimport soalan dua kali, dan tidak menukar kata laluan yang sedia ada.
+`sediakanSistem()` selamat dijalankan berulang kali. Ia tidak memadam data, dan tidak mengimport soalan dua kali.
 
 ### Pindah ke Sheet production (data lama)
 
@@ -77,8 +81,8 @@ Tukar `TAB.KEPUTUSAN` kepada `"Sheet1"` di atas `Code.gs`, kemudian jalankan `se
 
 | Fungsi | Guna |
 |---|---|
-| `janaKataLaluanBaru` | Tukar kata laluan semua admin. Senarai baru diemelkan kepada pentadbir. |
-| `tukarKataLaluanSatuAkaun` | Tukar satu daerah sahaja (edit nama akses dalam fungsi). Kata laluan baru diemelkan. |
+| `logKeluarSemuaPetugas` | Batalkan semua sesi log masuk petugas (cth. telefon hilang) |
+| `kosongkanCacheSoalan` | Paksa bank soalan dibaca semula selepas edit terus dalam Sheet |
 | `hantarEmelContohKepadaSaya` | Contoh emel keputusan ke emel anda |
 | `hantarSemulaEmelGagal` | Cuba semula emel berstatus GAGAL |
 | `arkibkanRekodTahun` | Pindah rekod satu tahun ke tab "Arkib <tahun>" (backup Sheet dahulu) |

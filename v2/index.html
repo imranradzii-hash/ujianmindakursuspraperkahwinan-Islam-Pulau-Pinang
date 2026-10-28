@@ -128,8 +128,8 @@
             <div class="kad p-5 sm:p-7">
                 <div class="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
                     <div class="rounded-xl px-3 py-2.5 text-center" style="background:var(--navy-muda);">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Format</p>
-                        <p class="text-[13px] sm:text-sm font-extrabold" style="color:var(--navy)">Aneka pilihan</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Soalan</p>
+                        <p class="text-[13px] sm:text-sm font-extrabold" style="color:var(--navy)">30 soalan rawak</p>
                     </div>
                     <div class="rounded-xl px-3 py-2.5 text-center" style="background:var(--navy-muda);">
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Masa</p>
@@ -178,15 +178,10 @@
                                 <option value="Seberang Perai Selatan (SPS)">Seberang Perai Selatan (SPS)</option>
                             </select>
                         </div>
-                        <div>
-                            <label for="set_soalan" class="label">Set Soalan <span class="text-[11px] font-normal text-slate-500 ml-1">seperti diarahkan urusetia</span></label>
-                            <select id="set_soalan" required class="medan">
-                                <option value="">Memuatkan set soalan...</option>
-                            </select>
+                        <div class="flex items-end">
+                            <p class="text-[12px] text-slate-500 md:pb-3">Tarikh kursus: <span id="paparan-tarikh-hari-ini" class="font-bold text-slate-700">-</span> <span class="text-[11px]">(direkod secara automatik)</span></p>
                         </div>
                     </div>
-
-                    <p class="text-[12px] text-slate-500">Tarikh kursus: <span id="paparan-tarikh-hari-ini" class="font-bold text-slate-700">-</span> <span class="text-[11px]">(direkod secara automatik)</span></p>
 
                     <!-- NOTIS PRIVASI -->
                     <div class="rounded-xl p-4 text-[12px] text-slate-600 leading-relaxed border" style="background:#f8fafc;border-color:var(--garis);">
@@ -509,9 +504,10 @@
                     <p class="tajuk-seksyen">Urus Bank Soalan Ujian</p>
                     <button type="button" id="btn-buka-bank" onclick="muatBankSoalan()" class="btn-kedua text-xs py-2 px-3">Buka Bank Soalan</button>
                 </div>
-                <p class="text-[11px] text-slate-500 mb-3">Perubahan berkuat kuasa serta-merta untuk peserta yang mula menjawab selepas disimpan. Soalan tidak dipadam — nyahaktifkan sahaja supaya rekod lama kekal.</p>
+                <p class="text-[11px] text-slate-500 mb-3">Setiap peserta menerima 30 soalan rawak daripada semua soalan aktif: 4 soalan setiap tajuk T1–T6 dan 3 soalan setiap tajuk T7–T8. Perubahan berkuat kuasa untuk peserta yang mula menjawab selepas disimpan. Soalan tidak dipadam — nyahaktifkan sahaja supaya rekod lama kekal.</p>
 
                 <div id="bank-kandungan" class="hidden-step">
+                    <div id="bank-ringkasan-tajuk" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4"></div>
                     <div class="flex flex-col sm:flex-row gap-3 mb-4">
                         <select id="bank-set" onchange="renderBankSoalan()" class="medan flex-1 font-semibold"></select>
                         <button type="button" onclick="bukaEditorSoalan(null)" class="btn-utama text-sm py-2.5 px-4">+ Tambah Soalan</button>
@@ -530,6 +526,10 @@
                                 <label for="ed-bil" class="label text-xs">Bil. (susunan)</label>
                                 <input type="number" id="ed-bil" min="1" max="999" class="medan">
                             </div>
+                        </div>
+                        <div>
+                            <label for="ed-tajuk" class="label text-xs">Tajuk Kursus (untuk pemilihan rawak)</label>
+                            <select id="ed-tajuk" class="medan"></select>
                         </div>
                         <div>
                             <label for="ed-soalan" class="label text-xs">Soalan (tekan Enter untuk baris baru, cth. senarai i, ii, iii)</label>
@@ -552,7 +552,7 @@
 
         <!-- KAKI -->
         <footer class="mt-6 mb-4 text-center space-y-2">
-            <button type="button" onclick="bukaModal('modal-password')" class="text-xs font-semibold text-slate-400 hover:text-slate-700 transition underline decoration-dotted underline-offset-4">
+            <button type="button" id="btn-akses-admin" onclick="aksesAdmin()" class="text-xs font-semibold text-slate-400 hover:text-slate-700 transition underline decoration-dotted underline-offset-4">
                 Akses Platform Admin Daerah
             </button>
             <p class="text-[11px] text-slate-400">© Jabatan Hal Ehwal Agama Islam Pulau Pinang</p>
@@ -577,27 +577,29 @@
             </div>
         </div>
 
-        <div id="modal-password" role="dialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
-            <h3 class="text-lg font-extrabold text-slate-900 mb-1">Akses Admin</h3>
-            <p class="text-sm text-slate-600 mb-4">Pilih akses dan masukkan kata laluan untuk meneruskan.</p>
-            <label for="input-akses" class="label text-xs">Akses</label>
-            <select id="input-akses" class="medan mb-3 font-semibold">
-                <option value="">-- Pilih Akses --</option>
-                <option value="SEMUA">SEMUA (Pentadbir JHEAIPP)</option>
-                <option value="JHEAIPP (Ibu Pejabat)">JHEAIPP (Ibu Pejabat)</option>
-                <option value="Timur Laut">Timur Laut</option>
-                <option value="Barat Daya">Barat Daya</option>
-                <option value="Seberang Perai Utara (SPU) - Butterworth">Seberang Perai Utara (SPU) - Butterworth</option>
-                <option value="Seberang Perai Utara (SPU) - Kepala Batas">Seberang Perai Utara (SPU) - Kepala Batas</option>
-                <option value="Seberang Perai Tengah (SPT)">Seberang Perai Tengah (SPT)</option>
-                <option value="Seberang Perai Selatan (SPS)">Seberang Perai Selatan (SPS)</option>
-            </select>
-            <label for="input-password" class="label text-xs">Kata Laluan</label>
-            <input type="password" id="input-password" autocomplete="current-password" class="medan mb-2" placeholder="Kata Laluan">
-            <p id="password-error" class="hidden-step text-red-600 text-xs font-bold mb-4">Kata laluan tidak tepat atau tidak wujud.</p>
-            <div class="flex gap-3 mt-4">
+        <div id="modal-login" role="dialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
+            <h3 class="text-lg font-extrabold text-slate-900 mb-1">Log Masuk Petugas</h3>
+            <!-- Langkah 1: emel -->
+            <div id="login-langkah-emel">
+                <p class="text-sm text-slate-600 mb-4">Masukkan emel rasmi anda. Kod pengesahan 6 digit akan dihantar ke emel tersebut.</p>
+                <label for="input-emel" class="label text-xs">Emel Rasmi</label>
+                <input type="email" id="input-emel" autocomplete="email" maxlength="100" class="medan mb-2" placeholder="nama@penang.gov.my">
+                <p class="text-[11px] text-slate-500">Hanya petugas berdaftar dengan emel @penang.gov.my.</p>
+            </div>
+            <!-- Langkah 2: kod -->
+            <div id="login-langkah-kod" class="hidden-step">
+                <p id="login-mesej-kod" class="text-sm text-slate-600 mb-4"></p>
+                <label for="input-kod" class="label text-xs">Kod Pengesahan</label>
+                <input type="text" id="input-kod" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="medan mb-2 text-center text-xl font-extrabold tracking-[.4em]" placeholder="______">
+                <div class="flex justify-between text-[12px] font-semibold">
+                    <button type="button" onclick="loginTukarEmel()" class="text-slate-500 hover:text-slate-800 underline decoration-dotted underline-offset-4">Tukar emel</button>
+                    <button type="button" id="btn-hantar-semula" onclick="mintaKodLogin()" class="hover:underline" style="color:var(--navy)">Hantar semula kod</button>
+                </div>
+            </div>
+            <p id="login-ralat" class="hidden-step text-red-600 text-xs font-bold mt-3"></p>
+            <div class="flex gap-3 mt-5">
                 <button type="button" onclick="tutupSemuaModal()" class="btn-kedua flex-1 py-3 px-4">Batal</button>
-                <button type="button" id="btn-akses" onclick="semakPassword()" class="btn-utama flex-1 py-3 px-4">Akses</button>
+                <button type="button" id="btn-login" onclick="tekanLogin()" class="btn-utama flex-1 py-3 px-4">Hantar Kod</button>
             </div>
         </div>
     </div>
@@ -612,7 +614,8 @@
         const PERATUS_LULUS = 50;
         const HAD_MARKAH_RENDAH = 7; // jadual "Perhatian" — bilangan betul bawah nilai ini
         const KUNCI_TERTUNDA = 'ujianMindaMaklumBalasTertunda'; // ID ujian yang belum isi borang penilaian
-        const KUNCI_AKSES_TERAKHIR = 'ujianMindaAksesTerakhir'; // ingat pilihan dropdown akses (bukan kata laluan)
+        const KUNCI_SESI_ADMIN = 'ujianMindaSesiAdmin'; // token sesi petugas (30 hari, server semak setiap permintaan)
+        const KUNCI_EMEL_ADMIN = 'ujianMindaEmelPetugas'; // ingat emel petugas untuk log masuk seterusnya
 
         // ==========================================
         // UTILITI
@@ -698,7 +701,7 @@
         // MODAL
         // ==========================================
         let tindakanSahCallback = null;
-        const SENARAI_MODAL = ['modal-alert', 'modal-confirm', 'modal-password'];
+        const SENARAI_MODAL = ['modal-alert', 'modal-confirm', 'modal-login'];
 
         function bukaModal(modalId) {
             $('modal-overlay').classList.remove('hidden-step');
@@ -708,7 +711,7 @@
             setTimeout(() => {
                 aktif.classList.remove('scale-95', 'opacity-0');
                 aktif.classList.add('scale-100', 'opacity-100');
-                if (modalId === 'modal-password') ($('input-akses').value ? $('input-password') : $('input-akses')).focus();
+                if (modalId === 'modal-login') ($('login-langkah-kod').classList.contains('hidden-step') ? $('input-emel') : $('input-kod')).focus();
             }, 10);
         }
 
@@ -766,21 +769,6 @@
         }
 
         // ==========================================
-        // SET SOALAN (dari server — admin boleh tambah set baru)
-        // ==========================================
-        async function muatSenaraiSet() {
-            const pilih = $('set_soalan');
-            try {
-                const data = await bacaServer({ action: 'senaraiSet' });
-                if (data.status !== 'success' || !data.set.length) throw new Error(data.message || 'Tiada set aktif');
-                pilih.innerHTML = '<option value="">-- Sila Pilih Set --</option>' + data.set.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
-            } catch (err) {
-                console.error(err);
-                pilih.innerHTML = '<option value="">Gagal dimuatkan — muat semula halaman</option>';
-            }
-        }
-
-        // ==========================================
         // WAKTU UJIAN DIBUKA (peserta)
         // ==========================================
         // Hanya paparan — server tetap menolak soalan di luar waktu dibuka.
@@ -805,7 +793,7 @@
         // UJIAN PESERTA
         // ==========================================
         const ujian = {
-            maklumat: null, soalan: [], kunci: '', jawapan: [],
+            maklumat: null, soalan: [], kunci: '', susunan: [], jawapan: [],
             tamatPada: 0, pemasa: null, dikunci: false, sedangHantar: false
         };
         let sedangUjian = false; // perangkap back/refresh semasa ujian
@@ -816,10 +804,9 @@
             const ic = $('ic').value.trim();
             const email = $('email').value.trim();
             const daerah = $('daerah').value;
-            const set = $('set_soalan').value;
 
-            if (!nama || !ic || !email || !daerah || !set) {
-                paparAlert("Maklumat Tidak Lengkap", "Sila isi semua ruangan (Nama, No. KP, Emel, Daerah & Set Soalan) sebelum mula menjawab.");
+            if (!nama || !ic || !email || !daerah) {
+                paparAlert("Maklumat Tidak Lengkap", "Sila isi semua ruangan (Nama, No. KP, Emel & Daerah) sebelum mula menjawab.");
                 return;
             }
             if (!/^\d{12}$/.test(ic)) {
@@ -845,7 +832,7 @@
             btnMula.innerText = "Memuatkan soalan...";
             let data;
             try {
-                data = await bacaServer({ action: 'soalan', set: set, daerah: daerah });
+                data = await bacaServer({ action: 'soalan', daerah: daerah });
             } catch (err) {
                 console.error(err);
                 data = { status: 'error', message: "Tiada sambungan internet atau server sesak. Sila cuba lagi." };
@@ -863,8 +850,8 @@
             }
 
             Object.assign(ujian, {
-                maklumat: { nama, ic, email, daerah, set, idHantar: janaId() },
-                soalan: data.soalan, kunci: data.kunci, jawapan: [], dikunci: false, sedangHantar: false
+                maklumat: { nama, ic, email, daerah, idHantar: janaId() },
+                soalan: data.soalan, kunci: data.kunci, susunan: data.susunan, jawapan: [], dikunci: false, sedangHantar: false
             });
             muatSoalanMaklumBalas(); // muat awal, sedia selepas ujian
 
@@ -999,6 +986,7 @@
                     action: 'hantar',
                     idSoalan: ujian.soalan.map(q => q.id),
                     kunci: ujian.kunci,
+                    susunan: ujian.susunan,
                     jawapan: ujian.jawapan
                 }, ujian.maklumat), 3);
             } catch (err) {
@@ -1150,7 +1138,7 @@
         function kembaliKeLamanUtama() {
             sedangUjian = false;
             hentikanPemasa();
-            Object.assign(ujian, { maklumat: null, soalan: [], kunci: '', jawapan: [], dikunci: false, sedangHantar: false });
+            Object.assign(ujian, { maklumat: null, soalan: [], kunci: '', susunan: [], jawapan: [], dikunci: false, sedangHantar: false });
             $('form-maklumat').reset();
             $('ruangan-soalan').innerHTML = '';
             $('ruangan-mb').innerHTML = '';
@@ -1163,47 +1151,134 @@
         // ==========================================
         // ADMIN
         // ==========================================
-        // Token sesi disimpan dalam memori sahaja (hilang bila tab ditutup). Server semak token setiap permintaan.
-        const admin = { akses: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' };
+        // Log masuk petugas: emel @penang.gov.my → kod 6 digit dari emel → sesi 30 hari.
+        // Token disimpan dalam localStorage peranti ini sehingga log keluar; server semak token dan tab Petugas setiap permintaan.
+        const admin = { akses: "", nama: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' };
+        let emelLogin = '';
 
-        async function semakPassword() {
-            const akses = $('input-akses').value;
-            const pwd = $('input-password').value;
-            const ralat = $('password-error');
-            if (!akses || !pwd) {
-                ralat.innerText = !akses ? "Sila pilih akses." : "Sila masukkan kata laluan.";
-                ralat.classList.remove('hidden-step');
+        function ralatLogin(mesej) {
+            const ralat = $('login-ralat');
+            ralat.innerText = mesej || '';
+            ralat.classList.toggle('hidden-step', !mesej);
+        }
+
+        function langkahLogin(kod) {
+            $('login-langkah-emel').classList.toggle('hidden-step', kod);
+            $('login-langkah-kod').classList.toggle('hidden-step', !kod);
+            $('btn-login').innerText = kod ? "Sahkan & Masuk" : "Hantar Kod";
+            ralatLogin('');
+            setTimeout(() => (kod ? $('input-kod') : $('input-emel')).focus(), 20);
+        }
+
+        function loginTukarEmel() {
+            $('input-kod').value = '';
+            langkahLogin(false);
+        }
+
+        function tekanLogin() {
+            if ($('login-langkah-kod').classList.contains('hidden-step')) mintaKodLogin();
+            else sahkanKodLogin();
+        }
+
+        // Butang di kaki halaman: guna sesi tersimpan jika masih sah, jika tidak papar log masuk
+        async function aksesAdmin() {
+            const sesi = simpanan.baca(KUNCI_SESI_ADMIN);
+            if (sesi && sesi.token) {
+                const btn = $('btn-akses-admin');
+                btn.disabled = true;
+                btn.innerText = "Menyemak sesi...";
+                let data;
+                try {
+                    data = await panggilServer({ action: 'data', token: sesi.token }, 2);
+                } catch (err) {
+                    data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
+                }
+                btn.disabled = false;
+                btn.innerText = "Akses Platform Admin Daerah";
+                if (data.status === 'success') {
+                    masukAdmin(sesi.token, data);
+                    return;
+                }
+                if (data.status !== 'unauthorized') {
+                    paparAlert("Ralat", data.message || "Sila cuba lagi.");
+                    return;
+                }
+                simpanan.buang(KUNCI_SESI_ADMIN);
+            }
+            $('input-emel').value = simpanan.baca(KUNCI_EMEL_ADMIN) || '';
+            $('input-kod').value = '';
+            langkahLogin(false);
+            bukaModal('modal-login');
+        }
+
+        async function mintaKodLogin() {
+            const emel = (emelLogin && !$('login-langkah-kod').classList.contains('hidden-step') ? emelLogin : $('input-emel').value).trim().toLowerCase();
+            if (!/^[^\s@]+@penang\.gov\.my$/.test(emel)) {
+                ralatLogin("Sila masukkan emel rasmi @penang.gov.my.");
                 return;
             }
-            const btn = $('btn-akses');
-            btn.innerText = "Menyemak...";
-            btn.disabled = true;
+            const btn = $('btn-login'), semula = $('btn-hantar-semula');
+            btn.disabled = semula.disabled = true;
+            btn.innerText = "Menghantar...";
             let data;
             try {
-                data = await panggilServer({ action: 'login', akses: akses, pwd: pwd });
+                data = await panggilServer({ action: 'mintaKod', emel: emel });
             } catch (err) {
-                console.error("Ralat Rangkaian:", err);
                 data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
             }
-            btn.innerText = "Akses";
-            btn.disabled = false;
-            $('input-password').value = '';
-
+            btn.disabled = semula.disabled = false;
             if (data.status !== 'success') {
-                ralat.innerText = data.message || "Kata laluan tidak tepat.";
-                ralat.classList.remove('hidden-step');
+                btn.innerText = $('login-langkah-kod').classList.contains('hidden-step') ? "Hantar Kod" : "Sahkan & Masuk";
+                ralatLogin(data.message || "Kod tidak dapat dihantar.");
                 return;
             }
-            ralat.classList.add('hidden-step');
-            simpanan.tulis(KUNCI_AKSES_TERAKHIR, akses);
+            emelLogin = emel;
+            simpanan.tulis(KUNCI_EMEL_ADMIN, emel);
+            $('login-mesej-kod').innerText = data.message + " Semak juga folder Spam.";
+            $('input-kod').value = '';
+            langkahLogin(true);
+        }
+
+        async function sahkanKodLogin() {
+            const kod = $('input-kod').value.replace(/\D/g, '');
+            if (kod.length !== 6) {
+                ralatLogin("Sila masukkan kod 6 digit dari emel anda.");
+                return;
+            }
+            const btn = $('btn-login');
+            btn.disabled = true;
+            btn.innerText = "Menyemak...";
+            let data;
+            try {
+                data = await panggilServer({ action: 'sahkanKod', emel: emelLogin, kod: kod });
+            } catch (err) {
+                data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
+            }
+            btn.disabled = false;
+            btn.innerText = "Sahkan & Masuk";
+            if (data.status !== 'success') {
+                $('input-kod').value = '';
+                // Kod tamat / cubaan habis: kembali ke langkah emel untuk minta kod baharu
+                if (/minta kod baharu/i.test(data.message || '')) loginTukarEmel();
+                ralatLogin(data.message || "Kod tidak sah.");
+                return;
+            }
+            $('input-kod').value = '';
+            simpanan.tulis(KUNCI_SESI_ADMIN, { token: data.token });
             tutupSemuaModal();
+            masukAdmin(data.token, data);
+        }
+
+        $('input-emel').addEventListener('keydown', (e) => { if (e.key === 'Enter') mintaKodLogin(); });
+        $('input-kod').addEventListener('keydown', (e) => { if (e.key === 'Enter') sahkanKodLogin(); });
+
+        function masukAdmin(token, data) {
+            admin.token = token;
             admin.akses = data.akses;
-            admin.token = data.token;
+            admin.nama = data.nama || '';
             setRekod(data.data);
             bukaAdmin();
         }
-
-        $('input-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') semakPassword(); });
 
         // Panggilan admin: jika sesi tamat, kembali ke laman utama
         async function panggilAdmin(badan) {
@@ -1215,6 +1290,7 @@
             }
             if (data.status === 'unauthorized') {
                 paparAlert("Sesi Tamat", data.message || "Sila log masuk semula.");
+                simpanan.buang(KUNCI_SESI_ADMIN);
                 tutupAdmin();
             }
             return data;
@@ -1246,7 +1322,7 @@
 
         function bukaAdmin() {
             paparStep('step-admin');
-            $('admin-akses-badge').innerText = `Akses: ${admin.akses}`;
+            $('admin-akses-badge').innerText = (admin.nama ? admin.nama + ' · ' : '') + `Akses: ${admin.akses}`;
             const selector = $('admin-daerah-selector');
             const semua = admin.akses === "SEMUA";
             $('kawasan-filter-daerah').classList.toggle('hidden-step', !semua);
@@ -1260,8 +1336,9 @@
 
         function tutupAdmin() {
             if (admin.token) panggilServer({ action: 'logout', token: admin.token }).catch(() => {});
-            Object.assign(admin, { akses: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' });
-            $('input-password').value = '';
+            simpanan.buang(KUNCI_SESI_ADMIN);
+            Object.assign(admin, { akses: "", nama: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' });
+            $('input-kod').value = '';
             $('carian-peserta').value = '';
             ['admin-top10-tbody', 'admin-gagal-tbody', 'admin-tbody', 'bank-senarai'].forEach(id => { $(id).innerHTML = ''; });
             $('mb-ringkasan').innerHTML = 'Tekan "Papar Ringkasan" untuk memuatkan data penilaian.';
@@ -1590,8 +1667,29 @@
             $('bank-kandungan').classList.remove('hidden-step');
         }
 
+        // Mesti sama dengan KOMPOSISI_TAJUK dan NAMA_TAJUK dalam Code.gs
+        const TAJUK_KURSUS = [
+            ['T1', 'Tasawwur Islam', 4], ['T2', 'Perkahwinan & Majlis Akad Nikah', 4], ['T3', 'Prosedur Perkahwinan', 4],
+            ['T4', 'Tanggungjawab & Komunikasi', 4], ['T5', 'Pengurusan Kewangan', 4], ['T6', 'Pengurusan Kesihatan Keluarga', 4],
+            ['T7', 'Pengurusan Stres & Konflik', 3], ['T8', 'Pembubaran Perkahwinan', 3]
+        ];
+
+        // Bilangan soalan aktif (teks unik) setiap tajuk — merah jika kurang daripada kuota ujian
+        function renderRingkasanTajuk(bank) {
+            const unik = (t) => new Set(bank.filter(q => q.aktif && q.tajuk === t).map(q => q.soalan.replace(/\s+/g, ' ').toLowerCase())).size;
+            const tiada = bank.filter(q => q.aktif && !q.tajuk).length;
+            $('bank-ringkasan-tajuk').innerHTML = TAJUK_KURSUS.map(([k, nama, kuota]) => {
+                const n = unik(k);
+                const kurang = n < kuota;
+                return `<div class="rounded-lg px-3 py-2 border text-[11px] ${kurang ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-600'}" title="${esc(nama)}">
+                    <span class="font-extrabold">${k}</span> ${esc(nama)}<br><span class="font-bold text-[13px] ${kurang ? '' : 'text-slate-900'}">${n}</span> aktif · ${kuota} setiap ujian
+                </div>`;
+            }).join('') + (tiada ? `<p class="col-span-full text-[11px] font-bold text-amber-700">${tiada} soalan aktif belum ditetapkan tajuk — hanya digunakan untuk melengkapkan 30 soalan.</p>` : '');
+        }
+
         function setBank(bank) {
             admin.bank = bank;
+            renderRingkasanTajuk(bank);
             const set = Array.from(new Set(bank.map(q => q.set))).sort((a, b) => a.localeCompare(b, 'ms', { numeric: true }));
             if (!admin.setDipilih || set.indexOf(admin.setDipilih) === -1) admin.setDipilih = set[0] || '';
             $('bank-set').innerHTML = set.map(s => {
@@ -1612,6 +1710,7 @@
                         <p class="text-sm text-gray-800 whitespace-pre-wrap"><span class="font-bold text-sky-900">${esc(q.bil)}.</span> ${esc(q.soalan)}</p>
                         <button type="button" class="btn-edit-soalan shrink-0 self-start text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-1 rounded-lg" data-id="${esc(q.id)}">Edit</button>
                     </div>
+                    <p class="text-[11px] mt-1 font-bold ${q.tajuk ? 'text-slate-500' : 'text-amber-700'}">${q.tajuk ? esc(q.tajuk + ' · ' + ((TAJUK_KURSUS.find(t => t[0] === q.tajuk) || [])[1] || '')) : 'Tiada tajuk'}</p>
                     <p class="text-xs mt-1 ${q.aktif ? 'text-green-700' : 'text-gray-500'}"><span class="font-bold">Jawapan:</span> ${esc(jaw)} ${q.aktif ? '' : '<span class="ml-2 font-bold">(TIDAK AKTIF)</span>'}</p>
                 </div>`;
             }).join('') : '<p class="text-sm text-gray-500 italic">Tiada soalan dalam set ini.</p>';
@@ -1629,6 +1728,8 @@
             $('ed-id').value = baru ? '' : q.id;
             $('ed-set').value = baru ? (admin.setDipilih || 'Set 1') : q.set;
             $('ed-bil').value = baru ? (senaraiSet.reduce((m, x) => Math.max(m, x.bil), 0) + 1) : q.bil;
+            $('ed-tajuk').innerHTML = '<option value="">-- Pilih Tajuk --</option>' + TAJUK_KURSUS.map(([k, nama]) => `<option value="${k}">${k} — ${esc(nama)}</option>`).join('');
+            $('ed-tajuk').value = baru ? '' : (q.tajuk || '');
             $('ed-soalan').value = baru ? '' : q.soalan;
             $('ed-aktif').checked = baru ? true : q.aktif;
             $('ed-pilihan').innerHTML = [0, 1, 2, 3].map(i => `
@@ -1664,8 +1765,14 @@
                 soalan: $('ed-soalan').value,
                 pilihan: [0, 1, 2, 3].map(i => $('ed-pilihan-' + i).value),
                 jawapan: dipilih ? parseInt(dipilih.value, 10) : -1,
-                aktif: $('ed-aktif').checked
+                aktif: $('ed-aktif').checked,
+                tajuk: $('ed-tajuk').value
             };
+            if (!soalan.tajuk) {
+                $('ed-ralat').innerText = "Sila pilih tajuk kursus.";
+                $('ed-ralat').classList.remove('hidden-step');
+                return;
+            }
             const btn = $('btn-simpan-soalan');
             btn.disabled = true;
             btn.innerText = "Menyimpan...";
@@ -1870,13 +1977,8 @@
         // ==========================================
         // MULA
         // ==========================================
-        (function () {
-            const aksesTerakhir = simpanan.baca(KUNCI_AKSES_TERAKHIR);
-            if (Array.from($('input-akses').options).some(o => o.value && o.value === aksesTerakhir)) $('input-akses').value = aksesTerakhir;
-        })();
         $('paparan-tarikh-hari-ini').innerText = new Date().toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
         kemaskiniLangkah('step-1');
-        muatSenaraiSet();
         semakWaktuUjian();
         // Peserta yang sudah hantar ujian tetapi belum isi borang penilaian (cth. halaman dimuat semula)
         (function sambungMaklumBalasTertunda() {

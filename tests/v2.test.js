@@ -3,21 +3,34 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { binaGas, hariIniMYT } = require('./mock-gas');
 
-// Ambil soalan seperti browser, kemudian bina jawapan (lalai: semua betul)
-function ujian(g, tambahan, ubahJawapan) {
-  const set = (tambahan && tambahan.set) || 'Set 1';
-  const s = g.get({ action: 'soalan', set });
+// Skema asal semua soalan dalam bank fail: { id: indeks jawapan asal }
+function skemaBank(g) {
+  const peta = {};
+  Object.values(g.bank).forEach((set) => set.forEach((q) => { peta[q.id] = q.jawapan; }));
+  return peta;
+}
+
+// Ambil soalan rawak seperti browser, kemudian bina jawapan ikut kedudukan DIPAPAR (lalai: semua betul).
+// skemaTambahan: { id: indeks asal } bagi soalan yang ditambah dalam ujian.
+function ujian(g, tambahan, ubahJawapan, skemaTambahan) {
+  const daerah = (tambahan && tambahan.daerah) || 'Timur Laut';
+  const s = g.get({ action: 'soalan', daerah });
   const soalan = s.soalan || [];
-  const skema = Object.fromEntries((g.bank[set] || []).map((q) => [q.id, q.jawapan]));
-  let jawapan = soalan.map((q) => (q.id in skema ? skema[q.id] : 0));
-  if (ubahJawapan) jawapan = ubahJawapan(jawapan);
+  const skema = Object.assign(skemaBank(g), skemaTambahan || {});
+  let jawapan = soalan.map((q, i) => {
+    const asal = q.id in skema ? skema[q.id] : 0;
+    return s.susunan[i].split('').map(Number).indexOf(asal);
+  });
+  if (ubahJawapan) jawapan = ubahJawapan(jawapan, soalan);
   return Object.assign({
     action: 'hantar',
     idHantar: 'ujian-' + Math.random().toString(36).slice(2, 10),
     nama: 'ALI BIN ABU', ic: '900101075555', email: 'ali@contoh.my',
-    daerah: 'Timur Laut', set, idSoalan: soalan.map((q) => q.id), kunci: s.kunci, jawapan
+    daerah, idSoalan: soalan.map((q) => q.id), susunan: s.susunan, kunci: s.kunci, jawapan
   }, tambahan || {});
 }
+
+const salahkan = (x, q) => (x + 1) % q.pilihan.length;
 
 function maklumBalasPenuh(g) {
   const s = g.get({ action: 'soalanMaklumBalas' });
@@ -26,28 +39,32 @@ function maklumBalasPenuh(g) {
   return j;
 }
 
-function kataLaluan(g, akses) {
-  return g.kataLaluan[akses];
-}
 
 const kolum = (g, baris, k) => g.sheet.rows[baris - 1][k - 1];
 const STATUS = 11, ID = 12;
 
-test('senarai set & soalan dihantar TANPA skema jawapan', () => {
+test('soalan rawak dihantar TANPA skema jawapan; setiap peserta dapat susunan berbeza', () => {
   const g = binaGas('v2');
-  assert.deepEqual(g.get({ action: 'senaraiSet' }).set, ['Set 1', 'Set 2', 'Set 3']);
-  const r = g.get({ action: 'soalan', set: 'Set 2' });
+  const r = g.get({ action: 'soalan', daerah: 'Timur Laut' });
   assert.equal(r.status, 'success');
-  assert.equal(r.soalan.length, g.bank['Set 2'].length);
+  const jumlahBank = Object.values(g.bank).reduce((a, x) => a + x.length, 0);
+  assert.equal(r.soalan.length, Math.min(30, jumlahBank));
   assert.ok(r.kunci.length > 20);
-  assert.ok(r.soalan.every((q) => !('jawapan' in q) && q.id && q.pilihan.length === 4));
-  assert.equal(g.get({ action: 'soalan', set: 'Set 9' }).status, 'error');
+  assert.equal(r.susunan.length, r.soalan.length);
+  assert.ok(r.soalan.every((q) => !('jawapan' in q) && q.id && q.pilihan.length >= 2));
+  assert.equal(new Set(r.soalan.map((q) => q.id)).size, r.soalan.length, 'tiada soalan berulang');
+  // Pilihan dipapar ikut susunan; kandungan sama dengan bank
+  const bank = {};
+  Object.values(g.bank).forEach((set) => set.forEach((q) => { bank[q.id] = q; }));
+  r.soalan.forEach((q, i) => assert.deepEqual(q.pilihan, r.susunan[i].split('').map(Number).map((k) => bank[q.id].pilihan[k])));
+  const lain = g.get({ action: 'soalan', daerah: 'Timur Laut' });
+  assert.notEqual(lain.soalan.map((q) => q.id).join(), r.soalan.map((q) => q.id).join(), 'peserta lain dapat susunan lain');
   assert.equal(g.get({}).status, 'error');
 });
 
 test('hantar ujian: markah TIDAK dipulangkan, disimpan di Sheet, status menunggu maklum balas', () => {
   const g = binaGas('v2');
-  const p = ujian(g, { skor: 100 }, (j) => j.map((x, i) => (i < 2 ? (x + 1) % 4 : x)));
+  const p = ujian(g, { skor: 100 }, (j, qs) => j.map((x, i) => (i < 2 ? salahkan(x, qs[i]) : x)));
   const r = g.post(p);
   assert.equal(r.status, 'success');
   assert.equal(r.skor, undefined);
@@ -68,7 +85,10 @@ test('senarai soalan diubah oleh peserta → ditolak (tandatangan)', () => {
   const kurang = Object.assign({}, p, { idSoalan: p.idSoalan.slice(1), jawapan: p.jawapan.slice(1) });
   assert.equal(g.post(kurang).status, 'error');
   assert.equal(g.post(Object.assign({}, p, { kunci: 'palsu' })).status, 'error');
-  assert.equal(g.post(Object.assign({}, p, { set: 'Set 2' })).status, 'error');
+  const susunanUbah = p.susunan.slice();
+  susunanUbah[0] = susunanUbah[0].split('').reverse().join('');
+  assert.equal(g.post(Object.assign({}, p, { susunan: susunanUbah })).status, 'error', 'susunan pilihan diubah');
+  assert.equal(g.post(Object.assign({}, p, { susunan: undefined })).status, 'error');
   assert.equal(g.post(Object.assign({}, p, { jawapan: p.jawapan.slice(1) })).status, 'error');
   assert.equal(g.sheet.getLastRow(), 1);
 });
@@ -90,7 +110,7 @@ test('input tidak sah ditolak', () => {
   const g = binaGas('v2');
   const kes = [
     { nama: '<script>alert(1)</script>' }, { nama: '=1+1' }, { ic: '9001' }, { email: 'x' },
-    { daerah: 'SEMUA' }, { set: 'Set<1>' }, { idHantar: '../../' }, { action: 'padam' }
+    { daerah: 'SEMUA' }, { idHantar: '../../' }, { action: 'padam' }
   ];
   for (const k of kes) assert.equal(g.post(ujian(g, k)).status, 'error', JSON.stringify(k));
   assert.equal(g.sheet.getLastRow(), 1);
@@ -142,7 +162,7 @@ test('maklum balas: wajib & nilai disemak, disimpan ikut kolum soalan, status �
 
 test('emel tidak dihantar sebelum maklum balas; selepas itu emel korporat dengan semakan jawapan', () => {
   const g = binaGas('v2');
-  const p = ujian(g, { nama: "SITI NUR'AIN" }, (j) => j.map((x, i) => (i === 0 ? (x + 1) % 4 : x)));
+  const p = ujian(g, { nama: "SITI NUR'AIN" }, (j, qs) => j.map((x, i) => (i === 0 ? salahkan(x, qs[i]) : x)));
   g.post(p);
   g.ctx.prosesBarisanEmel();
   assert.equal(g.state.peti.length, 0, 'belum isi maklum balas');
@@ -160,8 +180,10 @@ test('emel tidak dihantar sebelum maklum balas; selepas itu emel korporat dengan
   const n = p.jawapan.length;
   assert.match(emel.htmlBody, new RegExp(`${n - 1} / ${n}`));
   assert.match(emel.htmlBody, /SEMAKAN JAWAPAN \(1 SOALAN/);
-  const q0 = g.bank['Set 1'][0];
-  assert.ok(emel.htmlBody.includes('Jawapan betul: ' + 'ABCD'.charAt(q0.jawapan)));
+  const q0 = Object.values(g.bank).flat().find((q) => q.id === p.idSoalan[0]);
+  assert.ok(emel.htmlBody.includes('Jawapan betul: ' + 'ABCD'.charAt(q0.jawapan) + '. ' + q0.pilihan[q0.jawapan].replace(/'/g, '&#39;')));
+  assert.doesNotMatch(emel.htmlBody, />Set Soalan</, 'soalan rawak — tiada baris set');
+  assert.equal(kolum(g, 2, 7), 'Rawak');
   assert.match(kolum(g, 2, STATUS), /^DIHANTAR /);
   g.ctx.prosesBarisanEmel();
   assert.equal(g.state.peti.length, 1, 'tiada emel berganda');
@@ -193,19 +215,19 @@ test('rekod lama (Sheet1 format asal) tidak diemel dan tetap dibaca dashboard', 
   g.sheet.appendRow(['19/4/2026, 3:22:10 PTG', 'LAMA BIN LAMA', "'900101075550", 'lama@contoh.my', 'Barat Daya', '2026-04-19', 'Set 1', 50, 15]);
   g.ctx.prosesBarisanEmel();
   assert.equal(g.state.peti.length, 0);
-  const r = g.post({ action: 'login', akses: 'SEMUA', pwd: kataLaluan(g, 'SEMUA') });
+  const r = g.login('SEMUA');
   assert.equal(r.data[0].jumlah, 30);
   assert.equal(r.data[0].status, '');
 });
 
-test('login → token → data → logout; lepaskan keputusan ikut daerah', () => {
+test('login kod emel → token → data → logout; lepaskan keputusan ikut daerah', () => {
   const g = binaGas('v2');
   const p1 = ujian(g, { daerah: 'Timur Laut' });
   const p2 = ujian(g, { ic: '900101075556', daerah: 'Barat Daya' });
   g.post(p1);
   g.post(p2);
 
-  const tl = g.post({ action: 'login', akses: 'Timur Laut', pwd: kataLaluan(g, 'Timur Laut') });
+  const tl = g.login('Timur Laut');
   assert.equal(tl.status, 'success');
   assert.deepEqual(tl.data.map((d) => d.daerah), ['Timur Laut']);
   assert.equal(tl.data[0].status, 'MENUNGGU MAKLUM BALAS');
@@ -223,92 +245,44 @@ test('login → token → data → logout; lepaskan keputusan ikut daerah', () =
   assert.equal(g.post({ action: 'data', token: tl.token }).status, 'unauthorized');
 });
 
-test('login: pilih akses + kata laluan; dikunci ikut akses selepas 10 cubaan salah', () => {
-  const g = binaGas('v2');
-  // Kata laluan betul tetapi akses salah → ditolak
-  assert.equal(g.post({ action: 'login', akses: 'Timur Laut', pwd: kataLaluan(g, 'SEMUA') }).status, 'unauthorized');
-  assert.equal(g.post({ action: 'login', pwd: kataLaluan(g, 'SEMUA') }).status, 'unauthorized', 'akses wajib');
-  assert.equal(g.post({ action: 'login', akses: 'Kedah', pwd: 'x' }).status, 'unauthorized');
-  for (let i = 0; i < 10; i++) g.post({ action: 'login', akses: 'SEMUA', pwd: 'salah' + i });
-  const r = g.post({ action: 'login', akses: 'SEMUA', pwd: kataLaluan(g, 'SEMUA') });
-  assert.equal(r.status, 'unauthorized');
-  assert.match(r.message, /15 minit/);
-  // Akses lain tidak terjejas
-  assert.equal(g.post({ action: 'login', akses: 'Barat Daya', pwd: kataLaluan(g, 'Barat Daya') }).status, 'success');
-});
-
-test('login: had keseluruhan menghalang cubaan meneka di semua akses', () => {
-  const g = binaGas('v2');
-  const akses = ['JHEAIPP (Ibu Pejabat)', 'Timur Laut', 'Barat Daya', 'Seberang Perai Tengah (SPT)', 'Seberang Perai Selatan (SPS)'];
-  akses.forEach((a) => { for (let i = 0; i < 8; i++) g.post({ action: 'login', akses: a, pwd: 'salah' + i }); });
-  assert.equal(g.post({ action: 'login', akses: 'SEMUA', pwd: kataLaluan(g, 'SEMUA') }).status, 'unauthorized');
-});
-
-test('kata laluan baru diemelkan kepada pentadbir (bukan dalam log)', () => {
-  const g = binaGas('v2');
-  assert.equal(Object.keys(g.kataLaluan).length, 8);
-  assert.ok(Object.values(g.kataLaluan).every((p) => /^[A-Za-z0-9]{12}$/.test(p)));
-  assert.ok(!g.state.log.join('\n').includes(g.kataLaluan.SEMUA), 'kata laluan tidak ditulis dalam log');
-
-  g.ctx.janaKataLaluanBaru();
-  const emel = g.state.peti[g.state.peti.length - 1];
-  assert.equal(emel.to, 'pemilik@contoh.gov.my');
-  assert.match(emel.subject, /^\[SULIT\] Kata Laluan Admin/);
-  const baru = require('./mock-gas').bacaKataLaluanEmel(g.state.peti);
-  assert.equal(g.post({ action: 'login', akses: 'SEMUA', pwd: g.kataLaluan.SEMUA }).status, 'unauthorized', 'lama tidak sah');
-  assert.equal(g.post({ action: 'login', akses: 'SEMUA', pwd: baru.SEMUA }).status, 'success');
-
-  // Tukar satu akaun sahaja → emel mengandungi satu akses sahaja
-  g.ctx.tukarKataLaluanSatuAkaun();
-  const satu = require('./mock-gas').bacaKataLaluanEmel(g.state.peti);
-  assert.deepEqual(Object.keys(satu), ['Timur Laut']);
-  assert.equal(g.post({ action: 'login', akses: 'Timur Laut', pwd: satu['Timur Laut'] }).status, 'success');
-  assert.equal(g.post({ action: 'login', akses: 'Timur Laut', pwd: baru['Timur Laut'] }).status, 'unauthorized');
-  assert.equal(g.post({ action: 'login', akses: 'SEMUA', pwd: baru.SEMUA }).status, 'success');
-});
-
-test('emel kata laluan gagal → kata laluan dalam log sebagai sandaran', () => {
-  const g = binaGas('v2');
-  g.state.emelGagal = 'Service invoked too many times';
-  g.ctx.janaKataLaluanBaru();
-  assert.match(g.state.log.join('\n'), /Emel gagal[\s\S]*SEMUA  =>  [A-Za-z0-9]{12}/);
-});
-
 test('bank soalan: hanya admin SEMUA boleh lihat & ubah', () => {
   const g = binaGas('v2');
-  const daerah = g.post({ action: 'login', akses: 'Barat Daya', pwd: kataLaluan(g, 'Barat Daya') });
+  const daerah = g.login('Barat Daya');
   assert.equal(g.post({ action: 'bankSoalan', token: daerah.token }).status, 'error');
   assert.equal(g.post({ action: 'simpanSoalan', token: daerah.token, soalan: {} }).status, 'error');
 
-  const semua = g.post({ action: 'login', akses: 'SEMUA', pwd: kataLaluan(g, 'SEMUA') });
+  const semua = g.login('SEMUA');
   const b = g.post({ action: 'bankSoalan', token: semua.token });
   assert.equal(b.status, 'success');
   assert.equal(b.bank.length, Object.values(g.bank).reduce((a, s) => a + s.length, 0));
   assert.ok('jawapan' in b.bank[0]);
 });
 
-test('bank soalan: tambah, edit, nyahaktif, set baru — terus berkuat kuasa', () => {
+test('bank soalan: tambah, edit, nyahaktif, tajuk — terus berkuat kuasa', () => {
   const g = binaGas('v2');
-  const { token } = g.post({ action: 'login', akses: 'SEMUA', pwd: kataLaluan(g, 'SEMUA') });
+  const { token } = g.login('SEMUA');
   const simpan = (soalan) => g.post({ action: 'simpanSoalan', token, soalan });
 
-  // Set baru
-  const baru = simpan({ set: 'Set 4', bil: 1, soalan: 'Soalan percubaan set empat?', pilihan: ['Betul', 'Salah', '', ''], jawapan: 0, aktif: true });
+  const baru = simpan({ set: 'Set 4', bil: 1, soalan: 'Soalan percubaan set empat?', pilihan: ['Betul', 'Salah', '', ''], jawapan: 0, aktif: true, tajuk: 'T5' });
   assert.equal(baru.status, 'success');
-  assert.deepEqual(g.get({ action: 'senaraiSet' }).set, ['Set 1', 'Set 2', 'Set 3', 'Set 4']);
-  const s4 = g.get({ action: 'soalan', set: 'Set 4' });
-  assert.equal(s4.soalan.length, 1);
-  assert.deepEqual(s4.soalan[0].pilihan, ['Betul', 'Salah']);
+  const dalamBank = g.post({ action: 'bankSoalan', token }).bank.find((q) => q.id === baru.id);
+  assert.equal(dalamBank.tajuk, 'T5');
+  const bankSheet = g.state.ss.getSheetByName('BankSoalan');
+  const baris = bankSheet.rows.findIndex((r) => r[0] === baru.id);
+  assert.equal(bankSheet.rows[baris][12], 'T5');
 
-  // Edit: tukar jawapan → markah ikut skema baru
-  assert.equal(simpan({ id: baru.id, set: 'Set 4', bil: 1, soalan: 'Soalan percubaan set empat?', pilihan: ['Betul', 'Salah'], jawapan: 1, aktif: true }).status, 'success');
-  const p = ujian(g, { set: 'Set 4' }, () => [1]);
+  // Edit: tukar jawapan → markah ikut skema baru; catatan (kolum L) dikekalkan
+  bankSheet.rows[baris][11] = 'Sumber: T5 slaid 3';
+  assert.equal(simpan({ id: baru.id, set: 'Set 4', bil: 1, soalan: 'Soalan percubaan set empat?', pilihan: ['Betul', 'Salah'], jawapan: 1, aktif: true, tajuk: 'T5' }).status, 'success');
+  assert.equal(bankSheet.rows[baris][11], 'Sumber: T5 slaid 3');
+  const p = ujian(g, {}, null, { [baru.id]: 1 });
+  assert.ok(p.idSoalan.includes(baru.id), 'soalan baru masuk soalan rawak');
   g.post(p);
-  assert.equal(kolum(g, 2, 9), 1);
+  assert.equal(kolum(g, 2, 9), p.idSoalan.length, 'semua betul termasuk soalan yang dipinda');
 
-  // Nyahaktif → set hilang dari senarai peserta
+  // Nyahaktif → tidak lagi dipapar kepada peserta
   simpan({ id: baru.id, set: 'Set 4', bil: 1, soalan: 'Soalan percubaan set empat?', pilihan: ['Betul', 'Salah'], jawapan: 1, aktif: false });
-  assert.deepEqual(g.get({ action: 'senaraiSet' }).set, ['Set 1', 'Set 2', 'Set 3']);
+  for (let i = 0; i < 5; i++) assert.ok(!g.get({ action: 'soalan', daerah: 'Timur Laut' }).soalan.some((q) => q.id === baru.id));
 
   // Validasi
   for (const bad of [
@@ -318,17 +292,17 @@ test('bank soalan: tambah, edit, nyahaktif, set baru — terus berkuat kuasa', (
     { set: 'Set 1', bil: 1, soalan: 'Soalan sah?', pilihan: ['A', 'B'], jawapan: 3 },
     { set: '<Set>', bil: 1, soalan: 'Soalan sah?', pilihan: ['A', 'B'], jawapan: 0 },
     { set: 'Set 1', bil: 0, soalan: 'Soalan sah?', pilihan: ['A', 'B'], jawapan: 0 },
+    { set: 'Set 1', bil: 1, soalan: 'Soalan sah?', pilihan: ['A', 'B'], jawapan: 0, tajuk: 'T9' },
     { id: 'TIADA-ID', set: 'Set 1', bil: 1, soalan: 'Soalan sah?', pilihan: ['A', 'B'], jawapan: 0 }
   ]) assert.equal(simpan(bad).status, 'error', JSON.stringify(bad));
   // Teks bermula "=" tidak jadi formula
   assert.equal(simpan({ set: 'Set 5', bil: 1, soalan: '=1+1 berapa?', pilihan: ['=2', '3'], jawapan: 0 }).status, 'success');
-  assert.equal(g.state.ss.getSheetByName('BankSoalan').formula.length, 0);
+  assert.equal(bankSheet.formula.length, 0);
 });
-
 test('soalan dinyahaktif semasa peserta sedang menjawab → jawapan tetap diterima', () => {
   const g = binaGas('v2');
   const p = ujian(g);
-  const { token } = g.post({ action: 'login', akses: 'SEMUA', pwd: kataLaluan(g, 'SEMUA') });
+  const { token } = g.login('SEMUA');
   const q = g.post({ action: 'bankSoalan', token }).bank.find((x) => x.id === p.idSoalan[0]);
   g.post({ action: 'simpanSoalan', token, soalan: Object.assign({}, q, { aktif: false }) });
   assert.equal(g.post(p).status, 'success');
@@ -341,7 +315,7 @@ test('data maklum balas untuk dashboard ikut daerah', () => {
     g.post(p);
     g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: maklumBalasPenuh(g) });
   }
-  const bd = g.post({ action: 'login', akses: 'Barat Daya', pwd: kataLaluan(g, 'Barat Daya') });
+  const bd = g.login('Barat Daya');
   const r = g.post({ action: 'dataMaklumBalas', token: bd.token });
   assert.equal(r.status, 'success');
   assert.equal(r.rekod.length, 1);
@@ -356,7 +330,6 @@ test('sediakanSistem selamat dijalankan berulang kali', () => {
   const smb = g.state.ss.getSheetByName('SoalanMaklumBalas');
   const bil = smb.getLastRow();
   assert.ok(bil > 30);
-  const hashAsal = g.state.props.AKAUN_HASH;
   const bank = g.state.ss.getSheetByName('BankSoalan');
   const bilBank = bank.getLastRow();
   assert.equal(bilBank - 1, Object.values(g.bank).reduce((a, x) => a + x.length, 0), 'soalan diimport dari BankSoalan.gs');
@@ -365,7 +338,12 @@ test('sediakanSistem selamat dijalankan berulang kali', () => {
   assert.equal(bank.getLastRow(), bilBank, 'import tidak berganda');
   assert.equal(smb.getLastRow(), bil);
   assert.equal(g.state.trigger.length, 1);
-  assert.equal(g.state.props.AKAUN_HASH, hashAsal, 'kata laluan tidak ditukar');
+  const petugas = g.state.ss.getSheetByName('Petugas');
+  assert.deepEqual(petugas.rows[1].slice(0, 4), ['MUHAMMAD IMRAN BIN MOHAMED RADZI', 'imranradzi@penang.gov.my', 'SEMUA', 'YA']);
+  const bilPetugas = petugas.getLastRow();
+  g.ctx.sediakanSistem();
+  assert.equal(petugas.getLastRow(), bilPetugas, 'petugas tidak ditambah berganda');
+  assert.equal(g.state.props.AKAUN_HASH, undefined, 'kata laluan lama dibuang');
   assert.deepEqual(g.sheet.rows[0].slice(10, 13), ['Status', 'ID Hantar', 'Butiran Jawapan (JSON)']);
 });
 
@@ -392,15 +370,15 @@ test('arkib: rekod tahun dipilih dipindah, yang lain kekal', () => {
 
 // ---------- Waktu ujian dibuka ----------
 function sesiSemua(g) {
-  return g.post({ action: 'login', akses: 'SEMUA', pwd: kataLaluan(g, 'SEMUA') }).token;
+  return g.login('SEMUA').token;
 }
 
 test('waktu ujian: lalai BUKA; admin SEMUA sahaja boleh ubah; input disemak', () => {
   const g = binaGas('v2');
   assert.equal(g.get({ action: 'statusUjian', daerah: 'Timur Laut' }).buka, true);
-  assert.equal(g.get({ action: 'soalan', set: 'Set 1', daerah: 'Timur Laut' }).status, 'success');
+  assert.equal(g.get({ action: 'soalan', daerah: 'Timur Laut' }).status, 'success');
 
-  const tl = g.post({ action: 'login', akses: 'Timur Laut', pwd: kataLaluan(g, 'Timur Laut') }).token;
+  const tl = g.login('Timur Laut').token;
   assert.equal(g.post({ action: 'simpanTetapanWaktu', token: tl, tetapan: { mod: 'TUTUP', hari: [0], mula: '14:00', tamat: '23:59' } }).status, 'error');
 
   const t = sesiSemua(g);
@@ -419,12 +397,12 @@ test('waktu ujian: TUTUP menyekat soalan; pengecualian daerah; jadual Ahad 2 pet
   let r = g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'TUTUP', hari: [0], mula: '14:00', tamat: '23:59', daerah: { 'Barat Daya': 'BUKA', 'Bukan Daerah': 'BUKA' } } });
   assert.equal(r.status, 'success');
   assert.deepEqual(Object.keys(r.tetapan.daerah), ['Barat Daya']);
-  const tutup = g.get({ action: 'soalan', set: 'Set 1', daerah: 'Timur Laut' });
+  const tutup = g.get({ action: 'soalan', daerah: 'Timur Laut' });
   assert.equal(tutup.status, 'error');
   assert.equal(tutup.tutup, true);
   assert.equal(tutup.soalan, undefined);
-  assert.equal(g.get({ action: 'soalan', set: 'Set 1' }).status, 'error'); // tanpa daerah = tetapan umum
-  assert.equal(g.get({ action: 'soalan', set: 'Set 1', daerah: 'Barat Daya' }).status, 'success');
+  assert.equal(g.get({ action: 'soalan' }).status, 'error'); // tanpa daerah = tetapan umum
+  assert.equal(g.get({ action: 'soalan', daerah: 'Barat Daya' }).status, 'success');
 
   // Jadual: Ahad 14:00–23:59 (masa Malaysia, UTC+8)
   g.post({ action: 'simpanTetapanWaktu', token: t, tetapan: { mod: 'JADUAL', hari: [0], mula: '14:00', tamat: '23:59', daerah: { 'Seberang Perai Tengah (SPT)': 'TUTUP' } } });
@@ -450,7 +428,7 @@ test('waktu ujian: ujian yang dimulakan semasa buka masih boleh dihantar selepas
 
   // Kunci lama (dikeluarkan 2 jam lalu) — ditolak kerana ujian sudah ditutup
   const lama = Date.now() - 2 * 3600 * 1000;
-  const kunciLama = lama + '.' + g.ctx.tandatangan(p.set + '|' + p.idSoalan.join(',') + '|' + lama);
+  const kunciLama = lama + '.' + g.ctx.tandatangan(p.idSoalan.join(',') + '|' + p.susunan.join(',') + '|' + lama);
   const lewat = Object.assign({}, p, { idHantar: 'lewat-' + Date.now(), ic: '900101075556', kunci: kunciLama });
   const r = g.post(lewat);
   assert.equal(r.status, 'error');
@@ -459,4 +437,152 @@ test('waktu ujian: ujian yang dimulakan semasa buka masih boleh dihantar selepas
   // Masa kunci diubah (tanpa tandatangan baharu) — ditolak
   const ubah = Object.assign({}, p, { idHantar: 'ubah-' + Date.now(), ic: '900101075557', kunci: Date.now() + '.' + p.kunci.split('.')[1] });
   assert.equal(g.post(ubah).status, 'error');
+});
+
+// ---------- Soalan rawak ikut tajuk ----------
+// Ganti bank dengan soalan sintetik: n soalan bagi setiap tajuk + beberapa tanpa tajuk
+function bankSintetik(g, setiapTajuk, tanpaTajuk) {
+  const sheet = g.state.ss.getSheetByName('BankSoalan');
+  sheet.rows = [sheet.rows[0]];
+  const tajuk = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8'];
+  tajuk.concat(Array(tanpaTajuk || 0).fill('')).forEach((t, ti) => {
+    const bil = t ? setiapTajuk : 1;
+    for (let i = 0; i < bil; i++) {
+      const id = (t || 'X' + ti) + '-' + i;
+      sheet.appendRow([id, 'Set 1', i + 1, 'Soalan ' + id + '?', 'A' + id, 'B' + id, 'C' + id, 'D' + id, 'A', 'YA', 'x', '', t]);
+    }
+  });
+  g.ctx.kosongkanCacheSoalan();
+}
+
+test('soalan rawak: 30 soalan ikut komposisi tajuk (4 × T1–T6, 3 × T7–T8)', () => {
+  const g = binaGas('v2');
+  bankSintetik(g, 6, 5);
+  for (let k = 0; k < 20; k++) {
+    const r = g.get({ action: 'soalan', daerah: 'Timur Laut' });
+    assert.equal(r.soalan.length, 30);
+    const kira = {};
+    r.soalan.forEach((q) => { const t = q.id.split('-')[0]; kira[t] = (kira[t] || 0) + 1; });
+    assert.deepEqual(kira, { T1: 4, T2: 4, T3: 4, T4: 4, T5: 4, T6: 4, T7: 3, T8: 3 });
+  }
+});
+
+test('soalan rawak: tajuk kurang soalan → baki diisi soalan lain; teks berulang hanya sekali', () => {
+  const g = binaGas('v2');
+  bankSintetik(g, 2, 20);
+  const sheet = g.state.ss.getSheetByName('BankSoalan');
+  // Soalan pendua (teks sama, ID lain) seperti dalam set lama
+  sheet.appendRow(['DUP-1', 'Set 2', 1, 'Soalan T1-0?', 'a', 'b', 'c', 'd', 'A', 'YA', 'x', '', 'T1']);
+  g.ctx.kosongkanCacheSoalan();
+  for (let k = 0; k < 20; k++) {
+    const r = g.get({ action: 'soalan', daerah: 'Timur Laut' });
+    assert.equal(r.soalan.length, 30);
+    assert.equal(r.soalan.filter((q) => q.soalan === 'Soalan T1-0?').length <= 1, true);
+    assert.equal(new Set(r.soalan.map((q) => q.soalan)).size, 30);
+  }
+});
+
+test('soalan rawak: pilihan "Semua di atas" tidak dirawak; markah ikut pilihan asal', () => {
+  const g = binaGas('v2');
+  bankSintetik(g, 0, 0);
+  const sheet = g.state.ss.getSheetByName('BankSoalan');
+  sheet.appendRow(['ATAS', 'Set 1', 1, 'Soalan semua?', 'Satu', 'Dua', 'Tiga', 'Semua di atas', 'D', 'YA', 'x', '', 'T1']);
+  sheet.appendRow(['BIASA', 'Set 1', 2, 'Soalan biasa?', 'Betul', 'Salah 1', 'Salah 2', 'Salah 3', 'A', 'YA', 'x', '', 'T2']);
+  g.ctx.kosongkanCacheSoalan();
+  let bilBerubah = 0;
+  for (let k = 0; k < 30; k++) {
+    const r = g.get({ action: 'soalan', daerah: 'Timur Laut' });
+    const i = r.soalan.findIndex((q) => q.id === 'ATAS');
+    assert.equal(r.susunan[i], '0123');
+    const b = r.soalan.findIndex((q) => q.id === 'BIASA');
+    if (r.susunan[b] !== '0123') bilBerubah++;
+    // Jawab ikut teks — markah mesti betul walaupun kedudukan berubah
+    const jawapan = r.soalan.map((q) => q.pilihan.indexOf(q.id === 'ATAS' ? 'Semua di atas' : 'Betul'));
+    const h = g.post({ action: 'hantar', idHantar: 'rawak-' + k + '-' + Date.now(), nama: 'ALI', ic: '9001010755' + String(k).padStart(2, '0'), email: 'a@contoh.my', daerah: 'Timur Laut', idSoalan: r.soalan.map((q) => q.id), susunan: r.susunan, kunci: r.kunci, jawapan });
+    assert.equal(h.status, 'success');
+    const baris = g.sheet.getLastRow();
+    assert.equal(kolum(g, baris, 9), 2);
+    const butiran = JSON.parse(kolum(g, baris, 13));
+    assert.ok(butiran.every((b2) => b2[1] === b2[2]), 'butiran simpan pilihan asal');
+  }
+  assert.ok(bilBerubah > 10, 'pilihan soalan biasa dirawak');
+});
+
+// ---------- Login kod emel ----------
+test('login kod emel: hanya @penang.gov.my; emel tidak berdaftar tidak menerima kod (mesej sama)', () => {
+  const g = binaGas('v2');
+  const gmail = g.post({ action: 'mintaKod', emel: 'orang@gmail.com' });
+  assert.equal(gmail.status, 'error');
+  assert.match(gmail.message, /penang\.gov\.my/);
+  const tiada = g.post({ action: 'mintaKod', emel: 'tiada.daftar@penang.gov.my' });
+  const ada = g.post({ action: 'mintaKod', emel: 'TL.Ujian@Penang.gov.my' });
+  assert.equal(tiada.status, 'success');
+  assert.equal(tiada.message, ada.message, 'mesej sama — senarai petugas tidak boleh diteka');
+  assert.equal(g.state.peti.length, 1);
+  assert.equal(g.state.peti[0].to, 'tl.ujian@penang.gov.my');
+  assert.match(g.state.peti[0].subject, /^Kod Log Masuk \d{6}/);
+  assert.match(g.state.peti[0].htmlBody, /Jangan kongsikan kod ini/);
+});
+
+test('login kod emel: kod salah dihadkan; kod betul → sesi 30 hari; kod sekali guna', () => {
+  const g = binaGas('v2');
+  const { emelPetugas, bacaKodEmel } = require('./mock-gas');
+  const emel = emelPetugas('Barat Daya');
+  g.post({ action: 'mintaKod', emel });
+  const kod = bacaKodEmel(g.state.peti, emel);
+  const salah = kod === '000000' ? '111111' : '000000';
+  const r1 = g.post({ action: 'sahkanKod', emel, kod: salah });
+  assert.equal(r1.status, 'unauthorized');
+  assert.match(r1.message, /Baki cubaan: 4/);
+  const ok = g.post({ action: 'sahkanKod', emel, kod });
+  assert.equal(ok.status, 'success');
+  assert.equal(ok.akses, 'Barat Daya');
+  assert.equal(ok.nama, 'PETUGAS BARAT DAYA');
+  assert.match(ok.token, /^[A-Za-z0-9]{40}$/);
+  assert.equal(g.post({ action: 'sahkanKod', emel, kod }).status, 'unauthorized', 'kod sekali guna');
+  const d = g.post({ action: 'data', token: ok.token });
+  assert.equal(d.status, 'success');
+  assert.equal(d.nama, 'PETUGAS BARAT DAYA');
+  assert.match(String(g.state.ss.getSheetByName('Petugas').rows.find((r) => r[1] === emel)[4]), /\d/, 'log masuk terakhir direkod');
+
+  // Sesi disimpan 30 hari (Script Properties, bukan cache 6 jam)
+  const k = Object.keys(g.state.props).find((x) => x.startsWith('sesi_'));
+  const tamat = JSON.parse(g.state.props[k]).tamat;
+  assert.ok(Math.abs(tamat - (Date.now() + 30 * 86400000)) < 60000);
+  // Sesi luput → ditolak
+  g.state.props[k] = JSON.stringify({ emel, tamat: Date.now() - 1000 });
+  assert.equal(g.post({ action: 'data', token: ok.token }).status, 'unauthorized');
+
+  // 5 kod salah → kod dibatalkan
+  g.post({ action: 'mintaKod', emel });
+  const kod2 = bacaKodEmel(g.state.peti, emel);
+  const lain = kod2 === '000000' ? '111111' : '000000';
+  for (let i = 0; i < 5; i++) g.post({ action: 'sahkanKod', emel, kod: lain });
+  assert.equal(g.post({ action: 'sahkanKod', emel, kod: kod2 }).status, 'unauthorized');
+});
+
+test('login kod emel: had permintaan kod; petugas dinyahaktif terus hilang akses; log keluar semua', () => {
+  const g = binaGas('v2');
+  const { emelPetugas } = require('./mock-gas');
+  const emel = emelPetugas('Timur Laut');
+  for (let i = 0; i < 5; i++) assert.equal(g.post({ action: 'mintaKod', emel }).status, 'success');
+  assert.equal(g.post({ action: 'mintaKod', emel }).status, 'error');
+  assert.equal(g.state.peti.length, 5);
+
+  const sesi = g.login('Barat Daya');
+  assert.equal(g.post({ action: 'data', token: sesi.token }).status, 'success');
+  const petugas = g.state.ss.getSheetByName('Petugas');
+  petugas.rows.find((r) => r[1] === emelPetugas('Barat Daya'))[3] = 'TIDAK';
+  g.ctx.onEdit({ range: { getSheet: () => petugas } });
+  assert.equal(g.post({ action: 'data', token: sesi.token }).status, 'unauthorized');
+
+  // Akses ditukar dalam tab Petugas → berkuat kuasa pada permintaan seterusnya
+  const semua = g.login('SEMUA');
+  petugas.rows.find((r) => r[1] === emelPetugas('SEMUA'))[2] = 'Barat Daya';
+  g.ctx.onEdit({ range: { getSheet: () => petugas } });
+  assert.equal(g.post({ action: 'bankSoalan', token: semua.token }).status, 'error');
+
+  const lagi = g.login('Seberang Perai Tengah (SPT)');
+  g.ctx.logKeluarSemuaPetugas();
+  assert.equal(g.post({ action: 'data', token: lagi.token }).status, 'unauthorized');
 });

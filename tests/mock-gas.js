@@ -100,7 +100,9 @@ function binaGas(versi) {
       getScriptProperties: () => ({
         getProperty: (k) => (k in state.props ? state.props[k] : null),
         setProperty: (k, v) => { state.props[k] = String(v); },
-        setProperties: (o) => { Object.keys(o).forEach((k) => { state.props[k] = String(o[k]); }); }
+        setProperties: (o) => { Object.keys(o).forEach((k) => { state.props[k] = String(o[k]); }); },
+        getProperties: () => Object.assign({}, state.props),
+        deleteProperty: (k) => { delete state.props[k]; }
       })
     },
     CacheService: {
@@ -163,7 +165,10 @@ function binaGas(versi) {
     for (const f of [failBankSoalan(), failKod]) vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f });
     vm.runInContext('sediakanSistem()', ctx);
     sheet = state.ss.getSheetByName('Keputusan');
-    kataLaluan = bacaKataLaluanEmel(state.peti);
+    // Petugas ujian (rekaan) — satu bagi setiap akses
+    const petugas = state.ss.getSheetByName('Petugas');
+    EMEL_PETUGAS_UJIAN.forEach(([akses, emel]) => petugas.appendRow(['PETUGAS ' + akses.toUpperCase(), emel, akses, 'YA']));
+    state.cache.delete('petugas_v1');
     state.peti.length = 0;
     bank = bacaBankFail();
     Object.keys(bank).forEach((set, si) => bank[set].forEach((q, i) => { q.id = 'S' + (si + 1) + '-' + String(i + 1).padStart(2, '0'); }));
@@ -172,7 +177,32 @@ function binaGas(versi) {
   // Panggil doPost/doGet seperti web app sebenar dan pulangkan JSON
   const post = (body) => JSON.parse(vm.runInContext('doPost', ctx)({ postData: { contents: JSON.stringify(body) } }).getContent());
   const get = (parameter) => JSON.parse(vm.runInContext('doGet', ctx)({ parameter }).getContent());
-  return { ctx, state, sheet, post, get, bank, kataLaluan };
+  // Log masuk seperti petugas sebenar: minta kod → baca kod dalam emel → sahkan
+  const login = (akses) => {
+    const emel = emelPetugas(akses);
+    post({ action: 'mintaKod', emel });
+    const kod = bacaKodEmel(state.peti, emel);
+    return post({ action: 'sahkanKod', emel, kod });
+  };
+  return { ctx, state, sheet, post, get, bank, kataLaluan, login };
+}
+
+const EMEL_PETUGAS_UJIAN = [
+  ['SEMUA', 'pentadbir.ujian@penang.gov.my'],
+  ['JHEAIPP (Ibu Pejabat)', 'ip.ujian@penang.gov.my'],
+  ['Timur Laut', 'tl.ujian@penang.gov.my'],
+  ['Barat Daya', 'bd.ujian@penang.gov.my'],
+  ['Seberang Perai Utara (SPU) - Butterworth', 'spub.ujian@penang.gov.my'],
+  ['Seberang Perai Utara (SPU) - Kepala Batas', 'spuk.ujian@penang.gov.my'],
+  ['Seberang Perai Tengah (SPT)', 'spt.ujian@penang.gov.my'],
+  ['Seberang Perai Selatan (SPS)', 'sps.ujian@penang.gov.my']
+];
+function emelPetugas(akses) { return EMEL_PETUGAS_UJIAN.find(([a]) => a === akses)[1]; }
+
+// Kod 6 digit daripada emel kod log masuk terakhir kepada alamat itu
+function bacaKodEmel(peti, emel) {
+  const m = [...peti].reverse().find((x) => x.to === emel && /Kod Log Masuk/.test(x.subject));
+  return m ? m.subject.match(/(\d{6})/)[1] : null;
 }
 
 // Kata laluan dari emel SULIT terakhir: { akses: kataLaluan }
@@ -198,4 +228,4 @@ function hariIniMYT(tambahHari) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(d);
 }
 
-module.exports = { binaGas, hariIniMYT, failBankSoalan, bacaKataLaluanEmel };
+module.exports = { binaGas, hariIniMYT, failBankSoalan, bacaKataLaluanEmel, emelPetugas, bacaKodEmel };
