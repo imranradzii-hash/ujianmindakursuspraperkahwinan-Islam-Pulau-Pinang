@@ -11,10 +11,12 @@
 //
 // Fungsi yang dijalankan sendiri dari editor (pilih nama fungsi, klik Run):
 //   sediakanSistem()            — SEKALI selepas paste kod: cipta tab (termasuk Petugas), import soalan, trigger
+//   hantarKataLaluanSemuaPetugas() — jana & emelkan kata laluan kepada SEMUA petugas aktif (cth. awal tahun)
 //   logKeluarSemuaPetugas()     — tamatkan semua sesi admin serta-merta
 //
-// Login admin: petugas yang didaftarkan dalam tab "Petugas" (emel @penang.gov.my) masukkan emel,
-// terima kod 6 digit melalui emel, dan kekal log masuk 30 hari di peranti itu (atau sehingga log keluar).
+// Login admin: petugas yang didaftarkan dalam tab "Petugas" (emel @penang.gov.my) masukkan emel dan
+// kata laluan, dan kekal log masuk 30 hari di peranti itu (atau sehingga log keluar). Kata laluan hanya
+// dihantar ke emel berdaftar itu. Petugas baharu atau yang lupa tekan "Lupa kata laluan" untuk dapat yang baharu.
 //   hantarEmelContohKepadaSaya()— hantar contoh emel keputusan ke emel anda
 //   hantarSemulaEmelGagal()     — cuba semula emel yang berstatus GAGAL
 //   arkibkanRekodTahun()        — pindah rekod satu tahun ke tab arkib
@@ -66,10 +68,17 @@ const SENARAI_DAERAH = SENARAI_AKSES.slice(1);
 // Login admin dengan kod emel (tiada kata laluan)
 const DOMAIN_EMEL_PETUGAS = "penang.gov.my"; // hanya emel rasmi domain ini boleh log masuk
 const TEMPOH_SESI_HARI = 30;           // kekal log masuk 30 hari di peranti yang sama (atau sehingga log keluar)
-const TEMPOH_KOD_SAAT = 600;           // kod pengesahan sah 10 minit
-const HAD_CUBAAN_KOD = 5;              // kod dibatalkan selepas 5 cubaan salah
-const HAD_MINTA_KOD_SETIAP_EMEL = 5;   // maksimum permintaan kod satu emel dalam 15 minit
-const HAD_MINTA_KOD_KESELURUHAN = 60;  // maksimum permintaan kod semua emel dalam 15 minit
+const HAD_GAGAL_LOGIN_SETIAP_EMEL = 5;     // emel dikunci 15 minit selepas 5 kata laluan salah
+const HAD_GAGAL_LOGIN_KESELURUHAN = 50;    // semua login disekat 15 minit selepas 50 kegagalan (serangan teka)
+const HAD_LUPA_SETIAP_EMEL = 3;            // maksimum permintaan "Lupa kata laluan" satu emel dalam 15 minit
+const HAD_LUPA_KESELURUHAN = 60;
+// Kata laluan mudah diingat: kod pusat + 4 digit rawak + ! + tahun (cth. padsps4827!2026).
+// Digit rawak (bukan bersiri) supaya kata laluan rakan sepejabat tidak boleh diteka.
+const KOD_PUSAT = {
+  "SEMUA": "jheaipp", "JHEAIPP (Ibu Pejabat)": "jheaipp", "Timur Laut": "padtl", "Barat Daya": "padbd",
+  "Seberang Perai Utara (SPU) - Butterworth": "padspubw", "Seberang Perai Utara (SPU) - Kepala Batas": "padspukb",
+  "Seberang Perai Tengah (SPT)": "padspt", "Seberang Perai Selatan (SPS)": "padsps"
+};
 const HAD_HANTAR_SETIAP_IC = 3;        // Maksimum hantaran satu No. KP dalam 6 jam
 const HAD_EMEL_SETIAP_PUSINGAN = 50;   // Emel dihantar setiap minit oleh trigger
 const TEMPOH_CACHE_SOALAN_SAAT = 600;  // Bank soalan di-cache 10 minit (dikosongkan bila admin simpan)
@@ -162,8 +171,8 @@ function doPost(e) {
     switch (data.action) {
       case 'hantar': return jsonOutput(handleHantar(data));
       case 'maklumBalas': return jsonOutput(handleMaklumBalas(data));
-      case 'mintaKod': return jsonOutput(handleMintaKod(data.emel));
-      case 'sahkanKod': return jsonOutput(handleSahkanKod(data.emel, data.kod));
+      case 'login': return jsonOutput(handleLogin(data.emel, data.kataLaluan));
+      case 'lupaKataLaluan': return jsonOutput(handleLupaKataLaluan(data.emel));
       case 'data': return jsonOutput(denganSesi(data.token, null, (akses, sesi) => ({ status: "success", akses: akses, nama: sesi.nama, emel: sesi.emel, data: bacaRekod(akses) })));
       case 'rekodHariIni': return jsonOutput(denganSesi(data.token, null, (akses) => handleRekodHariIni(akses)));
       case 'logout': return jsonOutput(handleLogout(data.token));
@@ -837,66 +846,94 @@ function kunciRingkas(teks) {
   return tandatangan(teks).replace(/[^A-Za-z0-9]/g, '').slice(0, 32);
 }
 
-function janaKod6Digit() {
-  return String(parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) % 1000000).padStart(6, '0');
+function kunciKataLaluan(emel) { return 'kl_' + kunciRingkas('kl|' + emel); }
+
+function janaKataLaluan(akses) {
+  const digit = String(parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) % 10000).padStart(4, '0');
+  return (KOD_PUSAT[akses] || 'ujianminda') + digit + '!' + Utilities.formatDate(new Date(), ZON_MASA, 'yyyy');
 }
 
-// Langkah 1: petugas masukkan emel — kod 6 digit diemelkan jika emel berdaftar dan aktif.
-// Mesej yang sama dipulangkan sama ada emel berdaftar atau tidak (senarai petugas tidak boleh diteka).
-function handleMintaKod(emel) {
+// Simpan hanya cincangan (HMAC dengan rahsia skrip) — kata laluan asal tidak disimpan di mana-mana
+function tetapkanKataLaluan(emel, kataLaluan) {
+  PropertiesService.getScriptProperties().setProperty(kunciKataLaluan(emel), tandatangan('kl|' + emel + '|' + kataLaluan));
+}
+
+// Jana kata laluan baharu dan emelkan kepada emel berdaftar itu sahaja
+function hantarKataLaluanBaharu(emel, p, sebab) {
+  const kataLaluan = janaKataLaluan(p.akses);
+  tetapkanKataLaluan(emel, kataLaluan);
+  const e = binaEmelKataLaluan(p.nama, emel, kataLaluan, sebab);
+  MailApp.sendEmail({ to: emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+}
+
+// Log masuk: emel berdaftar + kata laluan → sesi 30 hari
+function handleLogin(emel, kataLaluan) {
   emel = normalEmel(emel);
+  kataLaluan = String(kataLaluan || '');
   if (!emelDomainSah(emel)) {
-    return { status: "error", message: "Hanya emel rasmi @" + DOMAIN_EMEL_PETUGAS + " boleh digunakan.", bolehCubaLagi: false };
+    return { status: "unauthorized", message: "Hanya emel rasmi @" + DOMAIN_EMEL_PETUGAS + " boleh digunakan." };
   }
   const cache = CacheService.getScriptCache();
-  const kunciEmel = 'kodminta_' + kunciRingkas('minta|' + emel);
-  const bil = Number(cache.get(kunciEmel) || 0);
-  const bilSemua = Number(cache.get('kodminta_semua') || 0);
-  if (bil >= HAD_MINTA_KOD_SETIAP_EMEL || bilSemua >= HAD_MINTA_KOD_KESELURUHAN) {
-    return { status: "error", message: "Terlalu banyak permintaan kod. Sila cuba lagi selepas 15 minit.", bolehCubaLagi: false };
+  const kunciGagal = 'gagal_' + kunciRingkas('gagal|' + emel);
+  const gagal = Number(cache.get(kunciGagal) || 0);
+  const gagalSemua = Number(cache.get('gagal_semua') || 0);
+  if (gagal >= HAD_GAGAL_LOGIN_SETIAP_EMEL || gagalSemua >= HAD_GAGAL_LOGIN_KESELURUHAN) {
+    return { status: "unauthorized", message: "Terlalu banyak cubaan salah. Cuba lagi selepas 15 minit, atau tekan \"Lupa kata laluan\"." };
   }
-  cache.put(kunciEmel, String(bil + 1), 900);
-  cache.put('kodminta_semua', String(bilSemua + 1), 900);
-
   const p = bacaPetugas()[emel];
-  if (p && p.aktif) {
-    const kod = janaKod6Digit();
-    cache.put('kod_' + kunciRingkas('kod|' + emel), JSON.stringify({ h: tandatangan('kod|' + emel + '|' + kod), cubaan: 0, tamat: Date.now() + TEMPOH_KOD_SAAT * 1000 }), TEMPOH_KOD_SAAT);
-    const e = binaEmelKod(p.nama, kod);
-    MailApp.sendEmail({ to: emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+  const simpan = PropertiesService.getScriptProperties().getProperty(kunciKataLaluan(emel));
+  const betul = !!(p && p.aktif && simpan && kataLaluan.length <= 100 && simpan === tandatangan('kl|' + emel + '|' + kataLaluan));
+  if (!betul) {
+    cache.put(kunciGagal, String(gagal + 1), 900);
+    cache.put('gagal_semua', String(gagalSemua + 1), 900);
+    // Mesej sama untuk emel tidak berdaftar, tidak aktif atau kata laluan salah
+    return { status: "unauthorized", message: "Emel atau kata laluan salah. Petugas baharu atau yang lupa, tekan \"Lupa kata laluan\"." };
   }
-  return { status: "success", message: "Jika emel anda berdaftar sebagai petugas, kod pengesahan 6 digit telah dihantar ke emel tersebut. Kod sah selama " + Math.round(TEMPOH_KOD_SAAT / 60) + " minit." };
-}
-
-// Langkah 2: semak kod → cipta sesi 30 hari
-function handleSahkanKod(emel, kod) {
-  emel = normalEmel(emel);
-  kod = String(kod || '').trim();
-  if (!emelDomainSah(emel) || !/^\d{6}$/.test(kod)) return { status: "unauthorized", message: "Kod mesti 6 digit." };
-  const cache = CacheService.getScriptCache();
-  const kunci = 'kod_' + kunciRingkas('kod|' + emel);
-  const simpan = cache.get(kunci);
-  if (!simpan) return { status: "unauthorized", message: "Kod telah tamat tempoh atau tidak sah. Sila minta kod baharu." };
-  const rek = JSON.parse(simpan);
-  if (rek.h !== tandatangan('kod|' + emel + '|' + kod)) {
-    rek.cubaan++;
-    if (rek.cubaan >= HAD_CUBAAN_KOD) {
-      cache.remove(kunci);
-      return { status: "unauthorized", message: "Terlalu banyak cubaan salah. Sila minta kod baharu." };
-    }
-    cache.put(kunci, JSON.stringify(rek), Math.max(1, Math.round((rek.tamat - Date.now()) / 1000)));
-    return { status: "unauthorized", message: "Kod salah. Baki cubaan: " + (HAD_CUBAAN_KOD - rek.cubaan) + "." };
-  }
-  cache.remove(kunci);
-  const p = bacaPetugas()[emel];
-  if (!p || !p.aktif) return { status: "unauthorized", message: "Akaun petugas tidak aktif. Sila hubungi pentadbir JHEAIPP." };
-
+  cache.remove(kunciGagal);
   const token = janaRentetanRawak(40);
   const props = PropertiesService.getScriptProperties();
   bersihkanSesiLuput(props);
   props.setProperty('sesi_' + kunciRingkas('sesi|' + token), JSON.stringify({ emel: emel, tamat: Date.now() + TEMPOH_SESI_HARI * 86400000 }));
   try { tab(TAB.PETUGAS).getRange(p.baris, PT.TERAKHIR).setValue(masaKini()); } catch (e) { /* tidak kritikal */ }
   return { status: "success", token: token, akses: p.akses, nama: p.nama, emel: emel, tempohHari: TEMPOH_SESI_HARI, data: bacaRekod(p.akses) };
+}
+
+// Lupa kata laluan / petugas baharu: kata laluan baharu diemelkan ke emel berdaftar sahaja.
+// Mesej yang sama dipulangkan sama ada emel berdaftar atau tidak.
+function handleLupaKataLaluan(emel) {
+  emel = normalEmel(emel);
+  if (!emelDomainSah(emel)) {
+    return { status: "error", message: "Hanya emel rasmi @" + DOMAIN_EMEL_PETUGAS + " boleh digunakan.", bolehCubaLagi: false };
+  }
+  const cache = CacheService.getScriptCache();
+  const kunciEmel = 'lupa_' + kunciRingkas('lupa|' + emel);
+  const bil = Number(cache.get(kunciEmel) || 0);
+  const bilSemua = Number(cache.get('lupa_semua') || 0);
+  if (bil >= HAD_LUPA_SETIAP_EMEL || bilSemua >= HAD_LUPA_KESELURUHAN) {
+    return { status: "error", message: "Terlalu banyak permintaan. Sila cuba lagi selepas 15 minit.", bolehCubaLagi: false };
+  }
+  cache.put(kunciEmel, String(bil + 1), 900);
+  cache.put('lupa_semua', String(bilSemua + 1), 900);
+  const p = bacaPetugas()[emel];
+  if (p && p.aktif) {
+    hantarKataLaluanBaharu(emel, p, 'lupa');
+    cache.remove('gagal_' + kunciRingkas('gagal|' + emel));
+  }
+  return { status: "success", message: "Jika emel anda berdaftar sebagai petugas, kata laluan baharu telah dihantar ke emel tersebut. Kata laluan lama tidak boleh digunakan lagi." };
+}
+
+// Jalankan dari editor: jana & emelkan kata laluan kepada semua petugas aktif (cth. awal tahun / pelancaran)
+function hantarKataLaluanSemuaPetugas() {
+  const semua = bacaPetugas();
+  let bil = 0;
+  Object.keys(semua).forEach(emel => {
+    const p = semua[emel];
+    if (!p.aktif || !emelDomainSah(emel)) return;
+    hantarKataLaluanBaharu(emel, p, 'baharu');
+    bil++;
+  });
+  Logger.log("Kata laluan dihantar kepada " + bil + " petugas aktif. Kata laluan tidak ditulis dalam log ini.");
+  return bil;
 }
 
 function bersihkanSesiLuput(props) {
@@ -946,9 +983,12 @@ function logKeluarSemuaPetugas() {
   Logger.log(bil + " sesi admin ditamatkan.");
 }
 
-// Emel kod pengesahan log masuk
-function binaEmelKod(nama, kod) {
+// Emel kata laluan (dihantar kepada petugas itu sahaja)
+function binaEmelKataLaluan(nama, emel, kataLaluan, sebab) {
   const NAVY = "#0b2a4a", EMAS = "#b8902f", GARIS = "#dfe3e8";
+  const pembuka = sebab === 'lupa'
+    ? "Kata laluan baharu anda untuk Dashboard Admin Ujian Minda (kata laluan lama tidak boleh digunakan lagi):"
+    : "Akaun anda untuk Dashboard Admin Ujian Minda telah disediakan. Berikut maklumat log masuk anda:";
   let h = "<div style='background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;'>";
   h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='max-width:560px;margin:0 auto;background:#ffffff;border:1px solid " + GARIS + ";border-collapse:collapse;'>";
   h += "<tr><td style='background:" + NAVY + ";padding:18px 28px;text-align:center;border-bottom:4px solid " + EMAS + ";'>"
@@ -956,14 +996,17 @@ function binaEmelKod(nama, kod) {
     + "<div style='color:#c9d3e0;font-size:12px;margin-top:4px;'>SISTEM UJIAN MINDA PRAPERKAHWINAN</div></td></tr>";
   h += "<tr><td style='padding:26px 32px;font-size:14px;color:#111827;line-height:1.6;'>";
   h += "<p style='margin:0 0 12px;'>Assalamualaikum " + escapeHtml(nama || "Tuan/Puan") + ",</p>";
-  h += "<p style='margin:0 0 18px;'>Kod pengesahan untuk log masuk ke Dashboard Admin Ujian Minda:</p>";
-  h += "<div style='text-align:center;margin:0 0 18px;'><span style='display:inline-block;font-family:Consolas,monospace;font-size:30px;font-weight:bold;letter-spacing:8px;color:" + NAVY + ";background:#f6f1e4;border:1px solid " + EMAS + ";padding:12px 22px;'>" + escapeHtml(kod) + "</span></div>";
-  h += "<p style='margin:0 0 8px;'>Kod ini sah selama " + Math.round(TEMPOH_KOD_SAAT / 60) + " minit. Selepas log masuk, anda kekal log masuk di peranti tersebut selama " + TEMPOH_SESI_HARI + " hari atau sehingga anda menekan Log Keluar.</p>";
-  h += "<p style='margin:0;color:#b42318;font-size:13px;'>Jangan kongsikan kod ini dengan sesiapa. Jika anda tidak meminta kod ini, abaikan emel ini.</p>";
+  h += "<p style='margin:0 0 16px;'>" + pembuka + "</p>";
+  h += "<table role='presentation' cellpadding='0' cellspacing='0' style='margin:0 0 18px;border-collapse:collapse;font-size:14px;'>"
+    + "<tr><td style='padding:6px 14px 6px 0;color:#5b6573;'>Emel</td><td style='padding:6px 0;font-weight:bold;'>" + escapeHtml(emel) + "</td></tr>"
+    + "<tr><td style='padding:6px 14px 6px 0;color:#5b6573;'>Kata laluan</td><td style='padding:6px 0;'><span style='display:inline-block;font-family:Consolas,monospace;font-size:20px;font-weight:bold;letter-spacing:1px;color:" + NAVY + ";background:#f6f1e4;border:1px solid " + EMAS + ";padding:8px 14px;'>" + escapeHtml(kataLaluan) + "</span></td></tr></table>";
+  h += "<p style='margin:0 0 8px;'>Log masuk melalui butang <b>Akses Platform Admin Daerah</b> di bawah halaman Ujian Minda. Anda boleh simpan kata laluan ini dalam pelayar (browser). Selepas log masuk, anda kekal log masuk di peranti itu selama " + TEMPOH_SESI_HARI + " hari atau sehingga menekan Log Keluar.</p>";
+  h += "<p style='margin:0 0 8px;'>Jika terlupa, tekan <b>Lupa kata laluan</b> pada skrin log masuk dan kata laluan baharu akan dihantar ke emel ini.</p>";
+  h += "<p style='margin:0;color:#b42318;font-size:13px;'>Jangan kongsikan kata laluan ini dengan sesiapa. Jika anda tidak meminta kata laluan baharu, maklumkan kepada pentadbir JHEAIPP.</p>";
   h += "</td></tr>";
   h += "<tr><td style='background:#f6f7f9;border-top:1px solid " + GARIS + ";padding:12px 32px;font-size:11px;color:#5b6573;'>Emel ini dijana secara automatik. Sila jangan balas emel ini.</td></tr>";
   h += "</table></div>";
-  return { subject: "Kod Log Masuk " + kod + " - Dashboard Ujian Minda", htmlBody: h };
+  return { subject: "Kata Laluan Dashboard Ujian Minda (SULIT)", htmlBody: h };
 }
 
 function bacaRekod(akses) {

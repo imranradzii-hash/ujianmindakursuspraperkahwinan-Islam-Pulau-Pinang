@@ -545,66 +545,80 @@ test('soalan rawak: pilihan "Semua di atas" tidak dirawak; markah ikut pilihan a
   assert.ok(bilBerubah > 10, 'pilihan soalan biasa dirawak');
 });
 
-// ---------- Login kod emel ----------
-test('login kod emel: hanya @penang.gov.my; emel tidak berdaftar tidak menerima kod (mesej sama)', () => {
+// ---------- Login emel + kata laluan ----------
+test('kata laluan: lupa kata laluan hanya ke emel berdaftar (mesej sama); format mudah diingat, tidak bersiri', () => {
   const g = binaGas('v2');
-  const gmail = g.post({ action: 'mintaKod', emel: 'orang@gmail.com' });
+  const { bacaKataLaluanPetugas } = require('./mock-gas');
+  const gmail = g.post({ action: 'lupaKataLaluan', emel: 'orang@gmail.com' });
   assert.equal(gmail.status, 'error');
   assert.match(gmail.message, /penang\.gov\.my/);
-  const tiada = g.post({ action: 'mintaKod', emel: 'tiada.daftar@penang.gov.my' });
-  const ada = g.post({ action: 'mintaKod', emel: 'TL.Ujian@Penang.gov.my' });
+  const tiada = g.post({ action: 'lupaKataLaluan', emel: 'tiada.daftar@penang.gov.my' });
+  const ada = g.post({ action: 'lupaKataLaluan', emel: 'BD.Ujian@Penang.gov.my' });
   assert.equal(tiada.status, 'success');
   assert.equal(tiada.message, ada.message, 'mesej sama — senarai petugas tidak boleh diteka');
   assert.equal(g.state.peti.length, 1);
-  assert.equal(g.state.peti[0].to, 'tl.ujian@penang.gov.my');
-  assert.match(g.state.peti[0].subject, /^Kod Log Masuk \d{6}/);
-  assert.match(g.state.peti[0].htmlBody, /Jangan kongsikan kod ini/);
+  assert.equal(g.state.peti[0].to, 'bd.ujian@penang.gov.my');
+  assert.match(g.state.peti[0].subject, /Kata Laluan Dashboard/);
+  const kl = bacaKataLaluanPetugas(g.state.peti, 'bd.ujian@penang.gov.my');
+  assert.match(kl, /^padbd\d{4}!\d{4}$/);
+  // Kata laluan tidak disimpan dalam bentuk asal di mana-mana
+  assert.ok(!JSON.stringify(g.state.props).includes(kl));
+  assert.ok(!g.state.log.join('\n').includes(kl));
+  // Petugas lain daerah sama dapat digit berbeza (rawak, bukan 1, 2, 3...)
+  const lain = new Set();
+  for (let i = 0; i < 8; i++) lain.add(g.ctx.janaKataLaluan('Barat Daya'));
+  assert.ok(lain.size >= 6);
 });
 
-test('login kod emel: kod salah dihadkan; kod betul → sesi 30 hari; kod sekali guna', () => {
+test('kata laluan: login betul → sesi 30 hari; salah dihadkan; lupa → kata laluan lama tidak sah', () => {
   const g = binaGas('v2');
-  const { emelPetugas, bacaKodEmel } = require('./mock-gas');
+  const { emelPetugas, bacaKataLaluanPetugas } = require('./mock-gas');
   const emel = emelPetugas('Barat Daya');
-  g.post({ action: 'mintaKod', emel });
-  const kod = bacaKodEmel(g.state.peti, emel);
-  const salah = kod === '000000' ? '111111' : '000000';
-  const r1 = g.post({ action: 'sahkanKod', emel, kod: salah });
-  assert.equal(r1.status, 'unauthorized');
-  assert.match(r1.message, /Baki cubaan: 4/);
-  const ok = g.post({ action: 'sahkanKod', emel, kod });
+  // Belum ada kata laluan → login gagal dengan mesej am
+  const belum = g.post({ action: 'login', emel, kataLaluan: 'apa-apa' });
+  assert.equal(belum.status, 'unauthorized');
+  assert.match(belum.message, /Lupa kata laluan/);
+
+  g.post({ action: 'lupaKataLaluan', emel });
+  const kl = bacaKataLaluanPetugas(g.state.peti, emel);
+  const ok = g.post({ action: 'login', emel: emel.toUpperCase(), kataLaluan: kl });
   assert.equal(ok.status, 'success');
   assert.equal(ok.akses, 'Barat Daya');
   assert.equal(ok.nama, 'PETUGAS BARAT DAYA');
   assert.match(ok.token, /^[A-Za-z0-9]{40}$/);
-  assert.equal(g.post({ action: 'sahkanKod', emel, kod }).status, 'unauthorized', 'kod sekali guna');
   const d = g.post({ action: 'data', token: ok.token });
   assert.equal(d.status, 'success');
-  assert.equal(d.nama, 'PETUGAS BARAT DAYA');
   assert.match(String(g.state.ss.getSheetByName('Petugas').rows.find((r) => r[1] === emel)[4]), /\d/, 'log masuk terakhir direkod');
 
-  // Sesi disimpan 30 hari (Script Properties, bukan cache 6 jam)
+  // Sesi disimpan 30 hari (Script Properties) dan tamat selepas itu
   const k = Object.keys(g.state.props).find((x) => x.startsWith('sesi_'));
-  const tamat = JSON.parse(g.state.props[k]).tamat;
-  assert.ok(Math.abs(tamat - (Date.now() + 30 * 86400000)) < 60000);
-  // Sesi luput → ditolak
+  assert.ok(Math.abs(JSON.parse(g.state.props[k]).tamat - (Date.now() + 30 * 86400000)) < 60000);
   g.state.props[k] = JSON.stringify({ emel, tamat: Date.now() - 1000 });
   assert.equal(g.post({ action: 'data', token: ok.token }).status, 'unauthorized');
 
-  // 5 kod salah → kod dibatalkan
-  g.post({ action: 'mintaKod', emel });
-  const kod2 = bacaKodEmel(g.state.peti, emel);
-  const lain = kod2 === '000000' ? '111111' : '000000';
-  for (let i = 0; i < 5; i++) g.post({ action: 'sahkanKod', emel, kod: lain });
-  assert.equal(g.post({ action: 'sahkanKod', emel, kod: kod2 }).status, 'unauthorized');
+  // Kata laluan petugas lain tidak boleh dipakai untuk emel ini
+  g.post({ action: 'lupaKataLaluan', emel: emelPetugas('Timur Laut') });
+  const klTl = bacaKataLaluanPetugas(g.state.peti, emelPetugas('Timur Laut'));
+  assert.equal(g.post({ action: 'login', emel, kataLaluan: klTl }).status, 'unauthorized');
+
+  // 5 kali salah → dikunci walaupun kata laluan betul; lupa kata laluan membuka kunci
+  for (let i = 0; i < 4; i++) g.post({ action: 'login', emel, kataLaluan: 'salah' + i });
+  assert.equal(g.post({ action: 'login', emel, kataLaluan: kl }).status, 'unauthorized');
+  assert.match(g.post({ action: 'login', emel, kataLaluan: kl }).message, /Terlalu banyak cubaan/);
+  g.post({ action: 'lupaKataLaluan', emel });
+  const baru = bacaKataLaluanPetugas(g.state.peti, emel);
+  assert.notEqual(baru, kl);
+  assert.equal(g.post({ action: 'login', emel, kataLaluan: kl }).status, 'unauthorized', 'kata laluan lama tidak sah');
+  assert.equal(g.post({ action: 'login', emel, kataLaluan: baru }).status, 'success');
 });
 
-test('login kod emel: had permintaan kod; petugas dinyahaktif terus hilang akses; log keluar semua', () => {
+test('kata laluan: had lupa kata laluan; dinyahaktif hilang akses; hantar kepada semua petugas; log keluar semua', () => {
   const g = binaGas('v2');
-  const { emelPetugas } = require('./mock-gas');
+  const { emelPetugas, bacaKataLaluanPetugas } = require('./mock-gas');
   const emel = emelPetugas('Timur Laut');
-  for (let i = 0; i < 5; i++) assert.equal(g.post({ action: 'mintaKod', emel }).status, 'success');
-  assert.equal(g.post({ action: 'mintaKod', emel }).status, 'error');
-  assert.equal(g.state.peti.length, 5);
+  for (let i = 0; i < 3; i++) assert.equal(g.post({ action: 'lupaKataLaluan', emel }).status, 'success');
+  assert.equal(g.post({ action: 'lupaKataLaluan', emel }).status, 'error');
+  assert.equal(g.state.peti.length, 3);
 
   const sesi = g.login('Barat Daya');
   assert.equal(g.post({ action: 'data', token: sesi.token }).status, 'success');
@@ -612,6 +626,7 @@ test('login kod emel: had permintaan kod; petugas dinyahaktif terus hilang akses
   petugas.rows.find((r) => r[1] === emelPetugas('Barat Daya'))[3] = 'TIDAK';
   g.ctx.onEdit({ range: { getSheet: () => petugas } });
   assert.equal(g.post({ action: 'data', token: sesi.token }).status, 'unauthorized');
+  assert.equal(g.post({ action: 'login', emel: emelPetugas('Barat Daya'), kataLaluan: g.state.kataLaluan[emelPetugas('Barat Daya')] }).status, 'unauthorized', 'tidak aktif tidak boleh log masuk');
 
   // Akses ditukar dalam tab Petugas → berkuat kuasa pada permintaan seterusnya
   const semua = g.login('SEMUA');
@@ -619,7 +634,17 @@ test('login kod emel: had permintaan kod; petugas dinyahaktif terus hilang akses
   g.ctx.onEdit({ range: { getSheet: () => petugas } });
   assert.equal(g.post({ action: 'bankSoalan', token: semua.token }).status, 'error');
 
-  const lagi = g.login('Seberang Perai Tengah (SPT)');
+  // Hantar kata laluan kepada semua petugas aktif (seorang setiap emel, kepada dirinya sahaja)
+  g.state.peti.length = 0;
+  const bil = g.ctx.hantarKataLaluanSemuaPetugas();
+  const aktif = petugas.rows.slice(1).filter((r) => r[1] && r[3] === 'YA').length;
+  assert.equal(bil, aktif);
+  assert.equal(g.state.peti.length, aktif);
+  g.state.peti.forEach((m) => assert.ok(m.htmlBody.includes(m.to), 'emel mengandungi alamat penerima sendiri'));
+  const klSpt = bacaKataLaluanPetugas(g.state.peti, emelPetugas('Seberang Perai Tengah (SPT)'));
+  assert.match(klSpt, /^padspt\d{4}!\d{4}$/);
+
+  const lagi = g.post({ action: 'login', emel: emelPetugas('Seberang Perai Tengah (SPT)'), kataLaluan: klSpt });
   g.ctx.logKeluarSemuaPetugas();
   assert.equal(g.post({ action: 'data', token: lagi.token }).status, 'unauthorized');
 });

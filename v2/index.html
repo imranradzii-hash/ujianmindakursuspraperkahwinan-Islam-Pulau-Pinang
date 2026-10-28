@@ -624,28 +624,26 @@
 
         <div id="modal-login" role="dialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
             <h3 class="text-lg font-extrabold text-slate-900 mb-1">Log Masuk Petugas</h3>
-            <!-- Langkah 1: emel -->
-            <div id="login-langkah-emel">
-                <p class="text-sm text-slate-600 mb-4">Masukkan emel rasmi anda. Kod pengesahan 6 digit akan dihantar ke emel tersebut.</p>
+            <p class="text-sm text-slate-600 mb-4">Guna emel rasmi yang didaftarkan dan kata laluan yang diemelkan kepada anda.</p>
+            <!-- Borang sebenar supaya pelayar boleh menawarkan simpan kata laluan -->
+            <form id="form-login" onsubmit="logMasuk(event)" autocomplete="on" novalidate>
                 <label for="input-emel" class="label text-xs">Emel Rasmi</label>
-                <input type="email" id="input-emel" autocomplete="email" maxlength="100" class="medan mb-2" placeholder="nama@penang.gov.my">
-                <p class="text-[11px] text-slate-500">Hanya petugas berdaftar dengan emel @penang.gov.my.</p>
-            </div>
-            <!-- Langkah 2: kod -->
-            <div id="login-langkah-kod" class="hidden-step">
-                <p id="login-mesej-kod" class="text-sm text-slate-600 mb-4"></p>
-                <label for="input-kod" class="label text-xs">Kod Pengesahan</label>
-                <input type="text" id="input-kod" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="medan mb-2 text-center text-xl font-extrabold tracking-[.4em]" placeholder="______">
-                <div class="flex justify-between text-[12px] font-semibold">
-                    <button type="button" onclick="loginTukarEmel()" class="text-slate-500 hover:text-slate-800 underline decoration-dotted underline-offset-4">Tukar emel</button>
-                    <button type="button" id="btn-hantar-semula" onclick="mintaKodLogin()" class="hover:underline" style="color:var(--navy)">Hantar semula kod</button>
+                <input type="email" id="input-emel" name="username" autocomplete="username" maxlength="100" class="medan mb-3" placeholder="nama@penang.gov.my">
+                <label for="input-kata-laluan" class="label text-xs">Kata Laluan</label>
+                <div class="relative mb-2">
+                    <input type="password" id="input-kata-laluan" name="password" autocomplete="current-password" maxlength="100" class="medan pr-16" placeholder="Kata laluan">
+                    <button type="button" id="btn-lihat-kl" onclick="lihatKataLaluan()" class="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-1 rounded-md hover:bg-slate-100" style="color:var(--navy)" aria-label="Papar kata laluan">Papar</button>
                 </div>
-            </div>
-            <p id="login-ralat" class="hidden-step text-red-600 text-xs font-bold mt-3"></p>
-            <div class="flex gap-3 mt-5">
-                <button type="button" onclick="tutupSemuaModal()" class="btn-kedua flex-1 py-3 px-4">Batal</button>
-                <button type="button" id="btn-login" onclick="tekanLogin()" class="btn-utama flex-1 py-3 px-4">Hantar Kod</button>
-            </div>
+                <div class="flex justify-end">
+                    <button type="button" id="btn-lupa-kl" onclick="lupaKataLaluan()" class="text-[12px] font-semibold underline decoration-dotted underline-offset-4" style="color:var(--navy)">Lupa kata laluan / petugas baharu?</button>
+                </div>
+                <p id="login-info" class="hidden-step text-xs font-semibold mt-3 rounded-lg p-2.5" style="background:#ecfdf3;color:#05603a;"></p>
+                <p id="login-ralat" class="hidden-step text-red-600 text-xs font-bold mt-3"></p>
+                <div class="flex gap-3 mt-5">
+                    <button type="button" onclick="tutupSemuaModal()" class="btn-kedua flex-1 py-3 px-4">Batal</button>
+                    <button type="submit" id="btn-login" class="btn-utama flex-1 py-3 px-4">Log Masuk</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -758,7 +756,7 @@
             setTimeout(() => {
                 aktif.classList.remove('scale-95', 'opacity-0');
                 aktif.classList.add('scale-100', 'opacity-100');
-                if (modalId === 'modal-login') ($('login-langkah-kod').classList.contains('hidden-step') ? $('input-emel') : $('input-kod')).focus();
+                if (modalId === 'modal-login') ($('input-emel').value ? $('input-kata-laluan') : $('input-emel')).focus();
             }, 10);
         }
 
@@ -1213,33 +1211,37 @@
         // ==========================================
         // ADMIN
         // ==========================================
-        // Log masuk petugas: emel @penang.gov.my → kod 6 digit dari emel → sesi 30 hari.
+        // Log masuk petugas: emel @penang.gov.my yang berdaftar + kata laluan (diemelkan kepada petugas itu sahaja) → sesi 30 hari.
         // Token disimpan dalam localStorage peranti ini sehingga log keluar; server semak token dan tab Petugas setiap permintaan.
         const admin = { akses: "", nama: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' };
-        let emelLogin = '';
 
         function ralatLogin(mesej) {
             const ralat = $('login-ralat');
             ralat.innerText = mesej || '';
             ralat.classList.toggle('hidden-step', !mesej);
+            if (mesej) infoLogin('');
         }
 
-        function langkahLogin(kod) {
-            $('login-langkah-emel').classList.toggle('hidden-step', kod);
-            $('login-langkah-kod').classList.toggle('hidden-step', !kod);
-            $('btn-login').innerText = kod ? "Sahkan & Masuk" : "Hantar Kod";
-            ralatLogin('');
-            setTimeout(() => (kod ? $('input-kod') : $('input-emel')).focus(), 20);
+        function infoLogin(mesej) {
+            $('login-info').innerText = mesej || '';
+            $('login-info').classList.toggle('hidden-step', !mesej);
         }
 
-        function loginTukarEmel() {
-            $('input-kod').value = '';
-            langkahLogin(false);
+        function lihatKataLaluan() {
+            const i = $('input-kata-laluan');
+            const papar = i.type === 'password';
+            i.type = papar ? 'text' : 'password';
+            $('btn-lihat-kl').innerText = papar ? 'Sorok' : 'Papar';
         }
 
-        function tekanLogin() {
-            if ($('login-langkah-kod').classList.contains('hidden-step')) mintaKodLogin();
-            else sahkanKodLogin();
+        function emelLoginSah() {
+            const emel = $('input-emel').value.trim().toLowerCase();
+            if (!/^[^\s@]+@penang\.gov\.my$/.test(emel)) {
+                ralatLogin("Sila masukkan emel rasmi @penang.gov.my yang didaftarkan.");
+                $('input-emel').focus();
+                return '';
+            }
+            return emel;
         }
 
         // Butang di kaki halaman: guna sesi tersimpan jika masih sah, jika tidak papar log masuk
@@ -1267,44 +1269,20 @@
                 }
                 simpanan.buang(KUNCI_SESI_ADMIN);
             }
-            $('input-emel').value = simpanan.baca(KUNCI_EMEL_ADMIN) || '';
-            $('input-kod').value = '';
-            langkahLogin(false);
+            if (!$('input-emel').value) $('input-emel').value = simpanan.baca(KUNCI_EMEL_ADMIN) || '';
+            ralatLogin('');
+            infoLogin('');
             bukaModal('modal-login');
         }
 
-        async function mintaKodLogin() {
-            const emel = (emelLogin && !$('login-langkah-kod').classList.contains('hidden-step') ? emelLogin : $('input-emel').value).trim().toLowerCase();
-            if (!/^[^\s@]+@penang\.gov\.my$/.test(emel)) {
-                ralatLogin("Sila masukkan emel rasmi @penang.gov.my.");
-                return;
-            }
-            const btn = $('btn-login'), semula = $('btn-hantar-semula');
-            btn.disabled = semula.disabled = true;
-            btn.innerText = "Menghantar...";
-            let data;
-            try {
-                data = await panggilServer({ action: 'mintaKod', emel: emel });
-            } catch (err) {
-                data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
-            }
-            btn.disabled = semula.disabled = false;
-            if (data.status !== 'success') {
-                btn.innerText = $('login-langkah-kod').classList.contains('hidden-step') ? "Hantar Kod" : "Sahkan & Masuk";
-                ralatLogin(data.message || "Kod tidak dapat dihantar.");
-                return;
-            }
-            emelLogin = emel;
-            simpanan.tulis(KUNCI_EMEL_ADMIN, emel);
-            $('login-mesej-kod').innerText = data.message + " Semak juga folder Spam.";
-            $('input-kod').value = '';
-            langkahLogin(true);
-        }
-
-        async function sahkanKodLogin() {
-            const kod = $('input-kod').value.replace(/\D/g, '');
-            if (kod.length !== 6) {
-                ralatLogin("Sila masukkan kod 6 digit dari emel anda.");
+        async function logMasuk(e) {
+            if (e) e.preventDefault();
+            const emel = emelLoginSah();
+            if (!emel) return;
+            const kataLaluan = $('input-kata-laluan').value;
+            if (!kataLaluan) {
+                ralatLogin("Sila masukkan kata laluan.");
+                $('input-kata-laluan').focus();
                 return;
             }
             const btn = $('btn-login');
@@ -1312,27 +1290,48 @@
             btn.innerText = "Menyemak...";
             let data;
             try {
-                data = await panggilServer({ action: 'sahkanKod', emel: emelLogin, kod: kod });
+                data = await panggilServer({ action: 'login', emel: emel, kataLaluan: kataLaluan });
             } catch (err) {
                 data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
             }
             btn.disabled = false;
-            btn.innerText = "Sahkan & Masuk";
+            btn.innerText = "Log Masuk";
             if (data.status !== 'success') {
-                $('input-kod').value = '';
-                // Kod tamat / cubaan habis: kembali ke langkah emel untuk minta kod baharu
-                if (/minta kod baharu/i.test(data.message || '')) loginTukarEmel();
-                ralatLogin(data.message || "Kod tidak sah.");
+                ralatLogin(data.message || "Emel atau kata laluan salah.");
+                $('input-kata-laluan').select();
                 return;
             }
-            $('input-kod').value = '';
+            simpanan.tulis(KUNCI_EMEL_ADMIN, emel);
             simpanan.tulis(KUNCI_SESI_ADMIN, { token: data.token });
+            $('input-kata-laluan').value = '';
             tutupSemuaModal();
             masukAdmin(data.token, data);
         }
 
-        $('input-emel').addEventListener('keydown', (e) => { if (e.key === 'Enter') mintaKodLogin(); });
-        $('input-kod').addEventListener('keydown', (e) => { if (e.key === 'Enter') sahkanKodLogin(); });
+        // Kata laluan baharu dihantar ke emel berdaftar sahaja (juga untuk petugas baharu)
+        async function lupaKataLaluan() {
+            const emel = emelLoginSah();
+            if (!emel) return;
+            const btn = $('btn-lupa-kl');
+            btn.disabled = true;
+            btn.innerText = "Menghantar...";
+            let data;
+            try {
+                data = await panggilServer({ action: 'lupaKataLaluan', emel: emel });
+            } catch (err) {
+                data = { status: 'error', message: "Tiada sambungan internet atau ralat pelayan." };
+            }
+            btn.disabled = false;
+            btn.innerText = "Lupa kata laluan / petugas baharu?";
+            if (data.status !== 'success') {
+                ralatLogin(data.message || "Kata laluan tidak dapat dihantar.");
+                return;
+            }
+            ralatLogin('');
+            infoLogin(data.message + " Semak juga folder Spam.");
+            $('input-kata-laluan').value = '';
+            $('input-kata-laluan').focus();
+        }
 
         function masukAdmin(token, data) {
             admin.token = token;
@@ -1405,7 +1404,7 @@
             if (pemasaAutoRefresh) clearInterval(pemasaAutoRefresh);
             pemasaAutoRefresh = null;
             Object.assign(admin, { akses: "", nama: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' });
-            $('input-kod').value = '';
+            $('input-kata-laluan').value = '';
             $('carian-peserta').value = '';
             ['admin-top10-tbody', 'admin-gagal-tbody', 'admin-tbody', 'bank-senarai'].forEach(id => { $(id).innerHTML = ''; });
             $('mb-ringkasan').innerHTML = 'Tekan "Papar Ringkasan" untuk memuatkan data penilaian.';

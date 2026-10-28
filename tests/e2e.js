@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { binaGas, emelPetugas, bacaKodEmel } = require('./mock-gas');
+const { binaGas, emelPetugas, bacaKataLaluanPetugas } = require('./mock-gas');
 
 const AKAR = path.join(__dirname, '..');
 const OUTPUT = path.join(__dirname, 'output');
@@ -110,20 +110,23 @@ async function loginAdmin(page, pwd) {
   await page.click('#btn-akses');
 }
 
-// v2: emel petugas → kod 6 digit dibaca dari peti emel simulasi → sahkan
-async function loginPetugas(page, g, akses, kodSalah) {
+// v2: emel petugas + kata laluan. Kali pertama: "Lupa kata laluan" → kata laluan dibaca dari peti emel simulasi.
+async function loginPetugas(page, g, akses, kataLaluanSalah) {
   const emel = emelPetugas(akses);
   await page.click('text=Akses Platform Admin Daerah');
   await page.waitForSelector('#modal-login:not(.hidden-step)');
   await page.fill('#input-emel', emel);
-  await page.click('#btn-login');
-  await page.waitForSelector('#login-langkah-kod:not(.hidden-step)');
-  if (kodSalah) {
-    await page.fill('#input-kod', kodSalah);
+  if (!g.state.kataLaluan[emel]) {
+    await page.click('#btn-lupa-kl');
+    await page.waitForSelector('#login-info:not(.hidden-step)');
+    g.state.kataLaluan[emel] = bacaKataLaluanPetugas(g.state.peti, emel);
+  }
+  if (kataLaluanSalah) {
+    await page.fill('#input-kata-laluan', kataLaluanSalah);
     await page.click('#btn-login');
     await page.waitForSelector('#login-ralat:not(.hidden-step)');
   }
-  await page.fill('#input-kod', bacaKodEmel(g.state.peti, emel));
+  await page.fill('#input-kata-laluan', g.state.kataLaluan[emel]);
   await page.click('#btn-login');
   await page.waitForSelector('#step-admin:not(.hidden-step)');
 }
@@ -432,7 +435,7 @@ test('v2: dashboard — XSS tidak jalan, IC bertopeng, status & Lepaskan, CSV & 
   g.sheet.appendRow(['t3', 'SITI BINTI ALI', "'900101075552", 'siti@contoh.my', 'Barat Daya', hari, 'Set 2', 40, 12, 30, 'GAGAL: Invalid email', 'id-tiga-0003', '[]']);
   const { context, page, ralat } = await buka('v2', g);
 
-  await loginPetugas(page, g, 'SEMUA', '000000');
+  await loginPetugas(page, g, 'SEMUA', 'salah123');
   await page.waitForTimeout(300);
   assert.match(await page.textContent('#admin-akses-badge'), /PETUGAS SEMUA · Akses: SEMUA/);
   assert.equal(await page.evaluate(() => window.__xss), undefined, 'skrip dalam nama tidak dijalankan');
@@ -568,7 +571,7 @@ test('v2: ringkasan penilaian kursus & CSV di dashboard', async () => {
   await context.close();
 });
 
-test('v2: sesi petugas kekal selepas muat semula (tanpa kod lagi); tamat → log masuk semula; Log Keluar batalkan token', async () => {
+test('v2: sesi petugas kekal selepas muat semula (tanpa kata laluan lagi); tamat → log masuk semula; Log Keluar batalkan token', async () => {
   const g = binaGas('v2');
   g.sheet.appendRow(['t1', 'ALI BIN ABU', "'900101075551", 'a@contoh.my', 'Timur Laut', '2026-04-19', 'Set 1', 90, 27, 30, 'DIHANTAR', 'id-ali-00001', '[]']);
   const { context, page, pelayan } = await buka('v2', g);
@@ -591,12 +594,12 @@ test('v2: sesi petugas kekal selepas muat semula (tanpa kod lagi); tamat → log
   await page.click('#btn-muat-semula');
   await page.waitForFunction(() => document.getElementById('label-jumlah-carian').textContent === '2 Rekod');
 
-  // Muat semula halaman → terus masuk dashboard tanpa kod baharu
+  // Muat semula halaman → terus masuk dashboard tanpa log masuk semula
   const emelSebelum = g.state.peti.length;
   await page.reload();
   await page.click('text=Akses Platform Admin Daerah');
   await page.waitForSelector('#step-admin:not(.hidden-step)');
-  assert.equal(g.state.peti.length, emelSebelum, 'tiada kod baharu diemelkan');
+  assert.equal(g.state.peti.length, emelSebelum, 'tiada emel baharu');
 
   // Sesi dibatalkan di server (cth. logKeluarSemuaPetugas) → Sesi Tamat, storan dibersihkan
   g.ctx.logKeluarSemuaPetugas();
@@ -619,7 +622,7 @@ test('v2: sesi petugas kekal selepas muat semula (tanpa kod lagi); tamat → log
   await page.click('text=Akses Platform Admin Daerah');
   await page.waitForSelector('#modal-login:not(.hidden-step)');
   assert.equal(await page.inputValue('#input-emel'), emelPetugas('SEMUA'));
-  await page.screenshot({ path: path.join(OUTPUT, 'v2-7-login-kod.png') });
+  await page.screenshot({ path: path.join(OUTPUT, 'v2-7-login.png') });
   await context.close();
 });
 

@@ -19,7 +19,7 @@ Ujian minda dalam talian untuk peserta Kursus Praperkahwinan Islam (JHEAIPP), de
 
 1. **Skema jawapan & markah di browser.** Sebelum ini sesiapa boleh nampak jawapan (View Source) dan POST markah palsu. Kini markah dikira di server.
 2. **Stored XSS & formula injection.** Kini semua data di-escape di dashboard dan emel. Teks `= + - @` dineutralkan dalam Sheet dan CSV.
-3. **Kata laluan admin.** Versi minimal: kata laluan rawak, hash SHA-256 + salt, dikunci 15 minit selepas 10 cubaan salah. v2: tiada kata laluan — petugas log masuk dengan kod 6 digit yang diemelkan ke emel @penang.gov.my mereka.
+3. **Kata laluan admin.** Versi minimal: kata laluan rawak, hash SHA-256 + salt, dikunci 15 minit selepas 10 cubaan salah. v2: petugas log masuk dengan emel @penang.gov.my yang berdaftar dan kata laluan peribadi yang diemelkan kepada mereka sahaja; hanya cincangan HMAC disimpan.
 4. **Tiada semakan input di server.** Kini semua input disemak di server.
 
 ## v2: aliran peserta
@@ -38,13 +38,15 @@ Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka boran
 
 ## v2: peranan admin
 
-Log masuk tanpa kata laluan:
+Log masuk dengan emel dan kata laluan:
 
-1. Petugas tekan **Akses Platform Admin Daerah** dan masukkan emel rasmi **@penang.gov.my**.
-2. Jika emel itu berdaftar dan aktif dalam tab **Petugas**, kod 6 digit diemelkan (sah 10 minit, maksimum 5 cubaan salah). Mesej yang sama dipaparkan sama ada emel berdaftar atau tidak.
-3. Selepas kod disahkan, petugas kekal log masuk di peranti itu selama **30 hari** atau sehingga tekan **Log Keluar**.
+1. Petugas tekan **Akses Platform Admin Daerah**, masukkan emel rasmi **@penang.gov.my** yang didaftarkan dalam tab **Petugas** dan kata laluan. Pelayar boleh menyimpan kata laluan.
+2. Kata laluan dijana sistem dalam format mudah diingat: **kod pusat + 4 digit rawak + ! + tahun**, cth. `padsps4827!2026` (SEMUA/Ibu Pejabat `jheaipp…`, Timur Laut `padtl…`, Barat Daya `padbd…`, SPU Butterworth `padspubw…`, SPU Kepala Batas `padspukb…`, SPT `padspt…`, SPS `padsps…`). Digit rawak, bukan bersiri, supaya kata laluan rakan sepejabat tidak boleh diteka.
+3. Kata laluan dihantar **kepada emel petugas itu sahaja**: sama ada semua sekali gus (`hantarKataLaluanSemuaPetugas`, cth. awal tahun) atau seorang-seorang melalui **Lupa kata laluan / petugas baharu?** di skrin log masuk. Kata laluan baharu membatalkan yang lama. Mesej yang sama dipaparkan sama ada emel berdaftar atau tidak.
+4. 5 kata laluan salah → emel itu dikunci 15 minit (Lupa kata laluan membuka kunci). Lupa kata laluan dihadkan 3 kali setiap emel dalam 15 minit.
+5. Selepas log masuk, petugas kekal log masuk di peranti itu selama **30 hari** atau sehingga tekan **Log Keluar**.
 
-Tab **Petugas**: Nama | Emel (@penang.gov.my) | Akses (`SEMUA` atau nama daerah tepat seperti dalam borang) | Aktif (`YA`/`TIDAK`) | Log Masuk Terakhir (diisi sistem) | Jawatan | Catatan. Akses, Aktif, Jawatan dan Catatan ialah dropdown (dipasang oleh `sediakanSistem`). Baris tanpa emel diabaikan. Akses dibaca semula setiap permintaan, jadi menukar Akses atau Aktif = `TIDAK` terus berkesan. Had permintaan kod: 5 setiap emel dan 60 keseluruhan dalam 15 minit.
+Tab **Petugas**: Nama | Emel (@penang.gov.my) | Akses (`SEMUA` atau nama daerah tepat seperti dalam borang) | Aktif (`YA`/`TIDAK`) | Log Masuk Terakhir (diisi sistem) | Jawatan | Catatan. Akses, Aktif, Jawatan dan Catatan ialah dropdown (dipasang oleh `sediakanSistem`). Baris tanpa emel diabaikan. Akses dibaca semula setiap permintaan, jadi menukar Akses atau Aktif = `TIDAK` terus berkesan.
 
 | Akses | Boleh |
 |---|---|
@@ -83,6 +85,7 @@ Tukar `TAB.KEPUTUSAN` kepada `"Sheet1"` di atas `Code.gs`, kemudian jalankan `se
 
 | Fungsi | Guna |
 |---|---|
+| `hantarKataLaluanSemuaPetugas` | Jana & emelkan kata laluan baharu kepada semua petugas aktif (setiap seorang terima kata laluan sendiri sahaja) |
 | `logKeluarSemuaPetugas` | Batalkan semua sesi log masuk petugas (cth. telefon hilang) |
 | `kosongkanCacheSoalan` | Paksa bank soalan dibaca semula selepas edit terus dalam Sheet |
 | `hantarEmelContohKepadaSaya` | Contoh emel keputusan ke emel anda |

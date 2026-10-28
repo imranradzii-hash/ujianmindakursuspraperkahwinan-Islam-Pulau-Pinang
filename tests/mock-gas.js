@@ -93,7 +93,7 @@ class MockSpreadsheet {
 }
 
 function binaGas(versi) {
-  const state = { ss: new MockSpreadsheet(), cache: new Map(), props: {}, peti: [], log: [], trigger: [], kuotaEmel: 1500, emelGagal: null };
+  const state = { kataLaluan: {}, ss: new MockSpreadsheet(), cache: new Map(), props: {}, peti: [], log: [], trigger: [], kuotaEmel: 1500, emelGagal: null };
   const kunci = () => ({ waitLock() {}, tryLock() { return true; }, releaseLock() {} });
   const gas = {
     SpreadsheetApp: {
@@ -187,9 +187,12 @@ function binaGas(versi) {
   // Log masuk seperti petugas sebenar: minta kod → baca kod dalam emel → sahkan
   const login = (akses) => {
     const emel = emelPetugas(akses);
-    post({ action: 'mintaKod', emel });
-    const kod = bacaKodEmel(state.peti, emel);
-    return post({ action: 'sahkanKod', emel, kod });
+    // Kata laluan pertama diperoleh seperti petugas baharu: "Lupa kata laluan" → baca emel
+    if (!state.kataLaluan[emel]) {
+      post({ action: 'lupaKataLaluan', emel });
+      state.kataLaluan[emel] = bacaKataLaluanPetugas(state.peti, emel);
+    }
+    return post({ action: 'login', emel, kataLaluan: state.kataLaluan[emel] });
   };
   return { ctx, state, sheet, post, get, bank, kataLaluan, login };
 }
@@ -207,9 +210,10 @@ const EMEL_PETUGAS_UJIAN = [
 function emelPetugas(akses) { return EMEL_PETUGAS_UJIAN.find(([a]) => a === akses)[1]; }
 
 // Kod 6 digit daripada emel kod log masuk terakhir kepada alamat itu
-function bacaKodEmel(peti, emel) {
-  const m = [...peti].reverse().find((x) => x.to === emel && /Kod Log Masuk/.test(x.subject));
-  return m ? m.subject.match(/(\d{6})/)[1] : null;
+// Kata laluan daripada emel kata laluan terakhir kepada alamat itu
+function bacaKataLaluanPetugas(peti, emel) {
+  const m = [...peti].reverse().find((x) => x.to === emel && /Kata Laluan Dashboard/.test(x.subject));
+  return m ? m.htmlBody.match(/font-family:Consolas[^>]*>([^<]+)</)[1].replace(/&amp;/g, '&') : null;
 }
 
 // Kata laluan dari emel SULIT terakhir: { akses: kataLaluan }
@@ -235,4 +239,4 @@ function hariIniMYT(tambahHari) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(d);
 }
 
-module.exports = { binaGas, hariIniMYT, failBankSoalan, bacaKataLaluanEmel, emelPetugas, bacaKodEmel };
+module.exports = { binaGas, hariIniMYT, failBankSoalan, bacaKataLaluanEmel, emelPetugas, bacaKataLaluanPetugas };
