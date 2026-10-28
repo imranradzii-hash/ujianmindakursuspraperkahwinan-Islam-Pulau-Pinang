@@ -468,7 +468,7 @@ function handleHantar(data) {
     if (sedia2) return JSON.parse(sedia2);
 
     tab(TAB.KEPUTUSAN).appendRow([
-      new Date().toLocaleString('ms-MY', { timeZone: ZON_MASA }),  // A: Timestamp (masa server)
+      "'" + masaKini(),                                           // A: Timestamp (masa server, 24 jam, teks)
       selamatUntukSheet(p.nama),                                     // B
       "'" + p.ic,                                                    // C: teks
       selamatUntukSheet(p.email),                                    // D
@@ -625,7 +625,7 @@ function handleMaklumBalas(data) {
       const kolum = pastikanKolumMaklumBalas(sheetMb);
       const tarikh = r[KOL.TARIKH - 1] instanceof Date ? Utilities.formatDate(r[KOL.TARIKH - 1], ZON_MASA, 'yyyy-MM-dd') : String(r[KOL.TARIKH - 1]);
       const row = new Array(kolum.lebar).fill('');
-      row[0] = new Date().toLocaleString('ms-MY', { timeZone: ZON_MASA });
+      row[0] = "'" + masaKini();
       row[1] = idHantar;
       row[2] = r[KOL.DAERAH - 1];
       row[3] = tarikh;
@@ -966,7 +966,7 @@ function bacaRekod(akses) {
     const ambil = (k) => (row.length >= k ? row[k - 1] : '');
     const rawTarikh = row[KOL.TARIKH - 1];
     hasil.push({
-      timestamp: String(row[KOL.TIMESTAMP - 1]).trim(),
+      timestamp: row[KOL.TIMESTAMP - 1] instanceof Date ? Utilities.formatDate(row[KOL.TIMESTAMP - 1], ZON_MASA, 'dd/MM/yyyy HH:mm:ss') : String(row[KOL.TIMESTAMP - 1]).trim(),
       nama: String(row[KOL.NAMA - 1]).trim(),
       ic: String(row[KOL.IC - 1]).trim(),
       email: String(row[KOL.EMEL - 1]).trim(),

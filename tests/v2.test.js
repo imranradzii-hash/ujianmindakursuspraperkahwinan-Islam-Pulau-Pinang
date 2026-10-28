@@ -607,3 +607,11 @@ test('v2: rekodHariIni — hanya tarikh hari ini dan daerah sendiri', () => {
   assert.deepEqual(semua.data.map((d) => d.idHantar).sort(), ['id-a', 'id-c']);
   assert.equal(g.post({ action: 'rekodHariIni', token: 'x'.repeat(40) }).status, 'unauthorized');
 });
+
+test('v2: masa hantar disimpan format 24 jam (dd/MM/yyyy HH:mm:ss) sebagai teks', () => {
+  const g = binaGas('v2');
+  assert.equal(g.post(ujian(g)).status, 'success');
+  assert.match(String(g.sheet.rows[1][0]), /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
+  const r = g.post({ action: 'rekodHariIni', token: g.login('SEMUA').token });
+  assert.match(r.data[0].timestamp, /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
+});
