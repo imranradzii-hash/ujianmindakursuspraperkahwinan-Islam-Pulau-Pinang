@@ -98,8 +98,11 @@ const BK = { ID: 1, SET: 2, BIL: 3, SOALAN: 4, A: 5, B: 6, C: 7, D: 8, JAWAPAN: 
 const TAJUK_BANK = ["ID", "Set", "Bil", "Soalan", "Pilihan A", "Pilihan B", "Pilihan C", "Pilihan D", "Jawapan (A-D)", "Aktif (YA/TIDAK)", "Dikemaskini", "Catatan / Sumber", "Tajuk Kursus (T1-T8)"];
 
 // Tab Petugas — senarai pegawai yang boleh log masuk ke dashboard admin
-const PT = { NAMA: 1, EMEL: 2, AKSES: 3, AKTIF: 4, TERAKHIR: 5 };
-const TAJUK_PETUGAS = ["Nama", "Emel (@penang.gov.my)", "Akses (SEMUA atau nama daerah)", "Aktif (YA/TIDAK)", "Log Masuk Terakhir", "Jawatan / Catatan"];
+const PT = { NAMA: 1, EMEL: 2, AKSES: 3, AKTIF: 4, TERAKHIR: 5, JAWATAN: 6, CATATAN: 7 };
+const TAJUK_PETUGAS = ["Nama", "Emel (@penang.gov.my)", "Akses (SEMUA atau nama daerah)", "Aktif (YA/TIDAK)", "Log Masuk Terakhir", "Jawatan", "Catatan"];
+// Pilihan dropdown tab Petugas (Jawatan & Catatan masih boleh ditaip bebas)
+const PILIHAN_JAWATAN = ["Pentadbir JHEAIPP", "Pegawai JHEAIPP", "Setiausaha Pusat", "Kerani Pusat", "Petugas Pusat"];
+const PILIHAN_CATATAN = ["Emel disahkan", "Sahkan emel", "Emel belum ada", "Bertukar daerah", "Tidak lagi bertugas"];
 const HURUF = "ABCD";
 
 // Tab SoalanMaklumBalas (A–H) — boleh diedit terus dalam Sheet
@@ -1097,6 +1100,17 @@ function janaRentetanRawak(panjang) {
 // ==========================================
 
 // Jalankan SEKALI selepas paste kod. Selamat dijalankan berulang kali — tidak memadam data.
+// Dropdown untuk kolum Akses, Aktif, Jawatan dan Catatan (baris 2-500)
+function pasangDropdownPetugas(sheet) {
+  const senarai = (pilihan, tegas) => SpreadsheetApp.newDataValidation()
+    .requireValueInList(pilihan, true).setAllowInvalid(!tegas).build();
+  const baris = 499;
+  sheet.getRange(2, PT.AKSES, baris, 1).setDataValidation(senarai(SENARAI_AKSES, true));
+  sheet.getRange(2, PT.AKTIF, baris, 1).setDataValidation(senarai(["YA", "TIDAK"], true));
+  sheet.getRange(2, PT.JAWATAN, baris, 1).setDataValidation(senarai(PILIHAN_JAWATAN, false));
+  sheet.getRange(2, PT.CATATAN, baris, 1).setDataValidation(senarai(PILIHAN_CATATAN, false));
+}
+
 function sediakanSistem() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const pastikanTab = (nama, tajuk) => {
@@ -1118,6 +1132,7 @@ function sediakanSistem() {
     petugas.getRange(2, 1, 1, 4).setValues([[PEGAWAI.nama, PEGAWAI.emel, "SEMUA", "YA"]]);
     Logger.log("Tab Petugas dicipta dengan " + PEGAWAI.emel + " (akses SEMUA). Tambah petugas lain terus dalam tab Petugas.");
   }
+  pasangDropdownPetugas(petugas);
   CacheService.getScriptCache().remove('petugas_v1');
   kosongkanCacheSoalan();
   pastikanKolumMaklumBalas(ss.getSheetByName(TAB.MAKLUM_BALAS));

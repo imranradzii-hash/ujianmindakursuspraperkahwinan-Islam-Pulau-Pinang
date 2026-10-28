@@ -44,7 +44,7 @@ Log masuk tanpa kata laluan:
 2. Jika emel itu berdaftar dan aktif dalam tab **Petugas**, kod 6 digit diemelkan (sah 10 minit, maksimum 5 cubaan salah). Mesej yang sama dipaparkan sama ada emel berdaftar atau tidak.
 3. Selepas kod disahkan, petugas kekal log masuk di peranti itu selama **30 hari** atau sehingga tekan **Log Keluar**.
 
-Tab **Petugas**: Nama | Emel (@penang.gov.my) | Akses (`SEMUA` atau nama daerah tepat seperti dalam borang) | Aktif (`YA`/`TIDAK`) | Log Masuk Terakhir (diisi sistem) | Jawatan / Catatan. Baris tanpa emel diabaikan. Akses dibaca semula setiap permintaan, jadi menukar Akses atau Aktif = `TIDAK` terus berkesan. Had permintaan kod: 5 setiap emel dan 60 keseluruhan dalam 15 minit.
+Tab **Petugas**: Nama | Emel (@penang.gov.my) | Akses (`SEMUA` atau nama daerah tepat seperti dalam borang) | Aktif (`YA`/`TIDAK`) | Log Masuk Terakhir (diisi sistem) | Jawatan | Catatan. Akses, Aktif, Jawatan dan Catatan ialah dropdown (dipasang oleh `sediakanSistem`). Baris tanpa emel diabaikan. Akses dibaca semula setiap permintaan, jadi menukar Akses atau Aktif = `TIDAK` terus berkesan. Had permintaan kod: 5 setiap emel dan 60 keseluruhan dalam 15 minit.
 
 | Akses | Boleh |
 |---|---|

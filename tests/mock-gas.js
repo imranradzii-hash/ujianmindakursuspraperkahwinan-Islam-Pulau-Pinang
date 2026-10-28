@@ -65,6 +65,7 @@ class MockRange {
     return this;
   }
   setFontWeight() { return this; }
+  setDataValidation(v) { (this.sheet.validasi = this.sheet.validasi || {})[this.c] = v; return this; }
   getRow() { return this.r; }
   getSheet() { return this.sheet; }
   createTextFinder(teks) {
@@ -95,7 +96,13 @@ function binaGas(versi) {
   const state = { ss: new MockSpreadsheet(), cache: new Map(), props: {}, peti: [], log: [], trigger: [], kuotaEmel: 1500, emelGagal: null };
   const kunci = () => ({ waitLock() {}, tryLock() { return true; }, releaseLock() {} });
   const gas = {
-    SpreadsheetApp: { getActiveSpreadsheet: () => state.ss },
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => state.ss,
+      newDataValidation: () => {
+        const v = { requireValueInList: (senarai) => { v.senarai = senarai; return v; }, setAllowInvalid: (b) => { v.bebas = b; return v; }, build: () => ({ senarai: v.senarai, bebas: v.bebas }) };
+        return v;
+      }
+    },
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: (k) => (k in state.props ? state.props[k] : null),

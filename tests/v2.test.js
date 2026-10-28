@@ -343,6 +343,11 @@ test('sediakanSistem selamat dijalankan berulang kali', () => {
   const bilPetugas = petugas.getLastRow();
   g.ctx.sediakanSistem();
   assert.equal(petugas.getLastRow(), bilPetugas, 'petugas tidak ditambah berganda');
+  // Dropdown: Akses & Aktif wajib dari senarai; Jawatan & Catatan boleh taip bebas
+  assert.ok(petugas.validasi[3].senarai.includes('Barat Daya') && petugas.validasi[3].bebas === false);
+  assert.deepEqual(Array.from(petugas.validasi[4].senarai), ['YA', 'TIDAK']);
+  assert.ok(petugas.validasi[6].senarai.includes('Kerani Pusat') && petugas.validasi[6].bebas === true);
+  assert.ok(petugas.validasi[7].senarai.includes('Sahkan emel'));
   assert.equal(g.state.props.AKAUN_HASH, undefined, 'kata laluan lama dibuang');
   assert.deepEqual(g.sheet.rows[0].slice(10, 13), ['Status', 'ID Hantar', 'Butiran Jawapan (JSON)']);
 });
