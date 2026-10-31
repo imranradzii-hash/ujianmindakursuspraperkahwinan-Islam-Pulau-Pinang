@@ -40,7 +40,7 @@ Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka boran
 
 Log masuk dengan emel dan kata laluan:
 
-1. Petugas tekan **Akses Platform Admin Daerah**, masukkan emel rasmi **@penang.gov.my** yang didaftarkan dalam tab **Petugas** dan kata laluan. Pelayar boleh menyimpan kata laluan.
+1. Petugas tekan **Akses Platform Admin Daerah**, masukkan emel yang didaftarkan dalam tab **Petugas** (emel rasmi **@penang.gov.my** diutamakan; emel lain seperti Gmail dibenarkan jika didaftarkan oleh pentadbir — tetapkan `BENARKAN_EMEL_LAIN = false` dalam Code.gs untuk hadkan kepada emel rasmi sahaja) dan kata laluan. Pelayar boleh menyimpan kata laluan.
 2. Kata laluan dijana sistem dalam format mudah diingat: **kod pusat + 4 digit rawak + ! + tahun**, cth. `padsps4827!2026` (SEMUA/Ibu Pejabat `jheaipp…`, Timur Laut `padtl…`, Barat Daya `padbd…`, SPU Butterworth `padspubw…`, SPU Kepala Batas `padspukb…`, SPT `padspt…`, SPS `padsps…`). Digit rawak, bukan bersiri, supaya kata laluan rakan sepejabat tidak boleh diteka.
 3. Kata laluan dihantar **kepada emel petugas itu sahaja**: sama ada semua sekali gus (`hantarKataLaluanSemuaPetugas`, cth. awal tahun) atau seorang-seorang melalui **Lupa kata laluan / petugas baharu?** di skrin log masuk. Kata laluan baharu membatalkan yang lama. Mesej yang sama dipaparkan sama ada emel berdaftar atau tidak.
 4. 5 kata laluan salah → emel itu dikunci 15 minit (Lupa kata laluan membuka kunci). Lupa kata laluan dihadkan 3 kali setiap emel dalam 15 minit.

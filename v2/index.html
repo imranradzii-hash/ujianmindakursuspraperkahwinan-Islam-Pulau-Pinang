@@ -627,7 +627,7 @@
 
         <div id="modal-login" role="dialog" class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl hidden-step transform transition-all scale-95 opacity-0 duration-200">
             <h3 class="text-lg font-extrabold text-slate-900 mb-1">Log Masuk Petugas</h3>
-            <p class="text-sm text-slate-600 mb-4">Guna emel rasmi yang didaftarkan dan kata laluan yang diemelkan kepada anda.</p>
+            <p class="text-sm text-slate-600 mb-4">Guna emel yang didaftarkan dalam senarai petugas dan kata laluan yang diemelkan kepada anda.</p>
             <!-- Borang sebenar supaya pelayar boleh menawarkan simpan kata laluan -->
             <form id="form-login" onsubmit="logMasuk(event)" autocomplete="on" novalidate>
                 <label for="input-emel" class="label text-xs">Emel Rasmi</label>
@@ -1224,7 +1224,7 @@
         // ==========================================
         // ADMIN
         // ==========================================
-        // Log masuk petugas: emel @penang.gov.my yang berdaftar + kata laluan (diemelkan kepada petugas itu sahaja) → sesi 30 hari.
+        // Log masuk petugas: emel berdaftar (rasmi @penang.gov.my, atau emel lain yang didaftarkan pentadbir) + kata laluan (diemelkan kepada petugas itu sahaja) → sesi 30 hari.
         // Token disimpan dalam localStorage peranti ini sehingga log keluar; server semak token dan tab Petugas setiap permintaan.
         const admin = { akses: "", nama: "", token: "", rekod: [], ditapis: [], bilIc: new Map(), mb: null, bank: [], setDipilih: '' };
 
@@ -1249,8 +1249,8 @@
 
         function emelLoginSah() {
             const emel = $('input-emel').value.trim().toLowerCase();
-            if (!/^[^\s@]+@penang\.gov\.my$/.test(emel)) {
-                ralatLogin("Sila masukkan emel rasmi @penang.gov.my yang didaftarkan.");
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emel)) {
+                ralatLogin("Sila masukkan emel yang didaftarkan (emel rasmi @penang.gov.my atau emel yang didaftarkan oleh pentadbir).");
                 $('input-emel').focus();
                 return '';
             }

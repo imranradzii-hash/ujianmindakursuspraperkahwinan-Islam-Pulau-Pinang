@@ -549,13 +549,16 @@ test('soalan rawak: pilihan "Semua di atas" tidak dirawak; markah ikut pilihan a
 test('kata laluan: lupa kata laluan hanya ke emel berdaftar (mesej sama); format mudah diingat, tidak bersiri', () => {
   const g = binaGas('v2');
   const { bacaKataLaluanPetugas } = require('./mock-gas');
+  const salahFormat = g.post({ action: 'lupaKataLaluan', emel: 'bukan-emel' });
+  assert.equal(salahFormat.status, 'error');
+  // Gmail yang TIDAK didaftarkan: mesej sama seperti emel lain, tiada emel dihantar
   const gmail = g.post({ action: 'lupaKataLaluan', emel: 'orang@gmail.com' });
-  assert.equal(gmail.status, 'error');
-  assert.match(gmail.message, /penang\.gov\.my/);
+  assert.equal(gmail.status, 'success');
   const tiada = g.post({ action: 'lupaKataLaluan', emel: 'tiada.daftar@penang.gov.my' });
   const ada = g.post({ action: 'lupaKataLaluan', emel: 'BD.Ujian@Penang.gov.my' });
   assert.equal(tiada.status, 'success');
   assert.equal(tiada.message, ada.message, 'mesej sama — senarai petugas tidak boleh diteka');
+  assert.equal(gmail.message, ada.message);
   assert.equal(g.state.peti.length, 1);
   assert.equal(g.state.peti[0].to, 'bd.ujian@penang.gov.my');
   assert.match(g.state.peti[0].subject, /Kata Laluan Dashboard/);
@@ -728,4 +731,18 @@ test('sandaran kemajuan: kertas yang sudah tamat tempoh tidak disambung; waktu d
   const r = g.post(Object.assign({ action: 'mulaUjian' }, peserta));
   assert.equal(r.status, 'error');
   assert.equal(r.tutup, true);
+});
+
+test('kata laluan: emel Gmail yang didaftarkan dalam tab Petugas boleh terima kata laluan dan log masuk', () => {
+  const g = binaGas('v2');
+  const { bacaKataLaluanPetugas } = require('./mock-gas');
+  g.state.ss.getSheetByName('Petugas').appendRow(['PETUGAS GMAIL', 'Petugas.Ujian@Gmail.com', 'Timur Laut', 'YA']);
+  g.state.cache.delete('petugas_v1');
+  assert.equal(g.post({ action: 'lupaKataLaluan', emel: 'petugas.ujian@gmail.com' }).status, 'success');
+  assert.equal(g.state.peti.length, 1);
+  assert.equal(g.state.peti[0].to, 'petugas.ujian@gmail.com');
+  const kl = bacaKataLaluanPetugas(g.state.peti, 'petugas.ujian@gmail.com');
+  const r = g.post({ action: 'login', emel: 'PETUGAS.UJIAN@gmail.com', kataLaluan: kl });
+  assert.equal(r.status, 'success');
+  assert.equal(r.akses, 'Timur Laut');
 });

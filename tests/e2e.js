@@ -575,9 +575,9 @@ test('v2: sesi petugas kekal selepas muat semula (tanpa kata laluan lagi); tamat
   const g = binaGas('v2');
   g.sheet.appendRow(['t1', 'ALI BIN ABU', "'900101075551", 'a@contoh.my', 'Timur Laut', '2026-04-19', 'Set 1', 90, 27, 30, 'DIHANTAR', 'id-ali-00001', '[]']);
   const { context, page, pelayan } = await buka('v2', g);
-  // Emel bukan @penang.gov.my ditolak di browser, tiada permintaan ke server
+  // Emel tidak sah formatnya ditolak di browser, tiada permintaan ke server
   await page.click('text=Akses Platform Admin Daerah');
-  await page.fill('#input-emel', 'orang@gmail.com');
+  await page.fill('#input-emel', 'orang-tanpa-domain');
   const sebelum = pelayan.permintaan.length;
   await page.click('#btn-login');
   await page.waitForSelector('#login-ralat:not(.hidden-step)');

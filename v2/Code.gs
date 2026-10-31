@@ -14,7 +14,7 @@
 //   hantarKataLaluanSemuaPetugas() — jana & emelkan kata laluan kepada SEMUA petugas aktif (cth. awal tahun)
 //   logKeluarSemuaPetugas()     — tamatkan semua sesi admin serta-merta
 //
-// Login admin: petugas yang didaftarkan dalam tab "Petugas" (emel @penang.gov.my) masukkan emel dan
+// Login admin: petugas yang didaftarkan dalam tab "Petugas" (emel @penang.gov.my, atau emel lain jika BENARKAN_EMEL_LAIN) masukkan emel dan
 // kata laluan, dan kekal log masuk 30 hari di peranti itu (atau sehingga log keluar). Kata laluan hanya
 // dihantar ke emel berdaftar itu. Petugas baharu atau yang lupa tekan "Lupa kata laluan" untuk dapat yang baharu.
 //   hantarEmelContohKepadaSaya()— hantar contoh emel keputusan ke emel anda
@@ -66,7 +66,8 @@ const SENARAI_AKSES = [
 const SENARAI_DAERAH = SENARAI_AKSES.slice(1);
 
 // Login admin dengan kod emel (tiada kata laluan)
-const DOMAIN_EMEL_PETUGAS = "penang.gov.my"; // hanya emel rasmi domain ini boleh log masuk
+const DOMAIN_EMEL_PETUGAS = "penang.gov.my"; // emel rasmi petugas
+const BENARKAN_EMEL_LAIN = true;      // true: emel lain (cth. Gmail) dibenarkan JIKA didaftarkan dalam tab Petugas
 const TEMPOH_SESI_HARI = 30;           // kekal log masuk 30 hari di peranti yang sama (atau sehingga log keluar)
 const HAD_GAGAL_LOGIN_SETIAP_EMEL = 5;     // emel dikunci 15 minit selepas 5 kata laluan salah
 const HAD_GAGAL_LOGIN_KESELURUHAN = 50;    // semua login disekat 15 minit selepas 50 kegagalan (serangan teka)
@@ -899,8 +900,15 @@ function normalEmel(emel) {
 }
 
 function emelDomainSah(emel) {
+  if (emel.length > 100) return false;
+  if (BENARKAN_EMEL_LAIN) return /^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(emel);
   const domain = DOMAIN_EMEL_PETUGAS.toLowerCase().replace(/\./g, '\\.');
-  return emel.length <= 100 && new RegExp('^[a-z0-9._%+-]+@' + domain + '$').test(emel);
+  return new RegExp('^[a-z0-9._%+-]+@' + domain + '$').test(emel);
+}
+
+function mesejEmelTidakSah() {
+  return BENARKAN_EMEL_LAIN ? "Sila masukkan emel yang didaftarkan dalam senarai petugas."
+    : "Hanya emel rasmi @" + DOMAIN_EMEL_PETUGAS + " boleh digunakan.";
 }
 
 // { emel: { nama, akses, aktif, baris } } daripada tab Petugas (di-cache 2 minit; dikosongkan bila tab diedit)
@@ -951,7 +959,7 @@ function handleLogin(emel, kataLaluan) {
   emel = normalEmel(emel);
   kataLaluan = String(kataLaluan || '');
   if (!emelDomainSah(emel)) {
-    return { status: "unauthorized", message: "Hanya emel rasmi @" + DOMAIN_EMEL_PETUGAS + " boleh digunakan." };
+    return { status: "unauthorized", message: mesejEmelTidakSah() };
   }
   const cache = CacheService.getScriptCache();
   const kunciGagal = 'gagal_' + kunciRingkas('gagal|' + emel);
@@ -983,7 +991,7 @@ function handleLogin(emel, kataLaluan) {
 function handleLupaKataLaluan(emel) {
   emel = normalEmel(emel);
   if (!emelDomainSah(emel)) {
-    return { status: "error", message: "Hanya emel rasmi @" + DOMAIN_EMEL_PETUGAS + " boleh digunakan.", bolehCubaLagi: false };
+    return { status: "error", message: mesejEmelTidakSah(), bolehCubaLagi: false };
   }
   const cache = CacheService.getScriptCache();
   const kunciEmel = 'lupa_' + kunciRingkas('lupa|' + emel);
