@@ -857,6 +857,41 @@ function formatTarikhPanjang(iso) {
 }
 
 // Emel keputusan — gaya surat rasmi jabatan (jadual + gaya inline supaya kemas dalam Gmail/Outlook)
+// Templat surat rasmi JHEAIPP untuk semua emel kepada peserta & penceramah:
+// kepala navy/emas, Rujukan & Tarikh, Tuan/Puan + nama, PERKARA, isi, slogan, tandatangan pegawai, kaki.
+// o = { rujukan, nama, perkara, isi (HTML yang sudah di-escape), kaki? }
+function suratKorporat(o) {
+  const NAVY = "#0b2a4a", EMAS = "#b8902f", KELABU = "#5b6573", GARIS = "#dfe3e8";
+  const logo = JABATAN.logoUrl ? "<img src='" + escapeHtml(JABATAN.logoUrl) + "' alt='' height='56' style='display:block;margin:0 auto 10px;border:0;'>" : "";
+  let h = "";
+  h += "<div style='background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;'>";
+  h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='max-width:640px;margin:0 auto;background:#ffffff;border:1px solid " + GARIS + ";border-collapse:collapse;'>";
+  // Kepala
+  h += "<tr><td style='background:" + NAVY + ";padding:22px 28px;text-align:center;border-bottom:4px solid " + EMAS + ";'>" + logo
+    + "<div style='color:#ffffff;font-size:16px;font-weight:bold;letter-spacing:1px;'>" + escapeHtml(JABATAN.nama) + "</div>"
+    + "<div style='color:#c9d3e0;font-size:12px;margin-top:4px;letter-spacing:.5px;'>" + escapeHtml(JABATAN.bahagian.toUpperCase()) + "</div></td></tr>";
+  // Isi
+  h += "<tr><td style='padding:28px 32px 8px;color:#111827;font-size:14px;line-height:1.65;'>";
+  h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='font-size:12px;color:" + KELABU + ";margin-bottom:18px;'><tr>"
+    + "<td>Rujukan: " + escapeHtml(o.rujukan) + "</td><td style='text-align:right;'>Tarikh: " + escapeHtml(formatTarikhPanjang(Utilities.formatDate(new Date(), ZON_MASA, 'yyyy-MM-dd'))) + "</td></tr></table>";
+  h += "<p style='margin:0 0 4px;'>Tuan/Puan,</p><p style='margin:0 0 18px;font-weight:bold;'>" + escapeHtml(o.nama) + "</p>";
+  h += "<p style='margin:0 0 16px;font-weight:bold;text-decoration:underline;'>" + escapeHtml(o.perkara) + "</p>";
+  h += o.isi;
+  h += "<p style='margin:16px 0 0;'>Sekian, terima kasih.</p>";
+  h += "<p style='margin:18px 0 0;font-weight:bold;font-style:italic;color:" + NAVY + ";line-height:1.5;'>\"MALAYSIA MADANI\"<br>\"BERKHIDMAT UNTUK NEGARA\"<br>\"CEKAP, AKAUNTABILITI, TELUS\"</p>";
+  h += "<p style='margin:18px 0 0;'>Saya yang menjalankan amanah,</p>";
+  h += "<p style='margin:30px 0 0;font-weight:bold;'>(" + escapeHtml(PEGAWAI.nama) + ")</p>";
+  h += "<p style='margin:0;line-height:1.5;'>" + escapeHtml(PEGAWAI.jawatan) + "<br>" + escapeHtml(JABATAN.bahagian) + "<br>" + escapeHtml(JABATAN.nama.replace(/\w\S*/g, w => w.charAt(0) + w.slice(1).toLowerCase())) + "</p>";
+  h += "<p style='margin:10px 0 24px;font-size:13px;color:" + KELABU + ";'>Emel: " + escapeHtml(PEGAWAI.emel) + " &nbsp;|&nbsp; Tel: " + escapeHtml(PEGAWAI.telefon) + "</p>";
+  h += "</td></tr>";
+  // Kaki
+  h += "<tr><td style='background:#f6f7f9;border-top:1px solid " + GARIS + ";padding:14px 32px;font-size:11px;color:" + KELABU + ";line-height:1.5;'>"
+    + (o.kaki || "Emel ini dijana secara automatik oleh Sistem Ujian Minda Praperkahwinan JHEAIPP. Sila jangan balas emel ini. "
+    + "Maklumat dalam emel ini adalah sulit dan hanya untuk penerima yang dinamakan.") + "</td></tr>";
+  h += "</table></div>";
+  return h;
+}
+
 function binaEmelKeputusan(rek) {
   const lulus = rek.skor >= PERATUS_LULUS;
   const NAVY = "#0b2a4a", EMAS = "#b8902f", KELABU = "#5b6573", GARIS = "#dfe3e8";
@@ -887,46 +922,21 @@ function binaEmelKeputusan(rek) {
     semakan += "</table>";
   }
 
-  const logo = JABATAN.logoUrl ? "<img src='" + escapeHtml(JABATAN.logoUrl) + "' alt='' height='56' style='display:block;margin:0 auto 10px;border:0;'>" : "";
-  let h = "";
-  h += "<div style='background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;'>";
-  h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='max-width:640px;margin:0 auto;background:#ffffff;border:1px solid " + GARIS + ";border-collapse:collapse;'>";
-  // Kepala
-  h += "<tr><td style='background:" + NAVY + ";padding:22px 28px;text-align:center;border-bottom:4px solid " + EMAS + ";'>" + logo
-    + "<div style='color:#ffffff;font-size:16px;font-weight:bold;letter-spacing:1px;'>" + escapeHtml(JABATAN.nama) + "</div>"
-    + "<div style='color:#c9d3e0;font-size:12px;margin-top:4px;letter-spacing:.5px;'>" + escapeHtml(JABATAN.bahagian.toUpperCase()) + "</div></td></tr>";
-  // Isi
-  h += "<tr><td style='padding:28px 32px 8px;color:#111827;font-size:14px;line-height:1.65;'>";
-  h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='font-size:12px;color:" + KELABU + ";margin-bottom:18px;'><tr>"
-    + "<td>Rujukan: " + escapeHtml(rujukan) + "</td><td style='text-align:right;'>Tarikh: " + escapeHtml(formatTarikhPanjang(Utilities.formatDate(new Date(), ZON_MASA, 'yyyy-MM-dd'))) + "</td></tr></table>";
-  h += "<p style='margin:0 0 4px;'>Tuan/Puan,</p><p style='margin:0 0 18px;font-weight:bold;'>" + escapeHtml(rek.nama) + "</p>";
-  h += "<p style='margin:0 0 16px;font-weight:bold;text-decoration:underline;'>KEPUTUSAN UJIAN MINDA KURSUS PRAPERKAHWINAN ISLAM NEGERI PULAU PINANG</p>";
-  h += "<p style='margin:0 0 18px;'>Dengan hormatnya perkara di atas adalah dirujuk. Terima kasih kerana menduduki Ujian Minda dan melengkapkan Borang Penilaian Kursus. Butiran keputusan tuan/puan adalah seperti berikut:</p>";
+  let isi = "<p style='margin:0 0 18px;'>Dengan hormatnya perkara di atas adalah dirujuk. Terima kasih kerana menduduki Ujian Minda dan melengkapkan Borang Penilaian Kursus. Butiran keputusan tuan/puan adalah seperti berikut:</p>";
   // Jadual butiran
-  h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;border:1px solid " + GARIS + ";'>";
+  isi += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;border:1px solid " + GARIS + ";'>";
   [["Nama", rek.nama], ["No. Kad Pengenalan", icTopeng], ["Pusat Kursus", rek.daerah], ["Tarikh Kursus", formatTarikhPanjang(rek.tarikh)]]
     .concat(rek.set && rek.set !== SET_RAWAK ? [["Set Soalan", rek.set]] : [])
     .concat([["Jawapan Betul", rek.betul + " / " + rek.jumlah]])
-    .forEach(([k, v]) => { h += "<tr><td style='" + label + "'>" + escapeHtml(k) + "</td><td style='" + nilai + "'>" + escapeHtml(v) + "</td></tr>"; });
-  h += "<tr><td style='" + label + "border-bottom:0;'>Markah Keseluruhan</td><td style='" + td + "border-bottom:0;'>"
+    .forEach(([k, v]) => { isi += "<tr><td style='" + label + "'>" + escapeHtml(k) + "</td><td style='" + nilai + "'>" + escapeHtml(v) + "</td></tr>"; });
+  isi += "<tr><td style='" + label + "border-bottom:0;'>Markah Keseluruhan</td><td style='" + td + "border-bottom:0;'>"
     + "<span style='font-size:26px;font-weight:bold;color:" + (lulus ? "#067647" : NAVY) + ";'>" + Number(rek.skor) + "%</span></td></tr>";
-  h += "</table>";
-  h += semakan;
-  h += "<p style='margin:22px 0 0;'>" + (lulus
+  isi += "</table>";
+  isi += semakan;
+  isi += "<p style='margin:22px 0 0;'>" + (lulus
     ? "Tahniah diucapkan. Semoga ilmu yang diperoleh sepanjang kursus ini menjadi panduan dalam membina baitul muslim yang harmoni dan diberkati."
     : "Tuan/Puan digalakkan untuk mengulang kaji topik-topik di atas. Semoga ilmu yang diperoleh sepanjang kursus ini menjadi panduan dalam membina baitul muslim yang harmoni dan diberkati.") + "</p>";
-  h += "<p style='margin:16px 0 0;'>Sekian, terima kasih.</p>";
-  h += "<p style='margin:18px 0 0;font-weight:bold;font-style:italic;color:" + NAVY + ";line-height:1.5;'>\"MALAYSIA MADANI\"<br>\"BERKHIDMAT UNTUK NEGARA\"<br>\"CEKAP, AKAUNTABILITI, TELUS\"</p>";
-  h += "<p style='margin:18px 0 0;'>Saya yang menjalankan amanah,</p>";
-  h += "<p style='margin:30px 0 0;font-weight:bold;'>(" + escapeHtml(PEGAWAI.nama) + ")</p>";
-  h += "<p style='margin:0;line-height:1.5;'>" + escapeHtml(PEGAWAI.jawatan) + "<br>" + escapeHtml(JABATAN.bahagian) + "<br>" + escapeHtml(JABATAN.nama.replace(/\w\S*/g, w => w.charAt(0) + w.slice(1).toLowerCase())) + "</p>";
-  h += "<p style='margin:10px 0 24px;font-size:13px;color:" + KELABU + ";'>Emel: " + escapeHtml(PEGAWAI.emel) + " &nbsp;|&nbsp; Tel: " + escapeHtml(PEGAWAI.telefon) + "</p>";
-  h += "</td></tr>";
-  // Kaki
-  h += "<tr><td style='background:#f6f7f9;border-top:1px solid " + GARIS + ";padding:14px 32px;font-size:11px;color:" + KELABU + ";line-height:1.5;'>"
-    + "Emel ini dijana secara automatik oleh Sistem Ujian Minda Praperkahwinan JHEAIPP. Sila jangan balas emel ini. "
-    + "Maklumat dalam emel ini adalah sulit dan hanya untuk penerima yang dinamakan.</td></tr>";
-  h += "</table></div>";
+  const h = suratKorporat({ rujukan: rujukan, nama: rek.nama, perkara: "KEPUTUSAN UJIAN MINDA KURSUS PRAPERKAHWINAN ISLAM NEGERI PULAU PINANG", isi: isi });
 
   return { subject: "Keputusan Ujian Minda Kursus Praperkahwinan Islam - " + rek.nama, htmlBody: h };
 }
@@ -1111,14 +1121,11 @@ function logKeluarSemuaPetugas() {
 }
 
 // Emel kata laluan (dihantar kepada petugas itu sahaja)
-// jenis: 'petugas' (dashboard admin) atau 'penceramah' (portal semakan soalan)
-function binaEmelKataLaluan(nama, emel, kataLaluan, sebab, jenis) {
+function binaEmelKataLaluan(nama, emel, kataLaluan, sebab) {
   const NAVY = "#0b2a4a", EMAS = "#b8902f", GARIS = "#dfe3e8";
-  const penceramah = jenis === 'penceramah';
-  const sistem = penceramah ? "Portal Semakan Soalan Ujian Minda" : "Dashboard Admin Ujian Minda";
   const pembuka = sebab === 'lupa'
-    ? "Kata laluan baharu anda untuk " + sistem + " (kata laluan lama tidak boleh digunakan lagi):"
-    : "Akaun anda untuk " + sistem + " telah disediakan. Berikut maklumat log masuk anda:";
+    ? "Kata laluan baharu anda untuk Dashboard Admin Ujian Minda (kata laluan lama tidak boleh digunakan lagi):"
+    : "Akaun anda untuk Dashboard Admin Ujian Minda telah disediakan. Berikut maklumat log masuk anda:";
   let h = "<div style='background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;'>";
   h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='max-width:560px;margin:0 auto;background:#ffffff;border:1px solid " + GARIS + ";border-collapse:collapse;'>";
   h += "<tr><td style='background:" + NAVY + ";padding:18px 28px;text-align:center;border-bottom:4px solid " + EMAS + ";'>"
@@ -1130,21 +1137,13 @@ function binaEmelKataLaluan(nama, emel, kataLaluan, sebab, jenis) {
   h += "<table role='presentation' cellpadding='0' cellspacing='0' style='margin:0 0 18px;border-collapse:collapse;font-size:14px;'>"
     + "<tr><td style='padding:6px 14px 6px 0;color:#5b6573;'>Emel</td><td style='padding:6px 0;font-weight:bold;'>" + escapeHtml(emel) + "</td></tr>"
     + "<tr><td style='padding:6px 14px 6px 0;color:#5b6573;'>Kata laluan</td><td style='padding:6px 0;'><span style='display:inline-block;font-family:Consolas,monospace;font-size:20px;font-weight:bold;letter-spacing:1px;color:" + NAVY + ";background:#f6f1e4;border:1px solid " + EMAS + ";padding:8px 14px;'>" + escapeHtml(kataLaluan) + "</span></td></tr></table>";
-  if (penceramah) {
-    h += "<p style='margin:0 0 8px;'>Portal ini membolehkan Tuan/Puan menyemak soalan Ujian Minda bagi setiap slot kursus dan mengemukakan cadangan pindaan berdasarkan Manual Modul Bersepadu Kursus Praperkahwinan Islam Versi 5.</p>";
-    h += URL_PORTAL_PENCERAMAH
-      ? "<p style='margin:0 0 8px;'>Log masuk di: <a href='" + escapeHtml(URL_PORTAL_PENCERAMAH) + "' style='color:" + NAVY + ";font-weight:bold;'>" + escapeHtml(URL_PORTAL_PENCERAMAH) + "</a></p>"
-      : "<p style='margin:0 0 8px;'>Log masuk melalui pautan Portal Semakan Soalan yang diberikan oleh JHEAIPP.</p>";
-    h += "<p style='margin:0 0 8px;'>Soalan dan skema jawapan dalam portal ini adalah <b>SULIT</b>. Mohon tidak dikongsi dengan peserta kursus.</p>";
-  } else {
-    h += "<p style='margin:0 0 8px;'>Log masuk melalui butang <b>Akses Platform Admin Daerah</b> di bawah halaman Ujian Minda. Anda boleh simpan kata laluan ini dalam pelayar (browser). Selepas log masuk, anda kekal log masuk di peranti itu selama " + TEMPOH_SESI_HARI + " hari atau sehingga menekan Log Keluar.</p>";
-  }
+  h += "<p style='margin:0 0 8px;'>Log masuk melalui butang <b>Akses Platform Admin Daerah</b> di bawah halaman Ujian Minda. Anda boleh simpan kata laluan ini dalam pelayar (browser). Selepas log masuk, anda kekal log masuk di peranti itu selama " + TEMPOH_SESI_HARI + " hari atau sehingga menekan Log Keluar.</p>";
   h += "<p style='margin:0 0 8px;'>Jika terlupa, tekan <b>Lupa kata laluan</b> pada skrin log masuk dan kata laluan baharu akan dihantar ke emel ini.</p>";
   h += "<p style='margin:0;color:#b42318;font-size:13px;'>Jangan kongsikan kata laluan ini dengan sesiapa. Jika anda tidak meminta kata laluan baharu, maklumkan kepada pentadbir JHEAIPP.</p>";
   h += "</td></tr>";
   h += "<tr><td style='background:#f6f7f9;border-top:1px solid " + GARIS + ";padding:12px 32px;font-size:11px;color:#5b6573;'>Emel ini dijana secara automatik. Sila jangan balas emel ini.</td></tr>";
   h += "</table></div>";
-  return { subject: penceramah ? "Kata Laluan Portal Semakan Soalan Ujian Minda (SULIT)" : "Kata Laluan Dashboard Ujian Minda (SULIT)", htmlBody: h };
+  return { subject: "Kata Laluan Dashboard Ujian Minda (SULIT)", htmlBody: h };
 }
 
 function bacaRekod(akses) {
@@ -1344,7 +1343,7 @@ function janaKataLaluanPenceramah() {
 function hantarKataLaluanPenceramah(emel, p, sebab) {
   const kataLaluan = janaKataLaluanPenceramah();
   PropertiesService.getScriptProperties().setProperty(kunciKataLaluanPenceramah(emel), tandatangan('klp|' + emel + '|' + kataLaluan));
-  const e = binaEmelKataLaluan(p.nama, emel, kataLaluan, sebab, 'penceramah');
+  const e = binaEmelKataLaluanPenceramah(p.nama, emel, kataLaluan, sebab);
   MailApp.sendEmail({ to: emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
 }
 
@@ -1551,7 +1550,7 @@ function handlePutuskanCadangan(sesi, d) {
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
-  let c;
+  let c, versiAkhir = null;
   try {
     c = bacaCadangan().find(x => x.id === idCadangan);
     if (!c || c.jenis !== 'UBAH') throw ralatPengguna("Cadangan tidak dijumpai. Muat semula senarai.");
@@ -1560,6 +1559,7 @@ function handlePutuskanCadangan(sesi, d) {
 
     if (keputusan === 'TERIMA') {
       const akhir = sahkanInputSoalan(d.akhir || c);
+      versiAkhir = akhir;
       const sheet = tab(TAB.BANK);
       const baris = cariBaris(sheet, BK.ID, c.idSoalan);
       if (!baris) throw ralatPengguna("Soalan asal tidak dijumpai dalam BankSoalan.");
@@ -1582,20 +1582,100 @@ function handlePutuskanCadangan(sesi, d) {
   } finally {
     lock.releaseLock();
   }
-  try { emelKeputusanCadangan(c, keputusan, ulasan); } catch (e) { console.error(e); } // tidak kritikal
+  try { emelKeputusanCadangan(c, keputusan, ulasan, versiAkhir); } catch (e) { console.error(e); } // tidak kritikal
   return Object.assign(handleSenaraiCadangan(), { bank: bankUntukAdmin() });
 }
 
-function emelKeputusanCadangan(c, keputusan, ulasan) {
-  if (!c.emel) return;
+// Gaya jadual butiran dalam surat rasmi (sama dengan emel keputusan peserta)
+const GAYA_SURAT = (function () {
+  const td = "padding:9px 12px;border-bottom:1px solid #dfe3e8;font-size:14px;";
+  return {
+    jadual: "border-collapse:collapse;border:1px solid #dfe3e8;",
+    label: td + "color:#5b6573;width:38%;vertical-align:top;",
+    nilai: td + "color:#111827;font-weight:bold;vertical-align:top;",
+    kotak: "border:1px solid #dfe3e8;border-left:4px solid #b8902f;background:#fafbfc;padding:12px 14px;font-size:13px;line-height:1.6;"
+  };
+})();
+
+function jadualSurat(baris) {
+  return "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='" + GAYA_SURAT.jadual + "'>"
+    + baris.map(([k, v]) => "<tr><td style='" + GAYA_SURAT.label + "'>" + escapeHtml(k) + "</td><td style='" + GAYA_SURAT.nilai + "'>" + v + "</td></tr>").join('')
+    + "</table>";
+}
+
+// Emel kata laluan Portal Semakan Soalan (format surat rasmi)
+function binaEmelKataLaluanPenceramah(nama, emel, kataLaluan, sebab) {
+  const lupa = sebab === 'lupa';
+  let isi = "<p style='margin:0 0 16px;'>Dengan hormatnya perkara di atas adalah dirujuk.</p>";
+  isi += lupa
+    ? "<p style='margin:0 0 16px;'>2. Merujuk permintaan Tuan/Puan, kata laluan baharu bagi Portal Semakan Soalan Ujian Minda adalah seperti berikut. Kata laluan lama tidak boleh digunakan lagi.</p>"
+    : "<p style='margin:0 0 16px;'>2. Sukacita dimaklumkan bahawa Jabatan ini memohon jasa baik Tuan/Puan selaku penceramah Kursus Praperkahwinan Islam untuk menyemak soalan Ujian Minda bagi setiap slot kursus, dan mengemukakan cadangan pindaan (jika ada) berdasarkan Manual Modul Bersepadu Kursus Praperkahwinan Islam Versi 5. Maklumat log masuk Tuan/Puan adalah seperti berikut:</p>";
+  isi += jadualSurat([
+    ["Emel", escapeHtml(emel)],
+    ["Kata Laluan", "<span style='display:inline-block;font-family:Consolas,monospace;font-size:18px;font-weight:bold;letter-spacing:1px;color:#0b2a4a;background:#f6f1e4;border:1px solid #b8902f;padding:6px 12px;'>" + escapeHtml(kataLaluan) + "</span>"],
+    ["Pautan Portal", URL_PORTAL_PENCERAMAH
+      ? "<a href='" + escapeHtml(URL_PORTAL_PENCERAMAH) + "' style='color:#0b2a4a;'>" + escapeHtml(URL_PORTAL_PENCERAMAH) + "</a>"
+      : "Pautan Portal Semakan Soalan yang dimaklumkan oleh JHEAIPP"]
+  ]);
+  isi += "<p style='margin:18px 0 8px;'>3. Panduan semakan:</p>";
+  isi += "<ol style='margin:0 0 16px;padding-left:22px;'>"
+    + "<li>Log masuk dan pilih slot kursus. Slot yang pernah Tuan/Puan sampaikan dipaparkan terlebih dahulu.</li>"
+    + "<li>Pastikan setiap soalan berdasarkan manual, mempunyai <b>satu</b> jawapan yang betul sahaja, dan pilihan lain jelas salah.</li>"
+    + "<li>Tekan <b>Soalan &amp; jawapan betul</b> jika tiada pindaan, atau <b>Cadang pindaan</b> beserta justifikasi dan rujukan manual.</li>"
+    + "<li>Cadangan akan disemak oleh pentadbir Jabatan dan keputusan dimaklumkan melalui emel.</li></ol>";
+  isi += "<p style='margin:0 0 16px;'>4. Selepas log masuk, Tuan/Puan kekal log masuk di peranti tersebut selama " + TEMPOH_SESI_HARI + " hari. Jika terlupa kata laluan, tekan <b>Dapatkan kata laluan / lupa kata laluan</b> pada skrin log masuk.</p>";
+  isi += "<div style='" + GAYA_SURAT.kotak + "color:#b42318;'><b>SULIT:</b> Soalan dan skema jawapan dalam portal ini hanya untuk tujuan semakan. Mohon tidak dikongsi dengan peserta kursus atau pihak lain. Jangan kongsikan kata laluan ini dengan sesiapa.</div>";
+  isi += "<p style='margin:18px 0 0;'>5. Jasa baik dan kerjasama Tuan/Puan dalam memastikan kualiti soalan Ujian Minda amat dihargai dan didahului dengan ucapan terima kasih.</p>";
+  return {
+    subject: "Kata Laluan Portal Semakan Soalan Ujian Minda (SULIT)",
+    htmlBody: suratKorporat({
+      rujukan: "UM/SEMAKAN/" + Utilities.formatDate(new Date(), ZON_MASA, 'yyyy'),
+      nama: nama || "Tuan/Puan",
+      perkara: "AKSES PORTAL SEMAKAN SOALAN UJIAN MINDA KURSUS PRAPERKAHWINAN ISLAM NEGERI PULAU PINANG",
+      isi: isi
+    })
+  };
+}
+
+// Emel keputusan cadangan kepada penceramah (format surat rasmi)
+function binaEmelKeputusanCadangan(c, keputusan, ulasan, versiAkhir) {
   const diterima = keputusan === 'TERIMA';
-  let h = "<div style='font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;line-height:1.6;max-width:560px;'>";
-  h += "<p>Assalamualaikum " + escapeHtml(c.nama || "Tuan/Puan") + ",</p>";
-  h += "<p>Terima kasih atas semakan Tuan/Puan. Cadangan pindaan bagi soalan <b>" + escapeHtml(c.idSoalan) + "</b> ("
-    + escapeHtml(NAMA_TAJUK[c.tajuk] || c.tajuk) + ") telah <b>" + (diterima ? "DITERIMA dan dikemas kini dalam bank soalan" : "TIDAK DITERIMA") + "</b>.</p>";
-  if (ulasan) h += "<p><b>Ulasan pentadbir:</b> " + escapeHtml(ulasan) + "</p>";
-  h += "<p style='font-size:12px;color:#5b6573;'>Emel ini dijana secara automatik oleh Sistem Ujian Minda JHEAIPP. Sila jangan balas emel ini.</p></div>";
-  MailApp.sendEmail({ to: c.emel, subject: "Keputusan Cadangan Soalan Ujian Minda (" + c.idSoalan + ")", htmlBody: h, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+  const slot = JADUAL_SLOT.find(s => s.tajuk === c.tajuk);
+  let isi = "<p style='margin:0 0 16px;'>Dengan hormatnya perkara di atas adalah dirujuk.</p>";
+  isi += "<p style='margin:0 0 16px;'>2. Jabatan ini merakamkan setinggi-tinggi penghargaan atas semakan dan cadangan pindaan soalan Ujian Minda yang telah dikemukakan oleh Tuan/Puan. Keputusan bagi cadangan tersebut adalah seperti berikut:</p>";
+  isi += jadualSurat([
+    ["ID Soalan", escapeHtml(c.idSoalan)],
+    ["Slot Kursus", escapeHtml(c.tajuk + " " + (NAMA_TAJUK[c.tajuk] || "")) + (slot ? "<br><span style='font-weight:normal;color:#5b6573;font-size:13px;'>Hari " + slot.hari + ", " + escapeHtml(slot.masa) + "</span>" : "")],
+    ["Tarikh Cadangan", escapeHtml(c.masa)],
+    ["Keputusan", "<span style='color:" + (diterima ? "#067647" : "#b42318") + ";'>" + (diterima ? "DITERIMA" : "TIDAK DITERIMA") + "</span>"]
+  ]);
+  if (diterima && versiAkhir) {
+    isi += "<p style='margin:18px 0 8px;'>3. Soalan tersebut telah dikemas kini dalam bank soalan seperti berikut:</p>";
+    isi += "<div style='" + GAYA_SURAT.kotak + "'><div style='white-space:pre-line;color:#111827;margin-bottom:6px;'>" + escapeHtml(versiAkhir.soalan) + "</div>"
+      + versiAkhir.pilihan.map((p, i) => "<div style='" + (i === versiAkhir.jawapan ? "color:#067647;font-weight:bold;" : "color:#374151;") + "'>"
+        + HURUF.charAt(i) + ". " + escapeHtml(p) + (i === versiAkhir.jawapan ? " (Jawapan)" : "") + "</div>").join('') + "</div>";
+  } else if (!diterima) {
+    isi += "<p style='margin:18px 0 0;'>3. Soalan tersebut dikekalkan seperti versi semasa dalam bank soalan.</p>";
+  }
+  if (ulasan) {
+    isi += "<p style='margin:18px 0 8px;'>4. Ulasan Jabatan:</p><div style='" + GAYA_SURAT.kotak + "white-space:pre-line;'>" + escapeHtml(ulasan) + "</div>";
+  }
+  isi += "<p style='margin:18px 0 0;'>" + (ulasan ? "5" : "4") + ". Semakan selanjutnya boleh dibuat melalui Portal Semakan Soalan Ujian Minda. Kerjasama Tuan/Puan amat dihargai.</p>";
+  return {
+    subject: "Keputusan Cadangan Pindaan Soalan Ujian Minda (" + c.idSoalan + ")",
+    htmlBody: suratKorporat({
+      rujukan: "UM/SEMAKAN/" + c.id,
+      nama: c.nama || "Tuan/Puan",
+      perkara: "KEPUTUSAN CADANGAN PINDAAN SOALAN UJIAN MINDA KURSUS PRAPERKAHWINAN ISLAM NEGERI PULAU PINANG",
+      isi: isi
+    })
+  };
+}
+
+function emelKeputusanCadangan(c, keputusan, ulasan, versiAkhir) {
+  if (!c.emel) return;
+  const e = binaEmelKeputusanCadangan(c, keputusan, ulasan, versiAkhir);
+  MailApp.sendEmail({ to: c.emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
 }
 
 // Jalankan dari editor: semak sambungan ke Sistem Tuntutan (tiada data peribadi ditulis dalam log)

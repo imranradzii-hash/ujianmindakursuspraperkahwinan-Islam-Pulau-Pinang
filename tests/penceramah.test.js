@@ -206,3 +206,26 @@ test('penceramah: sesi tamat jika dinyahaktifkan dalam Sistem Tuntutan; log kelu
   assert.equal(g.post({ action: 'logoutPenceramah', token: s2.token }).status, 'success');
   assert.equal(g.post({ action: 'soalanPenceramah', token: s2.token }).status, 'unauthorized');
 });
+
+test('emel penceramah: format surat rasmi JHEAIPP (Rujukan, Perkara, slogan, tandatangan); input di-escape', () => {
+  const g = sedia();
+  g.post({ action: 'lupaKataLaluanPenceramah', emel: 'ali.ceramah@penang.gov.my' });
+  const kl = g.state.peti[g.state.peti.length - 1];
+  assert.match(kl.subject, /Portal Semakan Soalan/);
+  assert.match(kl.htmlBody, /Rujukan: UM\/SEMAKAN\/\d{4}/);
+  assert.match(kl.htmlBody, /AKSES PORTAL SEMAKAN SOALAN UJIAN MINDA/);
+  assert.match(kl.htmlBody, /MALAYSIA MADANI/);
+  assert.match(kl.htmlBody, /Saya yang menjalankan amanah/);
+  assert.match(kl.htmlBody, /USTAZ ALI BIN ABU/);
+
+  const c = { id: 'Cabc12345', idSoalan: 'S1-02', tajuk: 'T6', masa: '03/11/2026 10:00:00', nama: '<b>NAMA</b>', emel: 'x@y.com' };
+  const terima = g.ctx.binaEmelKeputusanCadangan(c, 'TERIMA', 'Ulasan <script>', { soalan: 'Soalan baharu', pilihan: ['A1', 'B1'], jawapan: 1 });
+  assert.match(terima.htmlBody, /KEPUTUSAN CADANGAN PINDAAN SOALAN UJIAN MINDA/);
+  assert.match(terima.htmlBody, />DITERIMA</);
+  assert.match(terima.htmlBody, /Hari 1, 11\.30 pagi - 1\.30 petang/);
+  assert.match(terima.htmlBody, /B\. B1 \(Jawapan\)/);
+  assert.ok(!terima.htmlBody.includes('<script>') && !terima.htmlBody.includes('<b>NAMA</b>'));
+  const tolak = g.ctx.binaEmelKeputusanCadangan(c, 'TOLAK', '', null);
+  assert.match(tolak.htmlBody, /TIDAK DITERIMA/);
+  assert.match(tolak.htmlBody, /dikekalkan seperti versi semasa/);
+});
