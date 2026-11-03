@@ -50,13 +50,25 @@ Tab **Petugas**: Nama | Emel (@penang.gov.my) | Akses (`SEMUA` atau nama daerah 
 
 | Akses | Boleh |
 |---|---|
-| **SEMUA** (JHEAIPP) | Semua data, semua daerah. **Urus Bank Soalan**: tambah, edit, nyahaktif soalan, tetapkan tajuk (T1–T8); ringkasan bilangan soalan aktif setiap tajuk. **Waktu Ujian Dibuka**. Ringkasan penilaian, laporan PDF/CSV. |
+| **SEMUA** (JHEAIPP) | Semua data, semua daerah. **Cadangan Pindaan daripada Penceramah** (terima/tolak). **Urus Bank Soalan**: tambah, edit, nyahaktif soalan, tetapkan tajuk (T1–T8); ringkasan bilangan soalan aktif setiap tajuk. **Waktu Ujian Dibuka**. Ringkasan penilaian, laporan PDF/CSV. |
 | Daerah | Panel **Hari Ini** (peserta hari ini, lulus, belum isi penilaian, emel; butang Refresh dan auto setiap 1 minit). Data daerah sendiri sahaja (ditapis di server). Ringkasan penilaian, laporan, Lepaskan keputusan. |
 
 - Soalan tidak dipadam, cuma dinyahaktifkan, supaya rekod lama kekal.
 - Perubahan soalan berkuat kuasa serta-merta untuk peserta seterusnya.
 - Soalan juga boleh diedit terus dalam tab BankSoalan.
 - Soalan **borang penilaian** diedit terus dalam tab **SoalanMaklumBalas** (jenis `PILIHAN` / `SKALA` / `TEKS`). Soalan baru dapat kolum sendiri dalam tab MaklumBalas secara automatik.
+
+## v2: Portal Semakan Soalan Penceramah
+
+Halaman berasingan [`v2/semakan-penceramah.html`](v2/semakan-penceramah.html) (guna web app yang sama) untuk penceramah menyemak soalan Ujian Minda dan mengemukakan cadangan pindaan.
+
+- **Data penceramah tidak disalin.** Server membaca terus Google Sheet Sistem Tuntutan (tab `Penceramah` dan `Slot`) melalui `ID_SHEET_DATA_PENCERAMAH` dalam Code.gs. Hanya kolum `id`, `nama`, `emel`, `aktif` (dan `penceramah_id`, `modul_kod` dalam tab Slot) dibaca; IC, akaun bank dan maklumat peribadi lain tidak dibaca. Penceramah yang dinyahaktifkan dalam Sistem Tuntutan terus tidak boleh log masuk.
+- **Log masuk:** emel dalam data penceramah + kata laluan `ceramah` + 4 digit + `!` + tahun, dihantar ke emel penceramah itu sahaja (**Dapatkan kata laluan** di skrin log masuk, atau `hantarKataLaluanSemuaPenceramah`). Sesi 30 hari. Kata laluan dan sesi penceramah berasingan daripada petugas.
+- **Paparan:** semua soalan aktif dengan skema jawapan, ikut 8 slot jadual MBKPI Versi 5 (Hari 1/2, masa). Slot yang pernah diajar (daripada tab Slot, kod modul M1–M8 = T1–T8) dipilih dahulu dan dilabel **SLOT ANDA**. Tapisan Semua / Belum disemak / Sudah disemak, serta kemajuan semakan.
+- **Semakan:** *Soalan & jawapan betul* (direkod) atau *Cadang pindaan* (soalan, pilihan, jawapan, justifikasi wajib, rujukan manual). Semua direkod dalam tab **CadanganSoalan**. Hantar semula bagi soalan yang sama menggantikan semakan terdahulu (`DIGANTI`).
+- **Kelulusan (admin SEMUA):** panel **Cadangan Pindaan daripada Penceramah** dalam dashboard membandingkan versi semasa dengan cadangan (beza ditanda). **Terima** mengemas kini BankSoalan serta-merta dan menyimpan versi asal dalam kolum Catatan (L); **Tolak** mengekalkan soalan. Penceramah dimaklumkan melalui emel. Jika soalan telah dipinda selepas cadangan dibuat, admin diberi amaran sebelum menerima.
+
+Pemasangan: isi `ID_SHEET_DATA_PENCERAMAH` (dan `URL_PORTAL_PENCERAMAH` jika mahu pautan dalam emel), Run `sediakanSistem` (cipta tab CadanganSoalan, benarkan akses baharu ke Sheet Sistem Tuntutan), Run `ujiSambunganPenceramah`, deploy New version, kemudian embed `semakan-penceramah.html` (dengan URL web app) di halaman Google Sites berasingan.
 
 ## v2: cara pasang (Sheet percubaan atau Sheet baharu)
 
@@ -87,6 +99,8 @@ Tukar `TAB.KEPUTUSAN` kepada `"Sheet1"` di atas `Code.gs`, kemudian jalankan `se
 |---|---|
 | `hantarKataLaluanSemuaPetugas` | Jana & emelkan kata laluan baharu kepada semua petugas aktif (setiap seorang terima kata laluan sendiri sahaja) |
 | `logKeluarSemuaPetugas` | Batalkan semua sesi log masuk petugas (cth. telefon hilang) |
+| `ujiSambunganPenceramah` | Semak sambungan ke data penceramah Sistem Tuntutan (bilangan sahaja, tiada data peribadi dalam log) |
+| `hantarKataLaluanSemuaPenceramah` | Emelkan kata laluan Portal Semakan Soalan kepada semua penceramah aktif yang beremel |
 | `kosongkanCacheSoalan` | Paksa bank soalan dibaca semula selepas edit terus dalam Sheet |
 | `hantarEmelContohKepadaSaya` | Contoh emel keputusan ke emel anda |
 | `hantarSemulaEmelGagal` | Cuba semula emel berstatus GAGAL |

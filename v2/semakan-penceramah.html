@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semakan Soalan Penceramah</title>
+    <link rel="preconnect" href="https://script.google.com">
+    <link rel="preconnect" href="https://script.googleusercontent.com">
+    <style>
+        /* Warna rasmi — sama dengan halaman Ujian Minda */
+        :root {
+            --navy: #0b2a4a; --navy-2: #163e68; --navy-muda: #eaf0f7;
+            --emas: #b8902f; --emas-muda: #f8f1e1;
+            --latar: #f3f5f8; --garis: #e2e7ee; --teks: #1f2937; --kelabu: #5b6b7f;
+            --hijau: #157347; --hijau-muda: #e7f5ee; --merah: #b42318; --merah-muda: #fdecea; --kuning: #92580a; --kuning-muda: #fff4dc;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: var(--latar); color: var(--teks); font-size: 15px; line-height: 1.5; }
+        .bekas { max-width: 860px; margin: 0 auto; padding: 16px; }
+        .hidden { display: none !important; }
+        .kad { background: #fff; border: 1px solid var(--garis); border-radius: 16px; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); padding: 18px; }
+        h1 { font-size: 20px; margin: 0; color: var(--navy); }
+        h2 { font-size: 16px; margin: 0 0 4px; color: var(--navy); }
+        p { margin: 0 0 10px; }
+        .kecil { font-size: 13px; color: var(--kelabu); }
+        .label { display: block; font-size: 13px; font-weight: 700; color: #334155; margin: 0 0 6px; }
+        .medan { width: 100%; border: 1.5px solid #d6dde6; border-radius: 12px; padding: 11px 13px; font: inherit; font-size: 15px; background: #fff; }
+        .medan:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(11, 42, 74, .12); }
+        textarea.medan { resize: vertical; min-height: 84px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 12px; font: inherit; font-weight: 700; font-size: 14px; padding: 11px 16px; cursor: pointer; border: 1.5px solid transparent; }
+        .btn:disabled { opacity: .6; cursor: wait; }
+        .btn-utama { background: var(--navy); color: #fff; }
+        .btn-utama:hover { background: var(--navy-2); }
+        .btn-kedua { background: #fff; color: var(--navy); border-color: #cfd8e3; }
+        .btn-kedua:hover { background: var(--navy-muda); }
+        .btn-hijau { background: var(--hijau); color: #fff; }
+        .btn-pautan { background: none; border: 0; color: var(--navy); font-weight: 700; text-decoration: underline dotted; text-underline-offset: 4px; cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
+        .ralat { color: var(--merah); font-weight: 700; font-size: 13px; }
+        .info { color: var(--hijau); font-weight: 700; font-size: 13px; }
+
+        /* Kepala */
+        .kepala { background: var(--navy); color: #fff; border-bottom: 4px solid var(--emas); }
+        .kepala .bekas { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; padding-bottom: 14px; }
+        .kepala h1 { color: #fff; font-size: 17px; }
+        .kepala .sub { color: #c9d3e0; font-size: 12px; letter-spacing: .04em; }
+        .sulit { background: var(--emas-muda); border: 1px solid #e6d3a3; color: #6b5a2c; border-radius: 12px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+
+        /* Kemajuan */
+        .bar { height: 10px; background: #e5ebf2; border-radius: 99px; overflow: hidden; }
+        .bar > span { display: block; height: 100%; background: var(--emas); width: 0; transition: width .3s; }
+
+        /* Slot */
+        .senarai-slot { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; }
+        .slot { text-align: left; background: #fff; border: 1.5px solid var(--garis); border-radius: 12px; padding: 10px 12px; cursor: pointer; font: inherit; color: var(--teks); }
+        .slot:hover { border-color: #b9c6d6; }
+        .slot.aktif { border-color: var(--navy); background: var(--navy-muda); }
+        .slot .masa { font-size: 11px; color: var(--kelabu); font-weight: 600; }
+        .slot .nama { font-size: 13px; font-weight: 800; color: var(--navy); }
+        .slot .kira { font-size: 11px; color: var(--kelabu); }
+        .lencana { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .04em; padding: 2px 7px; border-radius: 99px; background: var(--emas); color: #fff; margin-left: 4px; vertical-align: middle; }
+
+        .tapis { display: flex; flex-wrap: wrap; gap: 6px; }
+        .tapis button { border: 1.5px solid #cfd8e3; background: #fff; color: var(--navy); border-radius: 99px; padding: 6px 12px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+        .tapis button.aktif { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+        /* Soalan */
+        .soalan { margin-top: 12px; }
+        .soalan .atas { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+        .soalan .id { font-size: 11px; color: var(--kelabu); font-weight: 700; }
+        .soalan .teks { white-space: pre-wrap; font-weight: 600; }
+        .pilihan { display: flex; gap: 10px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--garis); margin-top: 6px; font-size: 14px; }
+        .pilihan .huruf { font-weight: 800; color: var(--kelabu); min-width: 18px; }
+        .pilihan.betul { border-color: #9fd3b6; background: var(--hijau-muda); }
+        .pilihan.betul .huruf { color: var(--hijau); }
+        .tanda-betul { margin-left: auto; font-size: 11px; font-weight: 800; color: var(--hijau); white-space: nowrap; }
+        .status { font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+        .st-belum { background: #eef1f5; color: var(--kelabu); }
+        .st-sah { background: var(--hijau-muda); color: var(--hijau); }
+        .st-baru { background: var(--kuning-muda); color: var(--kuning); }
+        .st-terima { background: var(--hijau-muda); color: var(--hijau); }
+        .st-tolak { background: var(--merah-muda); color: var(--merah); }
+        .nota { font-size: 13px; background: #f7f9fb; border-left: 3px solid var(--emas); padding: 8px 10px; border-radius: 6px; margin-top: 8px; white-space: pre-wrap; }
+        .tindakan { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .tindakan .btn { flex: 1 1 200px; }
+        .borang { margin-top: 12px; border: 2px solid var(--navy); background: var(--navy-muda); border-radius: 12px; padding: 14px; }
+        .borang .baris-pilihan { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .borang .baris-pilihan label { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; min-width: 74px; }
+        .ruang > * + * { margin-top: 12px; }
+        .panduan li { margin-bottom: 4px; }
+        .toast { position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 20px); background: var(--navy); color: #fff; font-size: 13px; font-weight: 600; padding: 10px 16px; border-radius: 12px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: 92vw; text-align: center; z-index: 50; }
+        .toast.papar { opacity: 1; transform: translate(-50%, 0); }
+        @media (max-width: 520px) { .bekas { padding: 12px; } .kad { padding: 14px; } }
+    </style>
+</head>
+<body>
+    <header class="kepala">
+        <div class="bekas">
+            <div>
+                <div class="sub">JABATAN HAL EHWAL AGAMA ISLAM PULAU PINANG</div>
+                <h1>Portal Semakan Soalan Ujian Minda</h1>
+            </div>
+            <button type="button" id="btn-log-keluar" class="btn btn-kedua hidden" style="padding:8px 12px;font-size:12px;">Log Keluar</button>
+        </div>
+    </header>
+
+    <main class="bekas">
+        <!-- LOG MASUK -->
+        <section id="skrin-login" class="kad ruang" style="max-width:460px;margin:24px auto;">
+            <div>
+                <h2>Log Masuk Penceramah</h2>
+                <p class="kecil">Guna emel yang didaftarkan dalam data penceramah Kursus Praperkahwinan JHEAIPP. Kali pertama? Masukkan emel dan tekan <b>Dapatkan kata laluan</b>.</p>
+            </div>
+            <form id="form-login" class="ruang" autocomplete="on">
+                <div>
+                    <label class="label" for="input-emel">Emel</label>
+                    <input class="medan" type="email" id="input-emel" name="username" autocomplete="username" maxlength="100" placeholder="nama@contoh.gov.my" required>
+                </div>
+                <div>
+                    <label class="label" for="input-kl">Kata laluan</label>
+                    <div style="position:relative;">
+                        <input class="medan" type="password" id="input-kl" name="password" autocomplete="current-password" maxlength="100" placeholder="Kata laluan" style="padding-right:70px;">
+                        <button type="button" id="btn-papar-kl" class="btn-pautan" style="position:absolute;right:12px;top:12px;">Papar</button>
+                    </div>
+                </div>
+                <p id="login-mesej" class="hidden"></p>
+                <button type="submit" id="btn-login" class="btn btn-utama" style="width:100%;">Log Masuk</button>
+                <div style="text-align:center;"><button type="button" id="btn-lupa" class="btn-pautan">Dapatkan kata laluan / lupa kata laluan</button></div>
+            </form>
+        </section>
+
+        <!-- UTAMA -->
+        <section id="skrin-utama" class="hidden">
+            <div class="sulit"><b>SULIT.</b> Soalan dan skema jawapan di bawah hanya untuk tujuan semakan. Mohon tidak dikongsi atau dirakam untuk peserta kursus.</div>
+
+            <div class="kad ruang">
+                <div>
+                    <p class="kecil" style="margin:0;">Assalamualaikum,</p>
+                    <h2 id="nama-penceramah">-</h2>
+                </div>
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:6px;">
+                        <span>Kemajuan semakan anda</span><span id="kemajuan-teks">0 / 0</span>
+                    </div>
+                    <div class="bar"><span id="kemajuan-bar"></span></div>
+                </div>
+                <details class="panduan">
+                    <summary style="cursor:pointer;font-weight:700;color:var(--navy);font-size:14px;">Panduan semakan</summary>
+                    <ul class="kecil" style="margin:8px 0 0;padding-left:18px;">
+                        <li>Setiap soalan mesti berdasarkan <b>Manual Modul Bersepadu Kursus Praperkahwinan Islam Versi 5</b>.</li>
+                        <li>Hanya <b>satu</b> jawapan yang betul. Pilihan lain mesti jelas salah dan tidak boleh dipertikai.</li>
+                        <li>Bahasa soalan jelas dan mudah difahami oleh peserta.</li>
+                        <li>Tekan <b>Soalan &amp; jawapan betul</b> jika tiada pindaan. Tekan <b>Cadang pindaan</b> jika perlu diubah, dan nyatakan sebab serta rujukan manual (cth. T6, slaid 25).</li>
+                        <li>Cadangan disemak oleh pentadbir JHEAIPP sebelum bank soalan dikemas kini. Anda akan dimaklumkan melalui emel.</li>
+                    </ul>
+                </details>
+            </div>
+
+            <div class="kad" style="margin-top:14px;">
+                <h2 style="margin-bottom:10px;">Pilih slot kursus</h2>
+                <div id="senarai-slot" class="senarai-slot"></div>
+            </div>
+
+            <div class="kad" style="margin-top:14px;">
+                <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:center;">
+                    <div>
+                        <h2 id="tajuk-slot">-</h2>
+                        <p id="info-slot" class="kecil" style="margin:0;"></p>
+                    </div>
+                    <div id="tapis" class="tapis">
+                        <button type="button" data-tapis="semua" class="aktif">Semua</button>
+                        <button type="button" data-tapis="belum">Belum disemak</button>
+                        <button type="button" data-tapis="sudah">Sudah disemak</button>
+                    </div>
+                </div>
+                <div id="senarai-soalan"></div>
+            </div>
+            <p class="kecil" style="text-align:center;margin-top:16px;">© Jabatan Hal Ehwal Agama Islam Pulau Pinang</p>
+        </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        // ==========================================
+        // URL GOOGLE APPS SCRIPT (Web App) — sama dengan halaman Ujian Minda
+        // ==========================================
+        const GOOGLE_SCRIPT_URL = "MASUKKAN_URL_WEB_APP_DI_SINI";
+        const KUNCI_SESI = 'ujianMindaSesiPenceramah';
+        const KUNCI_EMEL = 'ujianMindaEmelPenceramah';
+        const HURUF = 'ABCD';
+
+        const $ = (id) => document.getElementById(id);
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        const simpanan = {
+            baca(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+            tulis(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* abaikan */ } },
+            buang(k) { try { localStorage.removeItem(k); } catch (e) { /* abaikan */ } }
+        };
+        let pemasaToast = null;
+        function toast(m) {
+            const t = $('toast');
+            t.textContent = m;
+            t.classList.add('papar');
+            clearTimeout(pemasaToast);
+            pemasaToast = setTimeout(() => t.classList.remove('papar'), 3200);
+        }
+
+        async function panggil(badan) {
+            for (let i = 1; ; i++) {
+                try {
+                    const res = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(badan) });
+                    const data = await res.json();
+                    if (data.status === 'error' && data.bolehCubaLagi !== false && i < 2) throw new Error(data.message);
+                    return data;
+                } catch (err) {
+                    if (i >= 2) return { status: 'error', message: 'Tiada sambungan internet atau ralat pelayan. Sila cuba lagi.' };
+                    await new Promise(r => setTimeout(r, 1500 + Math.random() * 1500));
+                }
+            }
+        }
+
+        const keadaan = { token: '', nama: '', slot: [], slotSaya: [], soalan: [], semakan: {}, slotDipilih: '', tapis: 'semua', borangBuka: '' };
+
+        // ==========================================
+        // LOG MASUK
+        // ==========================================
+        function mesejLogin(teks, jenis) {
+            const m = $('login-mesej');
+            m.textContent = teks || '';
+            m.className = teks ? (jenis === 'info' ? 'info' : 'ralat') : 'hidden';
+        }
+
+        function emelSah() {
+            const emel = $('input-emel').value.trim().toLowerCase();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emel)) { mesejLogin('Sila masukkan emel yang sah.'); $('input-emel').focus(); return ''; }
+            return emel;
+        }
+
+        $('btn-papar-kl').addEventListener('click', () => {
+            const i = $('input-kl');
+            i.type = i.type === 'password' ? 'text' : 'password';
+            $('btn-papar-kl').textContent = i.type === 'password' ? 'Papar' : 'Sorok';
+        });
+
+        $('form-login').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const emel = emelSah();
+            if (!emel) return;
+            const kl = $('input-kl').value;
+            if (!kl) { mesejLogin('Masukkan kata laluan. Kali pertama? Tekan "Dapatkan kata laluan".'); return; }
+            const btn = $('btn-login');
+            btn.disabled = true; btn.textContent = 'Menyemak...';
+            mesejLogin('');
+            const r = await panggil({ action: 'loginPenceramah', emel, kataLaluan: kl });
+            btn.disabled = false; btn.textContent = 'Log Masuk';
+            if (r.status !== 'success') { mesejLogin(r.message || 'Log masuk gagal.'); return; }
+            simpanan.tulis(KUNCI_EMEL, emel);
+            simpanan.tulis(KUNCI_SESI, { token: r.token, tamat: Date.now() + (r.tempohHari || 30) * 86400000 });
+            keadaan.token = r.token;
+            $('input-kl').value = '';
+            await muatSoalan();
+        });
+
+        $('btn-lupa').addEventListener('click', async () => {
+            const emel = emelSah();
+            if (!emel) return;
+            const btn = $('btn-lupa');
+            btn.disabled = true;
+            mesejLogin('Menghantar...', 'info');
+            const r = await panggil({ action: 'lupaKataLaluanPenceramah', emel });
+            btn.disabled = false;
+            mesejLogin(r.message || 'Ralat.', r.status === 'success' ? 'info' : 'ralat');
+        });
+
+        $('btn-log-keluar').addEventListener('click', () => {
+            if (keadaan.token) panggil({ action: 'logoutPenceramah', token: keadaan.token });
+            keluar('Anda telah log keluar.');
+        });
+
+        function keluar(mesej) {
+            simpanan.buang(KUNCI_SESI);
+            Object.assign(keadaan, { token: '', soalan: [], semakan: {}, borangBuka: '' });
+            $('senarai-soalan').innerHTML = '';
+            $('skrin-utama').classList.add('hidden');
+            $('btn-log-keluar').classList.add('hidden');
+            $('skrin-login').classList.remove('hidden');
+            mesejLogin(mesej || '', 'info');
+        }
+
+        // ==========================================
+        // SOALAN
+        // ==========================================
+        async function muatSoalan() {
+            const r = await panggil({ action: 'soalanPenceramah', token: keadaan.token });
+            if (r.status === 'unauthorized') { keluar(r.message); return; }
+            if (r.status !== 'success') { mesejLogin(r.message || 'Soalan tidak dapat dimuatkan.'); return; }
+            Object.assign(keadaan, { nama: r.nama, slot: r.slot, slotSaya: r.slotSaya || [], soalan: r.soalan, semakan: r.semakan || {} });
+            if (!keadaan.slotDipilih) keadaan.slotDipilih = (r.slot.find(s => keadaan.slotSaya.indexOf(s.tajuk) !== -1) || r.slot[0]).tajuk;
+            $('nama-penceramah').textContent = r.nama;
+            $('skrin-login').classList.add('hidden');
+            $('skrin-utama').classList.remove('hidden');
+            $('btn-log-keluar').classList.remove('hidden');
+            renderSemua();
+        }
+
+        function sudahSemak(id) {
+            const s = keadaan.semakan[id];
+            return !!s;
+        }
+
+        function renderSemua() {
+            const jumlah = keadaan.soalan.length;
+            const siap = keadaan.soalan.filter(q => sudahSemak(q.id)).length;
+            $('kemajuan-teks').textContent = siap + ' / ' + jumlah + ' soalan';
+            $('kemajuan-bar').style.width = (jumlah ? Math.round(siap / jumlah * 100) : 0) + '%';
+            $('senarai-slot').innerHTML = keadaan.slot.map(s => {
+                const dalam = keadaan.soalan.filter(q => q.tajuk === s.tajuk);
+                const disemak = dalam.filter(q => sudahSemak(q.id)).length;
+                const saya = keadaan.slotSaya.indexOf(s.tajuk) !== -1;
+                return `<button type="button" class="slot ${s.tajuk === keadaan.slotDipilih ? 'aktif' : ''}" data-slot="${esc(s.tajuk)}">
+                    <div class="masa">Hari ${esc(s.hari)} · ${esc(s.masa)}${saya ? '<span class="lencana">SLOT ANDA</span>' : ''}</div>
+                    <div class="nama">${esc(s.tajuk)} ${esc(s.nama)}</div>
+                    <div class="kira">${disemak} / ${dalam.length} disemak</div>
+                </button>`;
+            }).join('');
+            renderSoalan();
+        }
+
+        function lencanaStatus(s) {
+            if (!s) return '<span class="status st-belum">Belum disemak</span>';
+            if (s.status === 'DIREKOD') return '<span class="status st-sah">Disahkan betul</span>';
+            if (s.status === 'BARU') return '<span class="status st-baru">Cadangan dihantar</span>';
+            if (s.status === 'DITERIMA') return '<span class="status st-terima">Cadangan diterima</span>';
+            if (s.status === 'DITOLAK') return '<span class="status st-tolak">Cadangan tidak diterima</span>';
+            return '<span class="status st-belum">' + esc(s.status) + '</span>';
+        }
+
+        function renderSoalan() {
+            const slot = keadaan.slot.find(s => s.tajuk === keadaan.slotDipilih) || {};
+            const semua = keadaan.soalan.filter(q => q.tajuk === keadaan.slotDipilih);
+            const senarai = semua.filter(q => keadaan.tapis === 'semua' || (keadaan.tapis === 'belum') !== sudahSemak(q.id));
+            $('tajuk-slot').textContent = (slot.tajuk || '') + ' ' + (slot.nama || '');
+            $('info-slot').textContent = `Hari ${slot.hari || '-'} · ${slot.masa || ''} · ${semua.length} soalan aktif`;
+            document.querySelectorAll('#tapis button').forEach(b => b.classList.toggle('aktif', b.dataset.tapis === keadaan.tapis));
+            $('senarai-soalan').innerHTML = senarai.length ? senarai.map((q) => {
+                const no = semua.indexOf(q) + 1;
+                const s = keadaan.semakan[q.id];
+                const pilihan = q.pilihan.map((p, i) => `<div class="pilihan ${i === q.jawapan ? 'betul' : ''}"><span class="huruf">${HURUF[i]}.</span><span>${esc(p)}</span>${i === q.jawapan ? '<span class="tanda-betul">✓ JAWAPAN</span>' : ''}</div>`).join('');
+                let nota = '';
+                if (s && s.ulasan) nota += `<div class="nota"><b>Ulasan anda:</b> ${esc(s.ulasan)}</div>`;
+                if (s && s.ulasanAdmin) nota += `<div class="nota"><b>Ulasan pentadbir:</b> ${esc(s.ulasanAdmin)}</div>`;
+                const boleh = !s || s.status !== 'DITERIMA';
+                return `<article class="kad soalan" id="q-${esc(q.id)}">
+                    <div class="atas"><span class="id">Soalan ${no} · ID ${esc(q.id)}</span>${lencanaStatus(s)}</div>
+                    <div class="teks">${esc(q.soalan)}</div>
+                    ${pilihan}
+                    ${nota}
+                    ${boleh ? `<div class="tindakan">
+                        <button type="button" class="btn btn-hijau" data-sah="${esc(q.id)}">✓ Soalan &amp; jawapan betul</button>
+                        <button type="button" class="btn btn-kedua" data-ubah="${esc(q.id)}">✎ Cadang pindaan</button>
+                    </div>` : ''}
+                    ${keadaan.borangBuka === q.id ? borangPindaan(q) : ''}
+                </article>`;
+            }).join('') : `<p class="kecil" style="margin-top:14px;">${keadaan.tapis === 'belum' ? 'Semua soalan dalam slot ini telah anda semak. Terima kasih.' : 'Tiada soalan untuk dipaparkan.'}</p>`;
+        }
+
+        function borangPindaan(q) {
+            const pilihan = [0, 1, 2, 3].map(i => `<div class="baris-pilihan">
+                <label><input type="radio" name="cd-jawapan" value="${i}" ${i === q.jawapan ? 'checked' : ''}> Betul ${HURUF[i]}</label>
+                <input class="medan" type="text" id="cd-pilihan-${i}" maxlength="500" value="${esc(q.pilihan[i] || '')}" placeholder="Pilihan ${HURUF[i]}${i >= 2 ? ' (jika ada)' : ''}">
+            </div>`).join('');
+            return `<form class="borang ruang" data-borang="${esc(q.id)}">
+                <p style="margin:0;font-weight:800;color:var(--navy);">Cadangan pindaan</p>
+                <p class="kecil" style="margin:0;">Ubah teks yang perlu sahaja. Tanda bulat menunjukkan jawapan yang betul.</p>
+                <div><label class="label" for="cd-soalan">Soalan</label><textarea class="medan" id="cd-soalan" rows="4" maxlength="2000">${esc(q.soalan)}</textarea></div>
+                <div><span class="label">Pilihan jawapan</span>${pilihan}</div>
+                <div><label class="label" for="cd-ulasan">Sebab / justifikasi (wajib)</label><textarea class="medan" id="cd-ulasan" rows="3" maxlength="1500" placeholder="Cth: Pilihan C juga betul menurut manual, jadi soalan boleh dipertikai."></textarea></div>
+                <div><label class="label" for="cd-rujukan">Rujukan manual (jika ada)</label><input class="medan" type="text" id="cd-rujukan" maxlength="300" placeholder="Cth: T6 Pengurusan Kesihatan Keluarga, slaid 25"></div>
+                <p id="cd-ralat" class="ralat hidden"></p>
+                <div class="tindakan" style="margin-top:0;">
+                    <button type="button" class="btn btn-kedua" data-batal="1">Batal</button>
+                    <button type="submit" class="btn btn-utama">Hantar Cadangan</button>
+                </div>
+            </form>`;
+        }
+
+        async function hantar(idSoalan, cadangan, btn) {
+            if (btn) { btn.disabled = true; }
+            const r = await panggil({ action: 'hantarCadangan', token: keadaan.token, cadangan: Object.assign({ idSoalan }, cadangan) });
+            if (btn) { btn.disabled = false; }
+            if (r.status === 'unauthorized') { keluar(r.message); return false; }
+            if (r.status !== 'success') {
+                if ($('cd-ralat')) { $('cd-ralat').textContent = r.message || 'Gagal dihantar.'; $('cd-ralat').classList.remove('hidden'); }
+                else toast(r.message || 'Gagal dihantar.');
+                return false;
+            }
+            keadaan.semakan[idSoalan] = r.semakan;
+            keadaan.borangBuka = '';
+            renderSemua();
+            return true;
+        }
+
+        $('senarai-slot').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-slot]');
+            if (!b) return;
+            keadaan.slotDipilih = b.dataset.slot;
+            keadaan.borangBuka = '';
+            renderSemua();
+        });
+
+        $('tapis').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-tapis]');
+            if (!b) return;
+            keadaan.tapis = b.dataset.tapis;
+            keadaan.borangBuka = '';
+            renderSoalan();
+        });
+
+        $('senarai-soalan').addEventListener('click', async (e) => {
+            const sah = e.target.closest('[data-sah]');
+            const ubah = e.target.closest('[data-ubah]');
+            const batal = e.target.closest('[data-batal]');
+            if (sah) {
+                if (await hantar(sah.dataset.sah, { jenis: 'SAH' }, sah)) toast('Direkod: soalan dan jawapan betul.');
+            } else if (ubah) {
+                keadaan.borangBuka = ubah.dataset.ubah;
+                renderSoalan();
+                const f = document.querySelector('[data-borang]');
+                if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else if (batal) {
+                keadaan.borangBuka = '';
+                renderSoalan();
+            }
+        });
+
+        $('senarai-soalan').addEventListener('submit', async (e) => {
+            const f = e.target.closest('[data-borang]');
+            if (!f) return;
+            e.preventDefault();
+            const idSoalan = f.dataset.borang;
+            const ulasan = $('cd-ulasan').value.trim();
+            const ralat = (m) => { $('cd-ralat').textContent = m; $('cd-ralat').classList.remove('hidden'); };
+            if (ulasan.length < 10) { ralat('Nyatakan sebab atau justifikasi cadangan (sekurang-kurangnya 10 aksara).'); $('cd-ulasan').focus(); return; }
+            const pilih = f.querySelector('input[name="cd-jawapan"]:checked');
+            if (!pilih) { ralat('Tandakan jawapan yang betul.'); return; }
+            const btn = f.querySelector('button[type="submit"]');
+            btn.textContent = 'Menghantar...';
+            const ok = await hantar(idSoalan, {
+                jenis: 'UBAH', soalan: $('cd-soalan').value, pilihan: [0, 1, 2, 3].map(i => $('cd-pilihan-' + i).value),
+                jawapan: Number(pilih.value), ulasan, rujukan: $('cd-rujukan').value
+            }, btn);
+            if (ok) toast('Cadangan dihantar kepada pentadbir JHEAIPP. Terima kasih.');
+            else if (btn.isConnected) btn.textContent = 'Hantar Cadangan';
+        });
+
+        // Sesi tersimpan (30 hari) — terus masuk tanpa kata laluan
+        (function mula() {
+            const emel = simpanan.baca(KUNCI_EMEL);
+            if (emel) $('input-emel').value = emel;
+            const sesi = simpanan.baca(KUNCI_SESI);
+            if (sesi && sesi.token && sesi.tamat > Date.now()) {
+                keadaan.token = sesi.token;
+                mesejLogin('Memuatkan soalan...', 'info');
+                muatSoalan();
+            }
+        })();
+    </script>
+</body>
+</html>

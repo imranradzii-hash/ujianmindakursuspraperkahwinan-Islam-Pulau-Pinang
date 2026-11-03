@@ -59,6 +59,7 @@ class MockRange {
     for (let i = 0; i < this.nr; i++) for (let j = 0; j < this.nc; j++) this.sheet.set(this.r + i, this.c + j, v[i][j]);
     return this;
   }
+  getValue() { return this.sheet.get(this.r, this.c); }
   setValue(v) { this.sheet.set(this.r, this.c, v); return this; }
   clearContent() {
     for (let i = 0; i < this.nr; i++) for (let j = 0; j < this.nc; j++) this.sheet.set(this.r + i, this.c + j, '');
@@ -92,12 +93,15 @@ class MockSpreadsheet {
   getSheets() { return this.sheets; }
 }
 
-function binaGas(versi) {
-  const state = { kataLaluan: {}, ss: new MockSpreadsheet(), cache: new Map(), props: {}, peti: [], log: [], trigger: [], kuotaEmel: 1500, emelGagal: null };
+// opsyen.idPenceramah: sambungkan portal semakan kepada sheet Sistem Tuntutan rekaan (state.luar[id])
+function binaGas(versi, opsyen) {
+  opsyen = opsyen || {};
+  const state = { kataLaluan: {}, luar: {}, ss: new MockSpreadsheet(), cache: new Map(), props: {}, peti: [], log: [], trigger: [], kuotaEmel: 1500, emelGagal: null };
   const kunci = () => ({ waitLock() {}, tryLock() { return true; }, releaseLock() {} });
   const gas = {
     SpreadsheetApp: {
       getActiveSpreadsheet: () => state.ss,
+      openById: (id) => { if (!state.luar[id]) throw new Error('Spreadsheet tidak dijumpai: ' + id); return state.luar[id]; },
       newDataValidation: () => {
         const v = { requireValueInList: (senarai) => { v.senarai = senarai; return v; }, setAllowInvalid: (b) => { v.bebas = b; return v; }, build: () => ({ senarai: v.senarai, bebas: v.bebas }) };
         return v;
@@ -169,7 +173,11 @@ function binaGas(versi) {
     bank = JSON.parse(JSON.stringify(vm.runInContext('BANK_SOALAN', ctx)));
   } else {
     // Seperti persediaan sebenar: BankSoalan.gs dipaste sementara, sediakanSistem() import ke tab
-    for (const f of [failBankSoalan(), failKod]) vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f });
+    for (const f of [failBankSoalan(), failKod]) {
+      let kod = fs.readFileSync(f, 'utf8');
+      if (opsyen.idPenceramah) kod = kod.replace('"MASUKKAN_ID_SHEET_SISTEM_TUNTUTAN"', JSON.stringify(opsyen.idPenceramah));
+      vm.runInContext(kod, ctx, { filename: f });
+    }
     vm.runInContext('sediakanSistem()', ctx);
     sheet = state.ss.getSheetByName('Keputusan');
     // Petugas ujian (rekaan) — satu bagi setiap akses
@@ -239,4 +247,22 @@ function hariIniMYT(tambahHari) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(d);
 }
 
-module.exports = { binaGas, hariIniMYT, failBankSoalan, bacaKataLaluanEmel, emelPetugas, bacaKataLaluanPetugas };
+// Sistem Tuntutan rekaan: tab Penceramah (dengan kolum sensitif yang TIDAK boleh dibaca) dan Slot
+function binaSheetTuntutan(state, id, penceramah, slot) {
+  const ss = new MockSpreadsheet();
+  const p = ss.insertSheet('Penceramah');
+  p.appendRow(['id', 'nama', 'ic', 'kategori', 'bank', 'no_akaun', 'emel', 'aktif']);
+  penceramah.forEach((x) => p.appendRow([x.id, x.nama, '900101-07-0000', 'PENJAWAT_AWAM', 'BANK REKAAN', '000000000000', x.emel, x.aktif || 'YA']));
+  const s = ss.insertSheet('Slot');
+  s.appendRow(['id', 'siri_id', 'tarikh', 'masa_mula', 'masa_tamat', 'tajuk', 'penceramah_id', 'modul_kod']);
+  (slot || []).forEach(([pid, modul], i) => s.appendRow(['s' + i, 'siri1', '2026-10-23', '08:30', '10:00', 'Tajuk', pid, modul]));
+  // Rekod kolum yang dibaca (selain baris tajuk) — ujian pastikan IC/bank tidak pernah dibaca
+  state.kolumDibaca = state.kolumDibaca || [];
+  const asal = p.getRange.bind(p);
+  p.getRange = (r, c, nr, nc) => { if (r > 1) for (let j = 0; j < (nc || 1); j++) state.kolumDibaca.push(p.getRange.tajuk[c - 1 + j]); return asal(r, c, nr, nc); };
+  p.getRange.tajuk = ['id', 'nama', 'ic', 'kategori', 'bank', 'no_akaun', 'emel', 'aktif'];
+  state.luar[id] = ss;
+  return ss;
+}
+
+module.exports = { binaGas, binaSheetTuntutan, hariIniMYT, failBankSoalan, bacaKataLaluanEmel, emelPetugas, bacaKataLaluanPetugas };

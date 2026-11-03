@@ -13,6 +13,8 @@
 //   sediakanSistem()            — SEKALI selepas paste kod: cipta tab (termasuk Petugas), import soalan, trigger
 //   hantarKataLaluanSemuaPetugas() — jana & emelkan kata laluan kepada SEMUA petugas aktif (cth. awal tahun)
 //   logKeluarSemuaPetugas()     — tamatkan semua sesi admin serta-merta
+//   ujiSambunganPenceramah()    — semak sambungan ke data penceramah (Sistem Tuntutan)
+//   hantarKataLaluanSemuaPenceramah() — emelkan kata laluan Portal Semakan Soalan kepada semua penceramah aktif
 //
 // Login admin: petugas yang didaftarkan dalam tab "Petugas" (emel @penang.gov.my, atau emel lain jika BENARKAN_EMEL_LAIN) masukkan emel dan
 // kata laluan, dan kekal log masuk 30 hari di peranti itu (atau sehingga log keluar). Kata laluan hanya
@@ -30,7 +32,8 @@ const TAB = {
   BANK: "BankSoalan",
   SOALAN_MB: "SoalanMaklumBalas",
   MAKLUM_BALAS: "MaklumBalas",
-  PETUGAS: "Petugas"
+  PETUGAS: "Petugas",
+  CADANGAN: "CadanganSoalan"       // cadangan pindaan soalan daripada penceramah
 };
 const ZON_MASA = "Asia/Kuala_Lumpur";
 const MASA_UJIAN_MINIT = 30;           // lalai; admin SEMUA boleh tukar di dashboard (PILIHAN_MASA_MINIT)
@@ -116,6 +119,34 @@ const PILIHAN_JAWATAN = ["Pentadbir JHEAIPP", "Pegawai JHEAIPP", "Setiausaha Pus
 const PILIHAN_CATATAN = ["Emel disahkan", "Sahkan emel", "Emel belum ada", "Bertukar daerah", "Tidak lagi bertugas"];
 const HURUF = "ABCD";
 
+// ==========================================
+// SEMAKAN SOALAN OLEH PENCERAMAH
+// Data penceramah dibaca terus daripada Google Sheet Sistem Tuntutan (tab Penceramah & Slot), tidak disalin.
+// Hanya kolum id, nama, emel dan aktif (serta penceramah_id & modul_kod dalam tab Slot) dibaca —
+// IC, akaun bank dan maklumat peribadi lain tidak dibaca langsung.
+// ==========================================
+const ID_SHEET_DATA_PENCERAMAH = "MASUKKAN_ID_SHEET_SISTEM_TUNTUTAN";
+const URL_PORTAL_PENCERAMAH = "";       // pautan halaman Google Sites portal semakan (dimasukkan dalam emel kata laluan)
+const TAB_LUAR = { PENCERAMAH: "Penceramah", SLOT: "Slot" };
+// Slot kursus ikut jadual MBKPI Versi 5 (kod modul Sistem Tuntutan M1-M8 = tajuk T1-T8)
+const JADUAL_SLOT = [
+  { tajuk: "T1", hari: 1, masa: "8.30 - 10.00 pagi" },
+  { tajuk: "T2", hari: 1, masa: "10.00 - 11.30 pagi" },
+  { tajuk: "T6", hari: 1, masa: "11.30 pagi - 1.30 petang" },
+  { tajuk: "T4", hari: 1, masa: "2.30 - 4.30 petang" },
+  { tajuk: "T3", hari: 2, masa: "8.30 - 10.00 pagi" },
+  { tajuk: "T5", hari: 2, masa: "10.00 - 11.30 pagi" },
+  { tajuk: "T7", hari: 2, masa: "11.30 pagi - 1.00 petang" },
+  { tajuk: "T8", hari: 2, masa: "2.00 - 3.30 petang" }
+];
+const HAD_CADANGAN_SEHARI = 300;       // had hantaran seorang penceramah dalam 24 jam
+const CD = { ID: 1, MASA: 2, ID_PENCERAMAH: 3, NAMA: 4, EMEL: 5, ID_SOALAN: 6, TAJUK: 7, JENIS: 8, SOALAN: 9, A: 10, B: 11, C: 12, D: 13,
+  JAWAPAN: 14, ULASAN: 15, RUJUKAN: 16, STATUS: 17, OLEH: 18, MASA_KEPUTUSAN: 19, ULASAN_ADMIN: 20, CAP_ASAL: 21 };
+const TAJUK_CADANGAN = ["ID Cadangan", "Masa", "ID Penceramah", "Nama Penceramah", "Emel", "ID Soalan", "Tajuk", "Jenis (SAH/UBAH)",
+  "Soalan Cadangan", "Pilihan A", "Pilihan B", "Pilihan C", "Pilihan D", "Jawapan Cadangan", "Ulasan / Justifikasi", "Rujukan Manual",
+  "Status", "Diputuskan Oleh", "Masa Keputusan", "Ulasan Pentadbir", "Cap Soalan Asal"];
+const STATUS_CADANGAN = { SAH: "DIREKOD", BARU: "BARU", DITERIMA: "DITERIMA", DITOLAK: "DITOLAK", DIGANTI: "DIGANTI" };
+
 // Tab SoalanMaklumBalas (A–H) — boleh diedit terus dalam Sheet
 const TAJUK_SOALAN_MB = ["ID", "Bahagian", "Bil", "Soalan", "Jenis (PILIHAN/SKALA/TEKS)", "Pilihan (pisah dengan |)", "Wajib (YA/TIDAK)", "Aktif (YA/TIDAK)"];
 // Tab MaklumBalas: 5 kolum asas, kemudian satu kolum bagi setiap soalan ("ID - Soalan")
@@ -185,6 +216,14 @@ function doPost(e) {
       case 'simpanSoalan': return jsonOutput(denganSesi(data.token, "SEMUA", () => handleSimpanSoalan(data.soalan)));
       case 'tetapanWaktu': return jsonOutput(denganSesi(data.token, "SEMUA", () => paparTetapanWaktu()));
       case 'simpanTetapanWaktu': return jsonOutput(denganSesi(data.token, "SEMUA", () => simpanTetapanWaktu(data.tetapan)));
+      case 'senaraiCadangan': return jsonOutput(denganSesi(data.token, "SEMUA", () => handleSenaraiCadangan()));
+      case 'putuskanCadangan': return jsonOutput(denganSesi(data.token, "SEMUA", (akses, sesi) => handlePutuskanCadangan(sesi, data)));
+      // Portal semakan soalan penceramah
+      case 'loginPenceramah': return jsonOutput(handleLoginPenceramah(data.emel, data.kataLaluan));
+      case 'lupaKataLaluanPenceramah': return jsonOutput(handleLupaKataLaluanPenceramah(data.emel));
+      case 'soalanPenceramah': return jsonOutput(denganSesiPenceramah(data.token, (p) => handleSoalanPenceramah(p)));
+      case 'hantarCadangan': return jsonOutput(denganSesiPenceramah(data.token, (p) => handleHantarCadangan(p, data.cadangan)));
+      case 'logoutPenceramah': return jsonOutput(handleLogoutPenceramah(data.token));
       default: return jsonOutput({ status: "error", message: "Tindakan tidak sah.", bolehCubaLagi: false });
     }
   } catch (error) {
@@ -1027,7 +1066,7 @@ function hantarKataLaluanSemuaPetugas() {
 function bersihkanSesiLuput(props) {
   const semua = props.getProperties();
   Object.keys(semua).forEach(k => {
-    if (k.indexOf('sesi_') !== 0) return;
+    if (k.indexOf('sesi_') !== 0 && k.indexOf('sesiP_') !== 0) return;
     let s = null;
     try { s = JSON.parse(semua[k]); } catch (e) { s = null; }
     if (!s || !(s.tamat > Date.now())) props.deleteProperty(k);
@@ -1072,11 +1111,14 @@ function logKeluarSemuaPetugas() {
 }
 
 // Emel kata laluan (dihantar kepada petugas itu sahaja)
-function binaEmelKataLaluan(nama, emel, kataLaluan, sebab) {
+// jenis: 'petugas' (dashboard admin) atau 'penceramah' (portal semakan soalan)
+function binaEmelKataLaluan(nama, emel, kataLaluan, sebab, jenis) {
   const NAVY = "#0b2a4a", EMAS = "#b8902f", GARIS = "#dfe3e8";
+  const penceramah = jenis === 'penceramah';
+  const sistem = penceramah ? "Portal Semakan Soalan Ujian Minda" : "Dashboard Admin Ujian Minda";
   const pembuka = sebab === 'lupa'
-    ? "Kata laluan baharu anda untuk Dashboard Admin Ujian Minda (kata laluan lama tidak boleh digunakan lagi):"
-    : "Akaun anda untuk Dashboard Admin Ujian Minda telah disediakan. Berikut maklumat log masuk anda:";
+    ? "Kata laluan baharu anda untuk " + sistem + " (kata laluan lama tidak boleh digunakan lagi):"
+    : "Akaun anda untuk " + sistem + " telah disediakan. Berikut maklumat log masuk anda:";
   let h = "<div style='background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;'>";
   h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='max-width:560px;margin:0 auto;background:#ffffff;border:1px solid " + GARIS + ";border-collapse:collapse;'>";
   h += "<tr><td style='background:" + NAVY + ";padding:18px 28px;text-align:center;border-bottom:4px solid " + EMAS + ";'>"
@@ -1088,13 +1130,21 @@ function binaEmelKataLaluan(nama, emel, kataLaluan, sebab) {
   h += "<table role='presentation' cellpadding='0' cellspacing='0' style='margin:0 0 18px;border-collapse:collapse;font-size:14px;'>"
     + "<tr><td style='padding:6px 14px 6px 0;color:#5b6573;'>Emel</td><td style='padding:6px 0;font-weight:bold;'>" + escapeHtml(emel) + "</td></tr>"
     + "<tr><td style='padding:6px 14px 6px 0;color:#5b6573;'>Kata laluan</td><td style='padding:6px 0;'><span style='display:inline-block;font-family:Consolas,monospace;font-size:20px;font-weight:bold;letter-spacing:1px;color:" + NAVY + ";background:#f6f1e4;border:1px solid " + EMAS + ";padding:8px 14px;'>" + escapeHtml(kataLaluan) + "</span></td></tr></table>";
-  h += "<p style='margin:0 0 8px;'>Log masuk melalui butang <b>Akses Platform Admin Daerah</b> di bawah halaman Ujian Minda. Anda boleh simpan kata laluan ini dalam pelayar (browser). Selepas log masuk, anda kekal log masuk di peranti itu selama " + TEMPOH_SESI_HARI + " hari atau sehingga menekan Log Keluar.</p>";
+  if (penceramah) {
+    h += "<p style='margin:0 0 8px;'>Portal ini membolehkan Tuan/Puan menyemak soalan Ujian Minda bagi setiap slot kursus dan mengemukakan cadangan pindaan berdasarkan Manual Modul Bersepadu Kursus Praperkahwinan Islam Versi 5.</p>";
+    h += URL_PORTAL_PENCERAMAH
+      ? "<p style='margin:0 0 8px;'>Log masuk di: <a href='" + escapeHtml(URL_PORTAL_PENCERAMAH) + "' style='color:" + NAVY + ";font-weight:bold;'>" + escapeHtml(URL_PORTAL_PENCERAMAH) + "</a></p>"
+      : "<p style='margin:0 0 8px;'>Log masuk melalui pautan Portal Semakan Soalan yang diberikan oleh JHEAIPP.</p>";
+    h += "<p style='margin:0 0 8px;'>Soalan dan skema jawapan dalam portal ini adalah <b>SULIT</b>. Mohon tidak dikongsi dengan peserta kursus.</p>";
+  } else {
+    h += "<p style='margin:0 0 8px;'>Log masuk melalui butang <b>Akses Platform Admin Daerah</b> di bawah halaman Ujian Minda. Anda boleh simpan kata laluan ini dalam pelayar (browser). Selepas log masuk, anda kekal log masuk di peranti itu selama " + TEMPOH_SESI_HARI + " hari atau sehingga menekan Log Keluar.</p>";
+  }
   h += "<p style='margin:0 0 8px;'>Jika terlupa, tekan <b>Lupa kata laluan</b> pada skrin log masuk dan kata laluan baharu akan dihantar ke emel ini.</p>";
   h += "<p style='margin:0;color:#b42318;font-size:13px;'>Jangan kongsikan kata laluan ini dengan sesiapa. Jika anda tidak meminta kata laluan baharu, maklumkan kepada pentadbir JHEAIPP.</p>";
   h += "</td></tr>";
   h += "<tr><td style='background:#f6f7f9;border-top:1px solid " + GARIS + ";padding:12px 32px;font-size:11px;color:#5b6573;'>Emel ini dijana secara automatik. Sila jangan balas emel ini.</td></tr>";
   h += "</table></div>";
-  return { subject: "Kata Laluan Dashboard Ujian Minda (SULIT)", htmlBody: h };
+  return { subject: penceramah ? "Kata Laluan Portal Semakan Soalan Ujian Minda (SULIT)" : "Kata Laluan Dashboard Ujian Minda (SULIT)", htmlBody: h };
 }
 
 function bacaRekod(akses) {
@@ -1181,12 +1231,8 @@ function bankUntukAdmin() {
   return bacaBank().sort((a, b) => a.set.localeCompare(b.set, 'ms', { numeric: true }) || a.bil - b.bil);
 }
 
-function handleSimpanSoalan(s) {
-  if (!s || typeof s !== 'object') throw ralatPengguna("Data soalan tidak sah.");
-  const set = String(s.set || '').trim().replace(/\s+/g, ' ');
-  if (!/^[A-Za-z0-9 ]{1,30}$/.test(set)) throw ralatPengguna("Nama set hanya huruf, nombor dan ruang (maksimum 30 aksara).");
-  const bil = Number(s.bil);
-  if (!Number.isInteger(bil) || bil < 1 || bil > 999) throw ralatPengguna("Bil mesti nombor 1 hingga 999.");
+// Teks soalan, pilihan dan jawapan — digunakan oleh editor admin dan cadangan penceramah
+function sahkanInputSoalan(s) {
   const soalan = String(s.soalan || '').trim();
   if (soalan.length < 5 || soalan.length > 2000) throw ralatPengguna("Teks soalan mesti antara 5 hingga 2000 aksara.");
   const pilihan = (Array.isArray(s.pilihan) ? s.pilihan : []).slice(0, 4).map(p => String(p == null ? '' : p).trim());
@@ -1194,6 +1240,16 @@ function handleSimpanSoalan(s) {
   if (pilihan.length < 2 || pilihan.some(p => !p || p.length > 500)) throw ralatPengguna("Isi sekurang-kurangnya pilihan A dan B, tanpa pilihan kosong di tengah.");
   const jawapan = Number(s.jawapan);
   if (!Number.isInteger(jawapan) || jawapan < 0 || jawapan >= pilihan.length) throw ralatPengguna("Pilih jawapan yang betul.");
+  return { soalan: soalan, pilihan: pilihan, jawapan: jawapan };
+}
+
+function handleSimpanSoalan(s) {
+  if (!s || typeof s !== 'object') throw ralatPengguna("Data soalan tidak sah.");
+  const set = String(s.set || '').trim().replace(/\s+/g, ' ');
+  if (!/^[A-Za-z0-9 ]{1,30}$/.test(set)) throw ralatPengguna("Nama set hanya huruf, nombor dan ruang (maksimum 30 aksara).");
+  const bil = Number(s.bil);
+  if (!Number.isInteger(bil) || bil < 1 || bil > 999) throw ralatPengguna("Bil mesti nombor 1 hingga 999.");
+  const { soalan, pilihan, jawapan } = sahkanInputSoalan(s);
   const aktif = s.aktif !== false;
   const tajuk = tajukSah(s.tajuk);
   if (s.tajuk && !tajuk) throw ralatPengguna("Tajuk kursus tidak sah.");
@@ -1224,6 +1280,346 @@ function handleSimpanSoalan(s) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ==========================================
+// PORTAL SEMAKAN SOALAN PENCERAMAH
+// ==========================================
+
+// { emel: { id, nama, aktif, slot: ['T1', ...] } } — dibaca daripada sheet Sistem Tuntutan (di-cache 5 minit)
+function bacaPenceramah() {
+  const cache = CacheService.getScriptCache();
+  const dalamCache = cache.get('penceramah_v1');
+  if (dalamCache) return JSON.parse(dalamCache);
+  if (!/^[A-Za-z0-9_-]{25,}$/.test(ID_SHEET_DATA_PENCERAMAH) || ID_SHEET_DATA_PENCERAMAH.indexOf('MASUKKAN') === 0) {
+    throw ralatPengguna("Portal semakan belum disambung kepada data penceramah. Sila hubungi pentadbir JHEAIPP.");
+  }
+  const ss = SpreadsheetApp.openById(ID_SHEET_DATA_PENCERAMAH);
+  // Baca kolum yang diperlukan sahaja, ikut nama tajuk (bukan kedudukan) supaya selamat jika kolum ditambah
+  const kolum = (sheet, nama) => {
+    const akhir = sheet.getLastRow(), lebar = sheet.getLastColumn();
+    if (akhir < 2 || lebar < 1) return nama.map(() => []);
+    const tajuk = sheet.getRange(1, 1, 1, lebar).getValues()[0].map(t => String(t).trim().toLowerCase());
+    return nama.map(n => {
+      const k = tajuk.indexOf(n);
+      if (k === -1) throw new Error("Kolum '" + n + "' tiada dalam tab " + sheet.getName() + " Sistem Tuntutan.");
+      return sheet.getRange(2, k + 1, akhir - 1, 1).getValues().map(r => r[0]);
+    });
+  };
+  const shP = ss.getSheetByName(TAB_LUAR.PENCERAMAH);
+  if (!shP) throw new Error("Tab " + TAB_LUAR.PENCERAMAH + " tiada dalam sheet Sistem Tuntutan.");
+  const [ids, nama, emel, aktif] = kolum(shP, ['id', 'nama', 'emel', 'aktif']);
+
+  // Slot yang pernah diajar: modul_kod M1-M8 → T1-T8
+  const slotIkutId = {};
+  const shS = ss.getSheetByName(TAB_LUAR.SLOT);
+  if (shS) {
+    const [pid, modul] = kolum(shS, ['penceramah_id', 'modul_kod']);
+    pid.forEach((id, i) => {
+      const m = /^M([1-8])$/.exec(String(modul[i]).trim().toUpperCase());
+      if (!id || !m) return;
+      const k = String(id).trim();
+      (slotIkutId[k] = slotIkutId[k] || {})['T' + m[1]] = true;
+    });
+  }
+
+  const hasil = {};
+  ids.forEach((id, i) => {
+    const e = normalEmel(emel[i]);
+    const k = String(id).trim();
+    if (!e || !k || hasil[e]) return;
+    hasil[e] = { id: k, nama: String(nama[i]).trim(), aktif: ya(aktif[i]), slot: Object.keys(slotIkutId[k] || {}).sort() };
+  });
+  cache.put('penceramah_v1', JSON.stringify(hasil), 300);
+  return hasil;
+}
+
+function kunciKataLaluanPenceramah(emel) { return 'klp_' + kunciRingkas('klp|' + emel); }
+
+function janaKataLaluanPenceramah() {
+  const digit = String(parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) % 10000).padStart(4, '0');
+  return 'ceramah' + digit + '!' + Utilities.formatDate(new Date(), ZON_MASA, 'yyyy');
+}
+
+function hantarKataLaluanPenceramah(emel, p, sebab) {
+  const kataLaluan = janaKataLaluanPenceramah();
+  PropertiesService.getScriptProperties().setProperty(kunciKataLaluanPenceramah(emel), tandatangan('klp|' + emel + '|' + kataLaluan));
+  const e = binaEmelKataLaluan(p.nama, emel, kataLaluan, sebab, 'penceramah');
+  MailApp.sendEmail({ to: emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+}
+
+// Log masuk penceramah: emel dalam data penceramah Sistem Tuntutan + kata laluan → sesi 30 hari
+function handleLoginPenceramah(emel, kataLaluan) {
+  emel = normalEmel(emel);
+  kataLaluan = String(kataLaluan || '');
+  if (emel.length > 100 || !/^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(emel)) {
+    return { status: "unauthorized", message: "Sila masukkan emel yang didaftarkan sebagai penceramah." };
+  }
+  const cache = CacheService.getScriptCache();
+  const kunciGagal = 'gagalP_' + kunciRingkas('gagalP|' + emel);
+  const gagal = Number(cache.get(kunciGagal) || 0);
+  const gagalSemua = Number(cache.get('gagal_semua') || 0);
+  if (gagal >= HAD_GAGAL_LOGIN_SETIAP_EMEL || gagalSemua >= HAD_GAGAL_LOGIN_KESELURUHAN) {
+    return { status: "unauthorized", message: "Terlalu banyak cubaan salah. Cuba lagi selepas 15 minit, atau tekan \"Lupa kata laluan\"." };
+  }
+  const p = bacaPenceramah()[emel];
+  const simpan = PropertiesService.getScriptProperties().getProperty(kunciKataLaluanPenceramah(emel));
+  const betul = !!(p && p.aktif && simpan && kataLaluan.length <= 100 && simpan === tandatangan('klp|' + emel + '|' + kataLaluan));
+  if (!betul) {
+    cache.put(kunciGagal, String(gagal + 1), 900);
+    cache.put('gagal_semua', String(gagalSemua + 1), 900);
+    return { status: "unauthorized", message: "Emel atau kata laluan salah. Kali pertama atau terlupa, tekan \"Lupa kata laluan\"." };
+  }
+  cache.remove(kunciGagal);
+  const token = janaRentetanRawak(40);
+  const props = PropertiesService.getScriptProperties();
+  bersihkanSesiLuput(props);
+  props.setProperty('sesiP_' + kunciRingkas('sesiP|' + token), JSON.stringify({ emel: emel, tamat: Date.now() + TEMPOH_SESI_HARI * 86400000 }));
+  return { status: "success", token: token, nama: p.nama, emel: emel, tempohHari: TEMPOH_SESI_HARI };
+}
+
+// Mesej yang sama dipulangkan sama ada emel berdaftar atau tidak (senarai penceramah tidak boleh diteka)
+function handleLupaKataLaluanPenceramah(emel) {
+  emel = normalEmel(emel);
+  if (emel.length > 100 || !/^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(emel)) {
+    return { status: "error", message: "Sila masukkan emel yang sah.", bolehCubaLagi: false };
+  }
+  const cache = CacheService.getScriptCache();
+  const kunciEmel = 'lupaP_' + kunciRingkas('lupaP|' + emel);
+  const bil = Number(cache.get(kunciEmel) || 0);
+  const bilSemua = Number(cache.get('lupa_semua') || 0);
+  if (bil >= HAD_LUPA_SETIAP_EMEL || bilSemua >= HAD_LUPA_KESELURUHAN) {
+    return { status: "error", message: "Terlalu banyak permintaan. Sila cuba lagi selepas 15 minit.", bolehCubaLagi: false };
+  }
+  cache.put(kunciEmel, String(bil + 1), 900);
+  cache.put('lupa_semua', String(bilSemua + 1), 900);
+  const p = bacaPenceramah()[emel];
+  if (p && p.aktif) {
+    hantarKataLaluanPenceramah(emel, p, 'lupa');
+    cache.remove('gagalP_' + kunciRingkas('gagalP|' + emel));
+  }
+  return { status: "success", message: "Jika emel anda berdaftar sebagai penceramah, kata laluan telah dihantar ke emel tersebut. Semak juga folder Spam." };
+}
+
+function denganSesiPenceramah(token, fn) {
+  token = String(token || '');
+  const gagal = { status: "unauthorized", message: "Sesi tamat. Sila log masuk semula." };
+  if (!/^[A-Za-z0-9]{40}$/.test(token)) return gagal;
+  const props = PropertiesService.getScriptProperties();
+  const kunci = 'sesiP_' + kunciRingkas('sesiP|' + token);
+  let s = null;
+  try { s = JSON.parse(props.getProperty(kunci) || 'null'); } catch (e) { s = null; }
+  if (!s) return gagal;
+  if (!(s.tamat > Date.now())) { props.deleteProperty(kunci); return gagal; }
+  // Dibaca semula setiap permintaan: penceramah yang dinyahaktifkan dalam Sistem Tuntutan terus tersekat
+  const p = bacaPenceramah()[s.emel];
+  if (!p || !p.aktif) return gagal;
+  return fn(Object.assign({ emel: s.emel }, p));
+}
+
+function handleLogoutPenceramah(token) {
+  token = String(token || '');
+  if (/^[A-Za-z0-9]{40}$/.test(token)) PropertiesService.getScriptProperties().deleteProperty('sesiP_' + kunciRingkas('sesiP|' + token));
+  return { status: "success" };
+}
+
+// Cap kandungan soalan — untuk kesan jika soalan berubah selepas cadangan dibuat
+function capSoalan(q) {
+  return kunciRingkas('cap|' + q.soalan + '|' + q.pilihan.join('|') + '|' + q.jawapan);
+}
+
+function bacaCadangan() {
+  const sheet = tab(TAB.CADANGAN);
+  const akhir = sheet.getLastRow();
+  if (akhir < 2) return [];
+  return sheet.getRange(2, 1, akhir - 1, TAJUK_CADANGAN.length).getValues().map((r, i) => {
+    const pilihan = [CD.A, CD.B, CD.C, CD.D].map(k => String(r[k - 1]).trim());
+    while (pilihan.length && !pilihan[pilihan.length - 1]) pilihan.pop();
+    return {
+      baris: i + 2, id: String(r[CD.ID - 1]).trim(), masa: String(r[CD.MASA - 1]).trim(),
+      idPenceramah: String(r[CD.ID_PENCERAMAH - 1]).trim(), nama: String(r[CD.NAMA - 1]).trim(), emel: String(r[CD.EMEL - 1]).trim(),
+      idSoalan: String(r[CD.ID_SOALAN - 1]).trim(), tajuk: String(r[CD.TAJUK - 1]).trim(), jenis: String(r[CD.JENIS - 1]).trim(),
+      soalan: String(r[CD.SOALAN - 1]).trim(), pilihan: pilihan, jawapan: HURUF.indexOf(String(r[CD.JAWAPAN - 1]).trim().toUpperCase()),
+      ulasan: String(r[CD.ULASAN - 1]).trim(), rujukan: String(r[CD.RUJUKAN - 1]).trim(), status: String(r[CD.STATUS - 1]).trim(),
+      oleh: String(r[CD.OLEH - 1]).trim(), masaKeputusan: String(r[CD.MASA_KEPUTUSAN - 1]).trim(),
+      ulasanAdmin: String(r[CD.ULASAN_ADMIN - 1]).trim(), capAsal: String(r[CD.CAP_ASAL - 1]).trim()
+    };
+  }).filter(c => c.id);
+}
+
+// Semua soalan aktif (dengan skema jawapan) + status semakan penceramah ini
+function handleSoalanPenceramah(p) {
+  const soalan = bacaBank().filter(q => q.aktif && q.tajuk)
+    .sort((a, b) => a.set.localeCompare(b.set, 'ms', { numeric: true }) || a.bil - b.bil)
+    .map(q => ({ id: q.id, tajuk: q.tajuk, soalan: q.soalan, pilihan: q.pilihan, jawapan: q.jawapan }));
+  const semakan = {};
+  bacaCadangan().forEach(c => {
+    if (c.idPenceramah !== p.id || c.status === STATUS_CADANGAN.DIGANTI) return;
+    semakan[c.idSoalan] = { jenis: c.jenis, status: c.status, masa: c.masa, ulasan: c.ulasan, ulasanAdmin: c.ulasanAdmin };
+  });
+  return {
+    status: "success", nama: p.nama, slotSaya: p.slot,
+    slot: JADUAL_SLOT.map(s => Object.assign({ nama: NAMA_TAJUK[s.tajuk] }, s)),
+    soalan: soalan, semakan: semakan
+  };
+}
+
+// c = { idSoalan, jenis: 'SAH'|'UBAH', soalan, pilihan, jawapan, ulasan, rujukan }
+function handleHantarCadangan(p, c) {
+  if (!c || typeof c !== 'object') throw ralatPengguna("Data cadangan tidak sah.");
+  const idSoalan = String(c.idSoalan || '');
+  if (!/^[A-Za-z0-9-]{1,40}$/.test(idSoalan)) throw ralatPengguna("ID soalan tidak sah.");
+  const jenis = c.jenis === 'UBAH' ? 'UBAH' : (c.jenis === 'SAH' ? 'SAH' : '');
+  if (!jenis) throw ralatPengguna("Jenis semakan tidak sah.");
+  const asal = bacaBank().find(q => q.id === idSoalan && q.aktif);
+  if (!asal) throw ralatPengguna("Soalan tidak dijumpai atau tidak lagi aktif. Muat semula senarai soalan.");
+  const ulasan = String(c.ulasan || '').trim();
+  const rujukan = String(c.rujukan || '').trim();
+  if (ulasan.length > 1500) throw ralatPengguna("Ulasan maksimum 1500 aksara.");
+  if (rujukan.length > 300) throw ralatPengguna("Rujukan maksimum 300 aksara.");
+  let cadangan = { soalan: '', pilihan: [], jawapan: -1 };
+  if (jenis === 'UBAH') {
+    if (ulasan.length < 10) throw ralatPengguna("Nyatakan sebab atau justifikasi cadangan (sekurang-kurangnya 10 aksara).");
+    cadangan = sahkanInputSoalan(c);
+  }
+
+  const cache = CacheService.getScriptCache();
+  const kunciHad = 'cdg_' + kunciRingkas('cdg|' + p.id);
+  const bil = Number(cache.get(kunciHad) || 0);
+  if (bil >= HAD_CADANGAN_SEHARI) throw ralatPengguna("Had semakan harian dicapai. Sila sambung esok.");
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sheet = tab(TAB.CADANGAN);
+    // Semakan terdahulu oleh penceramah yang sama bagi soalan ini (yang belum diputuskan) digantikan
+    bacaCadangan().forEach(x => {
+      if (x.idPenceramah === p.id && x.idSoalan === idSoalan && (x.status === STATUS_CADANGAN.BARU || x.status === STATUS_CADANGAN.SAH)) {
+        sheet.getRange(x.baris, CD.STATUS).setValue(STATUS_CADANGAN.DIGANTI);
+      }
+    });
+    const id = "C" + janaRentetanRawak(8);
+    const status = jenis === 'UBAH' ? STATUS_CADANGAN.BARU : STATUS_CADANGAN.SAH;
+    sheet.appendRow([teksSheet(id), teksSheet(masaKini()), teksSheet(p.id), teksSheet(p.nama), teksSheet(p.emel), teksSheet(idSoalan), asal.tajuk, jenis,
+      teksSheet(cadangan.soalan)].concat([0, 1, 2, 3].map(i => teksSheet(cadangan.pilihan[i] || '')))
+      .concat([cadangan.jawapan >= 0 ? HURUF.charAt(cadangan.jawapan) : '', teksSheet(ulasan), teksSheet(rujukan), status, '', '', '', teksSheet(capSoalan(asal))]));
+    cache.put(kunciHad, String(bil + 1), 86400);
+    return { status: "success", idSoalan: idSoalan, semakan: { jenis: jenis, status: status, masa: masaKini(), ulasan: ulasan, ulasanAdmin: '' } };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Admin SEMUA: semua cadangan UBAH (terbaru dahulu) + versi semasa soalan, serta ringkasan liputan semakan
+function handleSenaraiCadangan() {
+  const bank = {};
+  bacaBank().forEach(q => { bank[q.id] = q; });
+  const semua = bacaCadangan();
+  const disemak = {};
+  semua.forEach(c => { if (c.status !== STATUS_CADANGAN.DIGANTI) disemak[c.idSoalan] = true; });
+  const cadangan = semua.filter(c => c.jenis === 'UBAH' && c.status !== STATUS_CADANGAN.DIGANTI).reverse().map(c => {
+    const q = bank[c.idSoalan];
+    return {
+      id: c.id, masa: c.masa, nama: c.nama, idSoalan: c.idSoalan, tajuk: c.tajuk, status: c.status,
+      soalan: c.soalan, pilihan: c.pilihan, jawapan: c.jawapan, ulasan: c.ulasan, rujukan: c.rujukan,
+      oleh: c.oleh, masaKeputusan: c.masaKeputusan, ulasanAdmin: c.ulasanAdmin,
+      semasa: q ? { soalan: q.soalan, pilihan: q.pilihan, jawapan: q.jawapan, aktif: q.aktif } : null,
+      berubah: !!(q && c.capAsal && capSoalan(q) !== c.capAsal)
+    };
+  });
+  const aktif = Object.keys(bank).filter(id => bank[id].aktif && bank[id].tajuk);
+  return {
+    status: "success", cadangan: cadangan,
+    ringkasan: {
+      soalanAktif: aktif.length,
+      soalanDisemak: aktif.filter(id => disemak[id]).length,
+      penyemak: Array.from(new Set(semua.filter(c => c.status !== STATUS_CADANGAN.DIGANTI).map(c => c.idPenceramah))).length
+    }
+  };
+}
+
+// d = { idCadangan, keputusan: 'TERIMA'|'TOLAK', ulasan, akhir?: {soalan, pilihan, jawapan}, paksa? }
+// TERIMA: tab BankSoalan dikemas kini; versi asal disimpan dalam kolum Catatan (L).
+function handlePutuskanCadangan(sesi, d) {
+  d = d || {};
+  const idCadangan = String(d.idCadangan || '');
+  if (!/^C[A-Za-z0-9]{8}$/.test(idCadangan)) throw ralatPengguna("ID cadangan tidak sah.");
+  const keputusan = d.keputusan === 'TERIMA' ? 'TERIMA' : (d.keputusan === 'TOLAK' ? 'TOLAK' : '');
+  if (!keputusan) throw ralatPengguna("Keputusan tidak sah.");
+  const ulasan = String(d.ulasan || '').trim();
+  if (ulasan.length > 1000) throw ralatPengguna("Ulasan maksimum 1000 aksara.");
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let c;
+  try {
+    c = bacaCadangan().find(x => x.id === idCadangan);
+    if (!c || c.jenis !== 'UBAH') throw ralatPengguna("Cadangan tidak dijumpai. Muat semula senarai.");
+    if (c.status !== STATUS_CADANGAN.BARU) throw ralatPengguna("Cadangan ini telah diputuskan (" + c.status + ").");
+    const sheetCd = tab(TAB.CADANGAN);
+
+    if (keputusan === 'TERIMA') {
+      const akhir = sahkanInputSoalan(d.akhir || c);
+      const sheet = tab(TAB.BANK);
+      const baris = cariBaris(sheet, BK.ID, c.idSoalan);
+      if (!baris) throw ralatPengguna("Soalan asal tidak dijumpai dalam BankSoalan.");
+      kosongkanCacheSoalan();
+      const q = bacaBank().find(x => x.id === c.idSoalan);
+      if (!q) throw ralatPengguna("Soalan asal tidak dijumpai dalam BankSoalan.");
+      if (c.capAsal && capSoalan(q) !== c.capAsal && d.paksa !== true) {
+        return { status: "error", berubah: true, bolehCubaLagi: false, message: "Soalan ini telah dipinda selepas cadangan dibuat. Semak versi semasa sebelum menerima." };
+      }
+      const catatanLama = String(sheet.getRange(baris, BK.CATATAN).getValue() || '').trim();
+      const rekodAsal = "Cadangan penceramah " + c.nama + " (" + c.id + ") diterima " + masaKini().slice(0, 10) + " oleh " + (sesi.nama || sesi.emel)
+        + ". Asal: " + q.soalan.replace(/\s+/g, ' ') + " | " + q.pilihan.map((x, i) => HURUF.charAt(i) + ". " + x).join(" | ")
+        + " | Jawapan " + HURUF.charAt(q.jawapan) + (c.rujukan ? ". Rujukan: " + c.rujukan : "");
+      sheet.getRange(baris, BK.SOALAN, 1, 6).setValues([[teksSheet(akhir.soalan)].concat([0, 1, 2, 3].map(i => teksSheet(akhir.pilihan[i] || ''))).concat([HURUF.charAt(akhir.jawapan)])]);
+      sheet.getRange(baris, BK.DIKEMASKINI, 1, 2).setValues([[teksSheet(masaKini()), teksSheet((catatanLama ? catatanLama + " || " : "") + rekodAsal)]]);
+      kosongkanCacheSoalan();
+    }
+    sheetCd.getRange(c.baris, CD.STATUS, 1, 4).setValues([[keputusan === 'TERIMA' ? STATUS_CADANGAN.DITERIMA : STATUS_CADANGAN.DITOLAK,
+      teksSheet(sesi.nama || sesi.emel), teksSheet(masaKini()), teksSheet(ulasan)]]);
+  } finally {
+    lock.releaseLock();
+  }
+  try { emelKeputusanCadangan(c, keputusan, ulasan); } catch (e) { console.error(e); } // tidak kritikal
+  return Object.assign(handleSenaraiCadangan(), { bank: bankUntukAdmin() });
+}
+
+function emelKeputusanCadangan(c, keputusan, ulasan) {
+  if (!c.emel) return;
+  const diterima = keputusan === 'TERIMA';
+  let h = "<div style='font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;line-height:1.6;max-width:560px;'>";
+  h += "<p>Assalamualaikum " + escapeHtml(c.nama || "Tuan/Puan") + ",</p>";
+  h += "<p>Terima kasih atas semakan Tuan/Puan. Cadangan pindaan bagi soalan <b>" + escapeHtml(c.idSoalan) + "</b> ("
+    + escapeHtml(NAMA_TAJUK[c.tajuk] || c.tajuk) + ") telah <b>" + (diterima ? "DITERIMA dan dikemas kini dalam bank soalan" : "TIDAK DITERIMA") + "</b>.</p>";
+  if (ulasan) h += "<p><b>Ulasan pentadbir:</b> " + escapeHtml(ulasan) + "</p>";
+  h += "<p style='font-size:12px;color:#5b6573;'>Emel ini dijana secara automatik oleh Sistem Ujian Minda JHEAIPP. Sila jangan balas emel ini.</p></div>";
+  MailApp.sendEmail({ to: c.emel, subject: "Keputusan Cadangan Soalan Ujian Minda (" + c.idSoalan + ")", htmlBody: h, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+}
+
+// Jalankan dari editor: semak sambungan ke Sistem Tuntutan (tiada data peribadi ditulis dalam log)
+function ujiSambunganPenceramah() {
+  CacheService.getScriptCache().remove('penceramah_v1');
+  const semua = bacaPenceramah();
+  const senarai = Object.keys(semua).map(e => semua[e]);
+  Logger.log("Sambungan berjaya. Penceramah beremel: " + senarai.length + " (aktif: " + senarai.filter(p => p.aktif).length
+    + "). Ada rekod slot: " + senarai.filter(p => p.slot.length).length + ".");
+  return senarai.length;
+}
+
+// Jalankan dari editor: jana & emelkan kata laluan portal kepada SEMUA penceramah aktif yang beremel
+function hantarKataLaluanSemuaPenceramah() {
+  CacheService.getScriptCache().remove('penceramah_v1');
+  const semua = bacaPenceramah();
+  let bil = 0;
+  Object.keys(semua).forEach(emel => {
+    if (!semua[emel].aktif) return;
+    hantarKataLaluanPenceramah(emel, semua[emel], 'baharu');
+    bil++;
+  });
+  Logger.log("Kata laluan portal semakan dihantar kepada " + bil + " penceramah aktif. Kata laluan tidak ditulis dalam log ini.");
+  return bil;
 }
 
 // ==========================================
@@ -1270,6 +1666,7 @@ function sediakanSistem() {
   const smb = pastikanTab(TAB.SOALAN_MB, TAJUK_SOALAN_MB);
   if (smb.getLastRow() < 2) smb.getRange(2, 1, SOALAN_MB_LALAI.length, TAJUK_SOALAN_MB.length).setValues(SOALAN_MB_LALAI);
   pastikanTab(TAB.MAKLUM_BALAS, TAJUK_MB_ASAS);
+  pastikanTab(TAB.CADANGAN, TAJUK_CADANGAN);
   const petugas = pastikanTab(TAB.PETUGAS, TAJUK_PETUGAS);
   if (petugas.getLastRow() < 2) {
     petugas.getRange(2, 1, 1, 4).setValues([[PEGAWAI.nama, PEGAWAI.emel, "SEMUA", "YA"]]);
