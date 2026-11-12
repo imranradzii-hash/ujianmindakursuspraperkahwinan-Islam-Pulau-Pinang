@@ -759,6 +759,15 @@ function handleMaklumBalas(data) {
     if (!baris) throw ralatPengguna("Rekod ujian tidak dijumpai. Sila maklumkan kepada urusetia.");
     const r = sheet.getRange(baris, 1, 1, KOL.STATUS).getValues()[0];
     const hasil = { status: "success", emel: topengEmel(r[KOL.EMEL - 1]) };
+    // Markah dipaparkan di skrin selepas borang penilaian dihantar (dan dalam slip PDF); emel keputusan tetap dihantar
+    const tarikhKursus = r[KOL.TARIKH - 1] instanceof Date ? Utilities.formatDate(r[KOL.TARIKH - 1], ZON_MASA, 'yyyy-MM-dd') : String(r[KOL.TARIKH - 1]);
+    const skor = Number(r[KOL.SKOR - 1]) || 0;
+    hasil.keputusan = {
+      nama: String(r[KOL.NAMA - 1]), ic: topengIc(r[KOL.IC - 1]), daerah: String(r[KOL.DAERAH - 1]),
+      tarikh: formatTarikhPanjang(tarikhKursus), betul: Number(r[KOL.BETUL - 1]) || 0, jumlah: Number(r[KOL.JUMLAH - 1]) || BIL_SOALAN_UJIAN,
+      skor: skor, lulus: skor >= PERATUS_LULUS, peratusLulus: PERATUS_LULUS,
+      rujukan: rujukanKeputusan(tarikhKursus, idHantar), masa: masaKini(), jabatan: JABATAN.nama, bahagian: JABATAN.bahagian
+    };
 
     // Hanya rekod MENUNGGU MAKLUM BALAS disimpan; jika sudah diproses, anggap berjaya (cubaan semula)
     if (r[KOL.STATUS - 1] === STATUS.MAKLUM_BALAS) {
@@ -850,6 +859,14 @@ function rekodDariBaris(r) {
   };
 }
 
+function topengIc(ic) {
+  return String(ic).length === 12 ? "XXXXXX-XX-" + String(ic).slice(-4) : "-";
+}
+
+function rujukanKeputusan(tarikh, idHantar) {
+  return "UM/" + String(tarikh).replace(/-/g, '') + "/" + String(idHantar).replace(/[^A-Za-z0-9]/g, '').slice(-6).toUpperCase();
+}
+
 function formatTarikhPanjang(iso) {
   const bulan = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
   const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -898,8 +915,8 @@ function binaEmelKeputusan(rek) {
   const td = "padding:9px 12px;border-bottom:1px solid " + GARIS + ";font-size:14px;";
   const label = td + "color:" + KELABU + ";width:38%;";
   const nilai = td + "color:#111827;font-weight:bold;";
-  const icTopeng = String(rek.ic).length === 12 ? "XXXXXX-XX-" + String(rek.ic).slice(-4) : "-";
-  const rujukan = "UM/" + String(rek.tarikh).replace(/-/g, '') + "/" + String(rek.idHantar).replace(/[^A-Za-z0-9]/g, '').slice(-6).toUpperCase();
+  const icTopeng = topengIc(rek.ic);
+  const rujukan = rujukanKeputusan(rek.tarikh, rek.idHantar);
 
   // Soalan yang dijawab salah — teks diambil daripada bank soalan semasa
   const peta = {};

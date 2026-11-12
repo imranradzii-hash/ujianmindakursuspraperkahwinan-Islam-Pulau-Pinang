@@ -36,6 +36,10 @@ Ujian minda dalam talian untuk peserta Kursus Praperkahwinan Islam (JHEAIPP), de
 
 Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka borang penilaian. Kalau peserta pulang tanpa isi borang, admin boleh tekan **Lepaskan** di dashboard untuk hantar keputusan juga.
 
+### Markah di skrin dan slip PDF
+
+Selepas borang penilaian dihantar, skrin Terima Kasih memaparkan markah, bilangan jawapan betul, status lulus dan butiran peserta (No. KP ditopeng). Butang **Muat Turun Slip Keputusan (PDF)** menjana slip satu halaman untuk simpanan peserta (jsPDF dimuat hanya apabila ditekan). Markah tidak dipaparkan sebelum borang penilaian dihantar, dan emel keputusan tetap dihantar seperti biasa.
+
 ## v2: peranan admin
 
 Log masuk dengan emel dan kata laluan:

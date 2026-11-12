@@ -143,6 +143,15 @@ test('maklum balas: wajib & nilai disemak, disimpan ikut kolum soalan, status â†
   assert.equal(r.status, 'success');
   assert.equal(r.emel, 'al***@contoh.my');
   assert.equal(kolum(g, 2, STATUS), 'MENUNGGU EMEL');
+  // Markah dipulangkan selepas borang penilaian diterima (untuk paparan skrin & slip PDF); IC ditopeng
+  assert.equal(r.keputusan.skor, 100);
+  assert.equal(r.keputusan.betul + ' / ' + r.keputusan.jumlah, '30 / 30');
+  assert.equal(r.keputusan.lulus, true);
+  assert.match(r.keputusan.ic, /^XXXXXX-XX-\d{4}$/);
+  assert.match(r.keputusan.rujukan, /^UM\/\d{8}\/[A-Z0-9]{6}$/);
+  assert.ok(!JSON.stringify(r).includes(p.ic));
+  // Hantar semula (cubaan semula rangkaian) â†’ keputusan yang sama
+  assert.deepEqual(g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: penuh }).keputusan, r.keputusan);
 
   const mb = g.state.ss.getSheetByName('MaklumBalas');
   assert.equal(mb.getLastRow(), 2);

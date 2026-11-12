@@ -38,7 +38,7 @@ test.after(async () => { await browser.close(); });
 
 async function buka(versi, g, opsi) {
   opsi = opsi || {};
-  const context = opsi.context || await browser.newContext({ acceptDownloads: true, viewport: { width: 412, height: 915 } });
+  const context = opsi.context || await browser.newContext({ acceptDownloads: true, viewport: { width: 412, height: 915 }, timezoneId: 'Asia/Kuala_Lumpur' });
   const page = await context.newPage();
   const ralat = [];
   page.on('pageerror', (e) => ralat.push(e.message));
@@ -286,7 +286,19 @@ test('v2: ujian → borang penilaian → terima kasih; markah TIDAK dipaparkan, 
   await page.click('#btn-hantar-mb');
   await page.waitForSelector('#step-3:not(.hidden-step)');
   assert.equal((await page.textContent('#paparan-emel-topeng')).trim(), 'al***@contoh.my');
+  // Markah dipaparkan selepas borang penilaian; slip PDF boleh dimuat turun
+  await page.waitForSelector('#kad-keputusan:not(.hidden-step)');
+  assert.match(await page.textContent('#kp-skor'), /^\d{1,3}%$/);
+  assert.match(await page.textContent('#kp-betul'), /^\d+ \/ 30$/);
+  assert.match(await page.textContent('#kp-ic'), /^XXXXXX-XX-\d{4}$/);
   await page.screenshot({ path: path.join(OUTPUT, 'v2-4-selesai.png'), fullPage: true });
+  if (JSPDF) {
+    const [muat] = await Promise.all([page.waitForEvent('download'), page.click('#btn-slip-pdf')]);
+    assert.match(muat.suggestedFilename(), /^Slip-Ujian-Minda-UM-\d{8}-[A-Z0-9]{6}\.pdf$/);
+    const failSlip = path.join(OUTPUT, 'slip-ujian-minda.pdf');
+    await muat.saveAs(failSlip);
+    assert.ok(fs.statSync(failSlip).size > 3000);
+  }
 
   assert.equal(g.sheet.rows[1][10], 'MENUNGGU EMEL');
   assert.equal(g.state.ss.getSheetByName('MaklumBalas').getLastRow(), 2);
