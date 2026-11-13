@@ -66,6 +66,7 @@ test('portal penceramah: log masuk, semak slot, sahkan & cadang pindaan; admin t
   assert.equal(await page.textContent('#tajuk-slot'), 'T2 Perkahwinan & Majlis Akad Nikah');
   assert.equal(await page.locator('.slot.aktif .lencana').count(), 1);
   assert.equal(await page.locator('.slot').count(), 8);
+  assert.ok(await page.evaluate(() => document.querySelector('.kotak-jata img').naturalWidth > 0));
   const bilT2 = await page.locator('#senarai-soalan article').count();
   assert.ok(bilT2 > 5);
   // Jawapan betul ditanda pada setiap soalan
