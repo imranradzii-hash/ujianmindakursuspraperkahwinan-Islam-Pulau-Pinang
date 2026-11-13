@@ -150,6 +150,7 @@ test('maklum balas: wajib & nilai disemak, disimpan ikut kolum soalan, status â†
   assert.match(r.keputusan.ic, /^XXXXXX-XX-\d{4}$/);
   assert.match(r.keputusan.rujukan, /^UM\/\d{8}\/[A-Z0-9]{6}$/);
   assert.ok(!JSON.stringify(r).includes(p.ic));
+  assert.deepEqual(Array.from(r.keputusan.salah), []);
   // Hantar semula (cubaan semula rangkaian) â†’ keputusan yang sama
   assert.deepEqual(g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: penuh }).keputusan, r.keputusan);
 
@@ -754,4 +755,22 @@ test('kata laluan: emel Gmail yang didaftarkan dalam tab Petugas boleh terima ka
   const r = g.post({ action: 'login', emel: 'PETUGAS.UJIAN@gmail.com', kataLaluan: kl });
   assert.equal(r.status, 'success');
   assert.equal(r.akses, 'Timur Laut');
+});
+
+test('keputusan: soalan salah dipulangkan untuk semakan di skrin; emel rasmi membawa jata sebaris', () => {
+  const g = binaGas('v2');
+  const p = ujian(g, null, (j) => { j[0] = (j[0] + 1) % 2; j[1] = null; return j; });
+  g.post(p);
+  const r = g.post({ action: 'maklumBalas', idHantar: p.idHantar, jawapan: maklumBalasPenuh(g) });
+  assert.equal(r.keputusan.betul, 28);
+  assert.equal(r.keputusan.salah.length, 2);
+  assert.ok(r.keputusan.salah.every((x) => x.soalan && x.anda && /^[A-D]\. /.test(x.betul)));
+  assert.equal(r.keputusan.salah[1].anda, 'Tidak dijawab');
+
+  g.ctx.prosesBarisanEmel();
+  const emel = g.state.peti[g.state.peti.length - 1];
+  assert.match(emel.htmlBody, /src='cid:jata'/);
+  assert.equal(emel.inlineImages.jata.getContentType(), 'image/png');
+  assert.ok(emel.inlineImages.jata.data.length > 1000);
+  assert.ok(emel.htmlBody.includes('SEMAKAN JAWAPAN (2 SOALAN'));
 });

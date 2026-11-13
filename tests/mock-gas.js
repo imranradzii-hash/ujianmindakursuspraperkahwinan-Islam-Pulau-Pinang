@@ -144,6 +144,8 @@ function binaGas(versi, opsyen) {
     },
     Utilities: {
       getUuid: () => crypto.randomUUID(),
+      base64Decode: (b) => Array.from(Buffer.from(b, 'base64')),
+      newBlob: (data, jenis, nama) => ({ data, jenis, nama, getName: () => nama, getContentType: () => jenis }),
       sleep: () => {},
       Charset: { UTF_8: 'utf8' },
       DigestAlgorithm: { SHA_256: 'sha256' },

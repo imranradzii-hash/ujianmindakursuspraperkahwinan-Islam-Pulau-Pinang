@@ -306,6 +306,27 @@ test('v2: ujian → borang penilaian → terima kasih; markah TIDAK dipaparkan, 
   assert.equal(g.state.peti.length, 1);
   assert.match(g.state.peti[0].htmlBody, new RegExp(`${k.length - 1} / ${k.length}`));
   assert.equal(await page.evaluate(() => localStorage.getItem('ujianMindaMaklumBalasTertunda')), null);
+
+  // Semakan jawapan salah di skrin (1 soalan), jata di kepala halaman
+  assert.equal(await page.locator('#kp-semakan-senarai > div').count(), 1);
+  assert.match(await page.textContent('#kp-semakan-senarai'), /Jawapan anda: [A-D]\. .*Jawapan betul: [A-D]\. /s);
+  assert.ok(await page.evaluate(() => document.getElementById('jata-kepala').naturalWidth > 0));
+  // Keputusan disimpan di peranti: kembali ke laman utama / muat semula → boleh lihat semula & padam
+  await page.click('text=Kembali ke Laman Utama');
+  await page.waitForSelector('#notis-keputusan:not(.hidden-step)');
+  await page.reload();
+  await page.waitForSelector('#notis-keputusan:not(.hidden-step)');
+  assert.match(await page.textContent('#notis-keputusan'), /ALI BIN ABU · \d+%/);
+  await page.click('text=Lihat Keputusan & Slip');
+  await page.waitForSelector('#kad-keputusan:not(.hidden-step)');
+  assert.equal(await page.locator('#kp-semakan-senarai > div').count(), 1);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(OUTPUT, 'v2-4-selesai.png'), fullPage: true });
+  await page.click('text=Kembali ke Laman Utama');
+  await page.click('#notis-keputusan >> text=Padam');
+  await page.click('#btn-modal-confirm-sah');
+  await page.waitForSelector('#notis-keputusan.hidden-step', { state: 'attached' });
+  assert.equal(await page.evaluate(() => localStorage.getItem('ujianMindaKeputusanTerakhir')), null);
   assert.deepEqual(ralat, []);
   await context.close();
 });

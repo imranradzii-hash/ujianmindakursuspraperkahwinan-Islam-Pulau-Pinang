@@ -40,6 +40,10 @@ Kalau peserta muat semula halaman selepas langkah 3, halaman terus membuka boran
 
 Selepas borang penilaian dihantar, skrin Terima Kasih memaparkan markah, bilangan jawapan betul, status lulus dan butiran peserta (No. KP ditopeng). Butang **Muat Turun Slip Keputusan (PDF)** menjana slip satu halaman untuk simpanan peserta (jsPDF dimuat hanya apabila ditekan). Markah tidak dipaparkan sebelum borang penilaian dihantar, dan emel keputusan tetap dihantar seperti biasa.
 
+- **Semakan jawapan:** soalan yang dijawab salah dipaparkan di bawah markah (jawapan peserta dan jawapan betul), sama seperti dalam emel.
+- **Keputusan disimpan di peranti (30 hari):** apabila halaman dibuka semula, notis di laman utama membolehkan peserta melihat semula keputusan dan memuat turun slip, atau memadamnya. Data hanya disimpan dalam pelayar peserta.
+- **Jata Negeri Pulau Pinang** dipaparkan di kepala halaman dan slip PDF, serta dilampirkan sebaris dalam emel rasmi (`JATA_B64` dalam Code.gs; `JABATAN.logoUrl` diutamakan jika diisi).
+
 ## v2: peranan admin
 
 Log masuk dengan emel dan kata laluan:

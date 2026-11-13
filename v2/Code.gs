@@ -46,6 +46,9 @@ const JABATAN = {
   bahagian: "Bahagian Undang-Undang Keluarga Islam",
   logoUrl: "" // Pilihan: URL imej logo (https://...) untuk kepala emel. Kosong = tiada logo.
 };
+// Jata Negeri Pulau Pinang (PNG kecil, base64) — dilampirkan sebagai imej sebaris dalam emel rasmi.
+// Kosongkan ("") untuk emel tanpa jata. JABATAN.logoUrl, jika diisi, diutamakan.
+const JATA_B64 = "iVBORw0KGgoAAAANSUhEUgAAAE0AAACgCAMAAAB+DRHeAAAAwFBMVEUmLx2esNcNVyReZGFVUxYuW6Da4e+cm51EestTLh7DxC4vU12xsSZmcoxznNoBhyySkHpliHG+z+YnOFiAfgx8jYSIcm+EOCnAubeFfYLAvy97hjq8wL3Gu8HHwL9BP0q7xSf+/v79/QA4cskuasUCAQS6uQfo6PGXl5SnpgZoZwlsa2tYVwzn5wGXlwmJhwzGxgPKyM3Y1wKJh4tVhtB3dgiqqK/X1tdvmdYUFhLN2Oy3t7ewxunV4SkHZyhSV1M8kVgtAAAAQHRSTlP/////////////////////////////////////////////////////////////////////////////////////73leyQAACoBJREFUeNrdmgebokwSgAsaYVxHJ2/6wh0oNDmIgKA7/P9/ddVNEJRxHeXu+Z7rdR0t4bWqK3QS1EuaGV90mQoXXfU0G4UWxRFT60lU1d1bSulNNKUURdHJ1HL250wEUcxuocmQi+I7OHRGCL4QxRm9nkZnpRmL8A7KE6pIdrtddANtF6mEmqjV1zcQHeKku1u8QOM3IKUI8KbkJGX95pjZtbQsdlhfiZCbCkRP1euSXqsbOvSdzN7F3DFLE6AkJap3LY3ORJLRH4QgCMT4L8eR38SrdUN1MgVAfJrlOZTmDBCVRdG1/RbFTo62ibmeizzg3pU/b4heE8T3B4zgEp5U9Zk5IabX03YgPrwj0QQF33HaLbnAYGgrER18m5ZocHx9LmBPAes5TC/2Pia3WYrGpSKjiXU/xrd4gURERe0UsaqWhHnjahqvjllEdiJhb//GPB2hku8qnaIba2/bf2TEUWY3hXQ82vcpIemIumWZPt2NRotimE7pOLS/v+2+TqfTbBxaNOU0Ohotk6ZEHYuWqlTJRqSNF2//bJoyIi37Niptao5KG1e3+J9LG9kLX0elPY5Co+Xur0iWv30l6RN5Mk1yy3j6A+dZOH14YnNeEScloliS6EpaRsQHZGFjiwVgTw8PIpjX0KiCkzeR68b+P3CoyHhx9lmaHFeUB9YqSvWX4cX0czSlvk1kayKYTSaTmThDL8T4DlBMsk/QCE4o2TTQlDl6ssQ2mVcjNSPP9OnlNLlk2kxemnyarzhOropdzaYX0r7P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";
 const PEGAWAI = {
   nama: "MUHAMMAD IMRAN BIN MOHAMED RADZI",
   jawatan: "Penolong Pengarah",
@@ -757,7 +760,7 @@ function handleMaklumBalas(data) {
     const sheet = tab(TAB.KEPUTUSAN);
     const baris = cariBaris(sheet, KOL.ID, idHantar);
     if (!baris) throw ralatPengguna("Rekod ujian tidak dijumpai. Sila maklumkan kepada urusetia.");
-    const r = sheet.getRange(baris, 1, 1, KOL.STATUS).getValues()[0];
+    const r = sheet.getRange(baris, 1, 1, TAJUK_KEPUTUSAN.length).getValues()[0];
     const hasil = { status: "success", emel: topengEmel(r[KOL.EMEL - 1]) };
     // Markah dipaparkan di skrin selepas borang penilaian dihantar (dan dalam slip PDF); emel keputusan tetap dihantar
     const tarikhKursus = r[KOL.TARIKH - 1] instanceof Date ? Utilities.formatDate(r[KOL.TARIKH - 1], ZON_MASA, 'yyyy-MM-dd') : String(r[KOL.TARIKH - 1]);
@@ -766,7 +769,8 @@ function handleMaklumBalas(data) {
       nama: String(r[KOL.NAMA - 1]), ic: topengIc(r[KOL.IC - 1]), daerah: String(r[KOL.DAERAH - 1]),
       tarikh: formatTarikhPanjang(tarikhKursus), betul: Number(r[KOL.BETUL - 1]) || 0, jumlah: Number(r[KOL.JUMLAH - 1]) || BIL_SOALAN_UJIAN,
       skor: skor, lulus: skor >= PERATUS_LULUS, peratusLulus: PERATUS_LULUS,
-      rujukan: rujukanKeputusan(tarikhKursus, idHantar), masa: masaKini(), jabatan: JABATAN.nama, bahagian: JABATAN.bahagian
+      rujukan: rujukanKeputusan(tarikhKursus, idHantar), masa: masaKini(), jabatan: JABATAN.nama, bahagian: JABATAN.bahagian,
+      salah: senaraiSalah(rekodDariBaris(r).butiran) // semakan jawapan salah, sama seperti dalam emel
     };
 
     // Hanya rekod MENUNGGU MAKLUM BALAS disimpan; jika sudah diproses, anggap berjaya (cubaan semula)
@@ -787,7 +791,7 @@ function handleMaklumBalas(data) {
       sheetMb.appendRow(row);
       sheet.getRange(baris, KOL.STATUS).setValue(STATUS.EMEL);
     }
-    cache.put(kunciCache, JSON.stringify(hasil), 21600);
+    try { cache.put(kunciCache, JSON.stringify(hasil), 21600); } catch (e) { /* terlalu besar untuk cache — tidak kritikal */ }
     return hasil;
   } finally {
     lock.releaseLock();
@@ -835,7 +839,7 @@ function prosesBarisanEmel() {
       let hasil;
       try {
         const emel = binaEmelKeputusan(rekodDariBaris(r));
-        MailApp.sendEmail({ to: String(r[KOL.EMEL - 1]).trim(), subject: emel.subject, htmlBody: emel.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+        hantarEmel({ to: String(r[KOL.EMEL - 1]).trim(), subject: emel.subject, htmlBody: emel.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
         hasil = STATUS.DIHANTAR + " " + masaKini();
         dihantar++;
       } catch (err) {
@@ -859,6 +863,26 @@ function rekodDariBaris(r) {
   };
 }
 
+// Semua emel dihantar melalui fungsi ini: jata dilampirkan sebaris jika templat menggunakannya (cid:jata)
+function hantarEmel(o) {
+  if (JATA_B64 && String(o.htmlBody || '').indexOf('cid:jata') !== -1) {
+    o.inlineImages = { jata: Utilities.newBlob(Utilities.base64Decode(JATA_B64), 'image/png', 'jata.png') };
+  }
+  MailApp.sendEmail(o);
+}
+
+// Soalan yang dijawab salah: [{ soalan, anda, betul }] — teks daripada bank soalan semasa.
+// butiran: [[idSoalan, jawapanPeserta, jawapanBetul], ...]
+function senaraiSalah(butiran) {
+  const peta = {};
+  bacaBank().forEach(q => { peta[q.id] = q; });
+  const pilihanTeks = (q, i) => (i === null || i === undefined || i < 0) ? "Tidak dijawab" : HURUF.charAt(i) + ". " + (q && q.pilihan[i] ? q.pilihan[i] : "");
+  return (Array.isArray(butiran) ? butiran : []).filter(b => b[1] !== b[2]).map(b => {
+    const q = peta[b[0]];
+    return { soalan: q ? q.soalan : "(Soalan telah dipadam daripada bank soalan)", anda: pilihanTeks(q, b[1]), betul: pilihanTeks(q, b[2]) };
+  });
+}
+
 function topengIc(ic) {
   return String(ic).length === 12 ? "XXXXXX-XX-" + String(ic).slice(-4) : "-";
 }
@@ -879,7 +903,9 @@ function formatTarikhPanjang(iso) {
 // o = { rujukan, nama, perkara, isi (HTML yang sudah di-escape), kaki? }
 function suratKorporat(o) {
   const NAVY = "#0b2a4a", EMAS = "#b8902f", KELABU = "#5b6573", GARIS = "#dfe3e8";
-  const logo = JABATAN.logoUrl ? "<img src='" + escapeHtml(JABATAN.logoUrl) + "' alt='' height='56' style='display:block;margin:0 auto 10px;border:0;'>" : "";
+  const sumberLogo = JABATAN.logoUrl || (JATA_B64 ? "cid:jata" : "");
+  const logo = sumberLogo ? "<div style='margin:0 auto 12px;'><span style='display:inline-block;background:#ffffff;border-radius:10px;padding:6px 10px;line-height:0;'>"
+    + "<img src='" + escapeHtml(sumberLogo) + "' alt='Jata Negeri Pulau Pinang' height='64' style='display:block;border:0;height:64px;width:auto;'></span></div>" : "";
   let h = "";
   h += "<div style='background:#eef1f5;padding:24px 0;font-family:Arial,Helvetica,sans-serif;'>";
   h += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='max-width:640px;margin:0 auto;background:#ffffff;border:1px solid " + GARIS + ";border-collapse:collapse;'>";
@@ -918,22 +944,16 @@ function binaEmelKeputusan(rek) {
   const icTopeng = topengIc(rek.ic);
   const rujukan = rujukanKeputusan(rek.tarikh, rek.idHantar);
 
-  // Soalan yang dijawab salah — teks diambil daripada bank soalan semasa
-  const peta = {};
-  bacaBank().forEach(q => { peta[q.id] = q; });
-  const salah = rek.butiran.filter(b => b[1] !== b[2]);
-  const pilihanTeks = (q, i) => (i === null || i === undefined || i < 0) ? "Tidak dijawab" : HURUF.charAt(i) + ". " + (q && q.pilihan[i] ? q.pilihan[i] : "");
-
+  const salah = senaraiSalah(rek.butiran);
   let semakan = "";
   if (salah.length) {
     semakan += "<p style='margin:26px 0 8px;font-size:13px;font-weight:bold;color:" + NAVY + ";letter-spacing:.5px;'>SEMAKAN JAWAPAN (" + salah.length + " SOALAN PERLU DIBERI PERHATIAN)</p>";
     semakan += "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;border:1px solid " + GARIS + ";'>";
-    salah.forEach((b, n) => {
-      const q = peta[b[0]];
+    salah.forEach((x, n) => {
       semakan += "<tr><td style='padding:12px;border-bottom:1px solid " + GARIS + ";font-size:13px;line-height:1.5;background:" + (n % 2 ? "#fafbfc" : "#ffffff") + ";'>"
-        + "<div style='color:#111827;margin-bottom:6px;white-space:pre-line;'>" + escapeHtml(q ? q.soalan : "(Soalan telah dipadam daripada bank soalan)") + "</div>"
-        + "<div style='color:#b42318;'>Jawapan anda: " + escapeHtml(pilihanTeks(q, b[1])) + "</div>"
-        + "<div style='color:#067647;font-weight:bold;'>Jawapan betul: " + escapeHtml(pilihanTeks(q, b[2])) + "</div>"
+        + "<div style='color:#111827;margin-bottom:6px;white-space:pre-line;'>" + escapeHtml(x.soalan) + "</div>"
+        + "<div style='color:#b42318;'>Jawapan anda: " + escapeHtml(x.anda) + "</div>"
+        + "<div style='color:#067647;font-weight:bold;'>Jawapan betul: " + escapeHtml(x.betul) + "</div>"
         + "</td></tr>";
     });
     semakan += "</table>";
@@ -1017,7 +1037,7 @@ function hantarKataLaluanBaharu(emel, p, sebab) {
   const kataLaluan = janaKataLaluan(p.akses);
   tetapkanKataLaluan(emel, kataLaluan);
   const e = binaEmelKataLaluan(p.nama, emel, kataLaluan, sebab);
-  MailApp.sendEmail({ to: emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+  hantarEmel({ to: emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
 }
 
 // Log masuk: emel berdaftar + kata laluan → sesi 30 hari
@@ -1361,7 +1381,7 @@ function hantarKataLaluanPenceramah(emel, p, sebab) {
   const kataLaluan = janaKataLaluanPenceramah();
   PropertiesService.getScriptProperties().setProperty(kunciKataLaluanPenceramah(emel), tandatangan('klp|' + emel + '|' + kataLaluan));
   const e = binaEmelKataLaluanPenceramah(p.nama, emel, kataLaluan, sebab);
-  MailApp.sendEmail({ to: emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+  hantarEmel({ to: emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
 }
 
 // Log masuk penceramah: emel dalam data penceramah Sistem Tuntutan + kata laluan → sesi 30 hari
@@ -1692,7 +1712,7 @@ function binaEmelKeputusanCadangan(c, keputusan, ulasan, versiAkhir) {
 function emelKeputusanCadangan(c, keputusan, ulasan, versiAkhir) {
   if (!c.emel) return;
   const e = binaEmelKeputusanCadangan(c, keputusan, ulasan, versiAkhir);
-  MailApp.sendEmail({ to: c.emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+  hantarEmel({ to: c.emel, subject: e.subject, htmlBody: e.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
 }
 
 // Jalankan dari editor: semak sambungan ke Sistem Tuntutan (tiada data peribadi ditulis dalam log)
@@ -1828,7 +1848,7 @@ function hantarEmelContohKepadaSaya() {
     skor: 83, betul: 25, jumlah: 30, idHantar: "contoh-123456", butiran: butiran
   });
   const kepada = Session.getEffectiveUser().getEmail();
-  MailApp.sendEmail({ to: kepada, subject: "[CONTOH] " + emel.subject, htmlBody: emel.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
+  hantarEmel({ to: kepada, subject: "[CONTOH] " + emel.subject, htmlBody: emel.htmlBody, name: "JHEAIPP - Ujian Minda Praperkahwinan" });
   Logger.log("Contoh emel dihantar ke " + kepada);
 }
 
